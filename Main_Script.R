@@ -12,3 +12,5 @@ apply_qc(filenames, region = "ORB", analysis_num = 1, qc_table_path = "/nfs/turb
 
 
 
+#Output QC results to main folder
+master_csv("AUD")

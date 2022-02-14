@@ -28,12 +28,13 @@ library(rliger)
 library(dplyr)
 # Base QC table is available at "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Base_Reference_Files/QC_table.RDS"
 # @slot analysis_num Determines directory and output file naming conventions, also ensures that Analysis one will ignore methylation Data
-apply_qc = function(filenames, region, analysis_num , qc_table_path, filepath = "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/"){
+apply_qc = function(filenames, region, analysis_num , qc_table_path, filepath = "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/", verbose = TRUE){
   if(str_sub(filepath, start = -1L, end = -1L) != "/"){
     filepath = paste0(filepath, "/")
   }
   '%notin%' = Negate('%in%')
-  qc_summary = data.frame("Datatype", "Edition", "OriginalCells", "RemainingCells", "NumCellsDisgarded")
+  qc_summary = setNames(data.frame(matrix(ncol = 9, nrow = 0)), c("Datatype", "Edition", "OriginalDimensions", "AnalysisDimensions", "FailnUMI", "nUMIThreshold", "FailMito", "MitoThreshold", "FinalDimensions"))
+  
   for (file.listed in 1:length(filenames)){
     #i.e. for each file 
     # For Analysis != 1, we will need to filter the matrices on the basis on their results
@@ -44,12 +45,24 @@ apply_qc = function(filenames, region, analysis_num , qc_table_path, filepath = 
     #Analysis 5 should be just excit
     #Read in each file
     working_file = readRDS(filenames[[file.listed]])
+    
     #Determine type, while accomodating for the fact that some types might have multiple files
     data.type = names(filenames[file.listed])
+    if(verbose){
+      message("Processing ", data.type)
+    }
+    
     if(str_contains(data.type,"_")){
       edition = str_split(data.type[[1]], "_")[[1]][2]
       data.type = str_split(data.type[[1]], "_")[[1]][1]
     }else{ edition = 0 }
+    #Need to check data for duplicate cellnames
+    if (length(unique(colnames(working_file))) != length(colnames(working_file))){
+      colnames(working_file) %<>% make.unique()
+      warning("Duplicated cell names, making unique")
+      
+    }
+    
     #Determine cell labels 
     if (analysis_num == 1){
       use.cells = colnames(working_file)
@@ -87,8 +100,10 @@ apply_qc = function(filenames, region, analysis_num , qc_table_path, filepath = 
       use.cells = rownames(results)
     }
     
-    before_subset = dim(working_file)[[1]]
+    before_subset = dim(working_file)[[2]]
     working_file = working_file[,use.cells]
+    after_subset = dim(working_file)[[2]]
+    
     
     ######################### Pre-process   
     if(data.type != "meth"){
@@ -96,9 +111,14 @@ apply_qc = function(filenames, region, analysis_num , qc_table_path, filepath = 
       qc_table = readRDS(qc_table_path)
       if (data.type == "atac" | data.type == "tenx" | data.type == "huang"){
         if (data.type == "atac"){ qc_stats = filter(qc_table, qc_table$DataType == "atac")}
-        if(data.type == "tenx" | data.type == "hunag"){
+        if(data.type == "tenx" | data.type == "huang"){
           qc_stats = filter(qc_table, qc_table$DataType == "tenx")
           qc_stats = filter(qc_stats, qc_stats$Analysis == analysis_num)
+          if (region != "OLF" & region != "CB"){
+            qc_stats = filter(qc_stats, qc_stats$Region == "ALL")
+          } else {
+            qc_stats = filter(qc_stats, qc_stats$Region == region)
+          }
         }
         nUMI_cutoff = qc_stats$nUMI
         mito_cutoff = qc_stats$mito
@@ -106,11 +126,16 @@ apply_qc = function(filenames, region, analysis_num , qc_table_path, filepath = 
         celldata = ligs@cell.data
         celldata$Mito = getProportionMito(ligs)
         celldata = filter(celldata, celldata$nUMI >= nUMI_cutoff)
+        lost_nUMI = dim(celldata)[[1]]
         celldata = filter(celldata, celldata$Mito <= mito_cutoff)
+        lost_mito = dim(celldata)[[1]]
         qc.matrix = working_file[, rownames(celldata)]
       }
       if (data.type == "smart"){
         qc.matrix = working_file
+        lost_nUMI = lost_mito = before_subset - after_subset
+        nUMI_cutoff = mito_cutoff = NA
+        
       }
       if (data.type == "tenx" | data.type == "smart"){
         rik_converter = readRDS("/nfs/turbo/umms-welchjd/BRAIN_initiative/Ensembl_conversion/ConvertRik.Tenx.SMART.RDS")
@@ -123,32 +148,36 @@ apply_qc = function(filenames, region, analysis_num , qc_table_path, filepath = 
         rowname_new = rik_converter$New_Barcode[match(rownames(qc.matrix), rik_converter$Og_Barcode)]
         rownames(qc.matrix) = rowname_new }
       #Count removed Cells
-      og.dim = dim(working_file)[[1]]
-      new.dim = dim(qc.matrix)[[1]]
-      failing.cells = og.dim - new.dim
+      lost_nUMI = after_subset - lost_nUMI
+      lost_mito = lost_nUMI - lost_mito
+      new.dim = dim(qc.matrix)[[2]]
       if (edition == 0){
         save.filename = paste0(filepath, region, "/Analysis", analysis_num , "_", region, "/", region, "_", data.type, "_qc.RDS")
       } else {save.filename = paste0(filepath, region, "/Analysis", analysis_num , "_", region, "/", region, "_" ,data.type,"_", edition, "_qc.RDS") }
       saveRDS(qc.matrix, save.filename)
-      newest_qc = c(data.type, edition, before_subset, og.dim, new.dim, failing.cells)
-      names(newest_qc) = c("Datatype", "Edition", "OriginalCells", "AnalysisSubset" ,"QCPassCells", "NumCellsDisgarded")
+      newest_qc = c(data.type, edition, before_subset, after_subset, lost_nUMI, nUMI_cutoff, lost_mito, mito_cutoff, new.dim)
       qc_summary = rbind(qc_summary, newest_qc)
     } 
     if( data.type == "meth") {
       #Remember we do not do methylation data for analysis 1 or 2
       if (analysis_num != 1 & analysis_num != 2){
         qc.matrix = as.matrix(max(working_file) - working_file)
-        og.dim = dim(working_file)[[1]]
-        new.dim = dim(qc.matrix)[[1]]
-        failing.cells = og.dim - new.dim
+        lost_nUMI = lost_mito = 0
+        lost_nUMI = after_subset - lost_nUMI
+        lost_mito = lost_nUMI - lost_mito
+        new.dim = dim(qc.matrix)[[2]]
+        
+        nUMI_cutoff = mito_cutoff = NA
         if (edition == 0){
-          save.filename = paste0("/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/", region, "/Analysis", analysis_num , "_", region, "/", region, "_",data.type, "_qc.RDS")
-        } else { save.filename = paste0("/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/", region, "/Analysis", analysis_num , "_", region, "/", region, "_" ,data.type,"_", edition, "_qc.RDS") }
+          save.filename = paste0(filepath, region, "/Analysis", analysis_num , "_", region, "/", region, "_",data.type, "_qc.RDS")
+        } else { save.filename = paste0(filepath, region, "/Analysis", analysis_num , "_", region, "/", region, "_" ,data.type,"_", edition, "_qc.RDS") }
         saveRDS(qc.matrix, save.filename)
-        newest_qc = c(data.type, edition, before_subset, og.dim, new.dim, failing.cells)
-        names(newest_qc) = c("Datatype", "Edition", "OriginalCells", "AnalysisSubset" ,"QCPassCells", "NumCellsDisgarded")
+        newest_qc = c(data.type, edition, before_subset, after_subset, lost_nUMI, nUMI_cutoff, lost_mito, mito_cutoff, new.dim)
         qc_summary = rbind(qc_summary, newest_qc) }
       
+    }
+    if(verbose){
+      message("Done Processing ", data.type, " ", edition)
     }
   }
   if (data.type != "meth" & data.type != "atac" & data.type != "smart" & data.type != "tenx"){
@@ -158,9 +187,10 @@ apply_qc = function(filenames, region, analysis_num , qc_table_path, filepath = 
   
   #Output a .csv to the Analysis directory
   csv_filename = paste0(filepath, region, "/Analysis", analysis_num , "_", region, "/", region, "_Overall_qc.csv")
-  write.table(qc_summary, csv_filename, header = TRUE)
+  colnames(qc_summary) = c("Datatype", "Edition", "OriginalDimensions", "AnalysisDimensions", "FailnUMI", "nUMIThreshold", "FailMito", "MitoThreshold", "FinalDimensions")
+  
+  write.table(qc_summary, csv_filename)
 }
-
 
 preprocess_data = function(filepath, region, analysis_num, chunk_size, num_genes = 2500, gene_num_tolerance = 100, var_thresh_start = 2, max_var_thresh = 4){
   qc_files = list.files(paste0(filepath, region, "/Analysis", analysis_num , "_", region, "/"))
@@ -249,3 +279,31 @@ preprocess_data = function(filepath, region, analysis_num, chunk_size, num_genes
   object_new@var.genes = object@var.genes
   return(object_new)
 }
+
+
+
+####################################### Function to create a master QC file
+library(openxlsx)
+master_csv = function(region, filepath = "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/"){
+  if(str_sub(filepath, start = -1L, end = -1L) != "/"){
+    filepath = paste0(filepath, "/")
+  }
+  output_filepath = paste0(filepath, region,"/Master_QC.xlsx")
+  wb <- createWorkbook()
+  for (analysis in 1:5){
+    input_path = paste0(filepath, region, "/Analysis", analysis , "_", region, "/", region, "_Overall_qc.csv")
+    content = read.table(input_path)
+    content = data.frame(content)
+    current_sheet = paste0("Analysis_", analysis)
+    current_sheet
+    addWorksheet(wb = wb, sheetName = current_sheet)
+    writeData(wb, sheet = current_sheet, x = content)
+  }
+  saveWorkbook(wb, output_filepath)
+}
+
+
+
+
+
+
