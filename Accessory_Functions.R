@@ -16,6 +16,8 @@ create.directories = function(region = "X", desired.filepath = "/nfs/turbo/umms-
     dir.create(sub_directory_name)
     dir.create(sub_images_name)
   }
+  loom_directory = paste0(main_directory, "Loom_Directory")
+  dir.create(loom_directory)
 }
 ################## QC function
 #Input: List of filenames and types
@@ -26,6 +28,8 @@ library(sjmisc)
 library(stringr)
 library(rliger)
 library(dplyr)
+library(edgeR)
+
 # Base QC table is available at "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Base_Reference_Files/QC_table.RDS"
 # @slot analysis_num Determines directory and output file naming conventions, also ensures that Analysis one will ignore methylation Data
 apply_qc = function(filenames, region, analysis_num , qc_table_path, filepath = "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/", verbose = TRUE){
@@ -33,7 +37,7 @@ apply_qc = function(filenames, region, analysis_num , qc_table_path, filepath = 
     filepath = paste0(filepath, "/")
   }
   '%notin%' = Negate('%in%')
-  qc_summary = setNames(data.frame(matrix(ncol = 9, nrow = 0)), c("Datatype", "Edition", "OriginalDimensions", "AnalysisDimensions", "FailnUMI", "nUMIThreshold", "FailMito", "MitoThreshold", "FinalDimensions"))
+  qc_summary = setNames(data.frame(matrix(ncol = 9, nrow = 0)), c("Datatype", "Edition", "OriginalDimensions", "AnalysisDimensions", "FailnUMI", "nUMIThreshold", "FailMito", "MitoThreshold", "FailCyto", "CytoThreshold", "FinalDimensions"))
   
   for (file.listed in 1:length(filenames)){
     #i.e. for each file 
@@ -105,7 +109,18 @@ apply_qc = function(filenames, region, analysis_num , qc_table_path, filepath = 
     after_subset = dim(working_file)[[2]]
     
     
-    ######################### Pre-process   
+    ######################### Pre-process 
+    #Change the names of the Rik genes
+    if (data.type == "tenx" | data.type == "smart"){
+      rik_converter = readRDS("/nfs/turbo/umms-welchjd/BRAIN_initiative/Ensembl_conversion/ConvertRik.Tenx.SMART.RDS")
+      #Need to raise a warning if there are genes in the SMART matrix that are not in the conversion table
+      refined_genes = rownames(working_file)
+      potential_outliers = subset(refined_genes, refined_genes %notin% rik_converter$Og_Barcode)
+      if (length(potential_outliers >= 1)) { 
+        warning("There are genes in the matrix that are not covered in the conversion table. Please update the conversion table to address these genes and then rerun the function.", immediate. = T)
+      } 
+      rowname_new = rik_converter$New_Barcode[match(rownames(working_file), rik_converter$Og_Barcode)]
+      rownames(working_file) = rowname_new }
     if(data.type != "meth"){
       #If datatype is ATAC or Tenx, filter for QC cells
       qc_table = readRDS(qc_table_path)
@@ -122,6 +137,7 @@ apply_qc = function(filenames, region, analysis_num , qc_table_path, filepath = 
         }
         nUMI_cutoff = qc_stats$nUMI
         mito_cutoff = qc_stats$mito
+        cytoplasmic_cutoff = qc_stats$CytoplasmicScore
         ligs = createLiger(list(qc_mat = working_file))
         celldata = ligs@cell.data
         celldata$Mito = getProportionMito(ligs)
@@ -129,42 +145,46 @@ apply_qc = function(filenames, region, analysis_num , qc_table_path, filepath = 
         lost_nUMI = dim(celldata)[[1]]
         celldata = filter(celldata, celldata$Mito <= mito_cutoff)
         lost_mito = dim(celldata)[[1]]
-        qc.matrix = working_file[, rownames(celldata)]
+        cytoplasmic_genes = c("1700030F04Rik", "1810037I17Rik", "2010107E04Rik", "Acadl", "Ap2s1", "Atp5d", "Atp5e", "Atp5g1", "Atp5g3", "Atp5j", "Atp5j2", "Atp5k", "Atp5l", "Atp6v1f", "Chchd10", "Coa3", "Cox5b", "Cox6a1", "Cox6b1", "Cox6c", "Cox7a2", "Cox7a2l", "Cox7b", "Cycs", "Edf1", "Eef1b2", "Eif5a", "Fau", "Fkbp3", "Ftl1", "Guk1", "Heph", "Hras", "Mif", "Mrfap1", "Naca", "Ndufa1", "Ndufa2", "Ndufa4", "Ndufa5", "Ndufb7", "Ndufc1", "Ndufs7", "Ndufv3", "Necap1", "Nlrc4", "Pdxp", "Pfn2", "Polr2m", "Rab3a", "Rtl8a", "Slc16a2", "Snrpd2", "Snu13", "Taf1c", "Timm8b", "Tpt1", "Ubb", "Uqcr11", "Uqcrb", "Uqcrq", "Usp50")
+        
+        cytoplasmic_matrix = cpm(working_file, normalized.lib.sizes=TRUE, log=TRUE, prior.count=0.25)
+        cytoplasmic_matrix =  cytoplasmic_matrix[cytoplasmic_genes,]
+        cyto_scores = colSums(cytoplasmic_matrix)
+        cyto_scores = data.frame(cyto_scores)
+        cyto_scores$Barcodes = rownames(cyto_scores)
+        celldata$Barcodes = rownames(celldata)
+        celldata = left_join(celldata, cyto_scores, )
+        celldata = filter(celldata, celldata$cyto_scores >= cytoplasmic_cutoff)
+        lost_cyto = dim(celldata)[[1]]
+        qc.matrix = working_file[, celldata$Barcodes]
       }
       if (data.type == "smart"){
         qc.matrix = working_file
-        lost_nUMI = lost_mito = before_subset - after_subset
-        nUMI_cutoff = mito_cutoff = NA
+        lost_nUMI = lost_mito = lost_cyto = before_subset - after_subset
+        nUMI_cutoff = mito_cutoff = cytoplasmic_cutoff = NA
         
       }
-      if (data.type == "tenx" | data.type == "smart"){
-        rik_converter = readRDS("/nfs/turbo/umms-welchjd/BRAIN_initiative/Ensembl_conversion/ConvertRik.Tenx.SMART.RDS")
-        #Need to raise a warning if there are genes in the SMART matrix that are not in the conversion table
-        refined_genes = rownames(qc.matrix)
-        potential_outliers = subset(refined_genes, refined_genes %notin% rik_converter$Og_Barcode)
-        if (length(potential_outliers >= 1)) { 
-          warning("There are genes in the matrix that are not covered in the conversion table. Please update the conversion table to address these genes and then rerun the function.", immediate. = T)
-        } 
-        rowname_new = rik_converter$New_Barcode[match(rownames(qc.matrix), rik_converter$Og_Barcode)]
-        rownames(qc.matrix) = rowname_new }
+      
       #Count removed Cells
       lost_nUMI = after_subset - lost_nUMI
       lost_mito = lost_nUMI - lost_mito
+      lost_cyto = lost_mito - lost_cyto 
       new.dim = dim(qc.matrix)[[2]]
       if (edition == 0){
         save.filename = paste0(filepath, region, "/Analysis", analysis_num , "_", region, "/", region, "_", data.type, "_qc.RDS")
       } else {save.filename = paste0(filepath, region, "/Analysis", analysis_num , "_", region, "/", region, "_" ,data.type,"_", edition, "_qc.RDS") }
       saveRDS(qc.matrix, save.filename)
-      newest_qc = c(data.type, edition, before_subset, after_subset, lost_nUMI, nUMI_cutoff, lost_mito, mito_cutoff, new.dim)
+      newest_qc = c(data.type, edition, before_subset, after_subset, lost_nUMI, nUMI_cutoff, lost_mito, mito_cutoff, lost_cyto, cytoplasmic_cutoff, new.dim)
       qc_summary = rbind(qc_summary, newest_qc)
     } 
     if( data.type == "meth") {
       #Remember we do not do methylation data for analysis 1 or 2
       if (analysis_num != 1 & analysis_num != 2){
         qc.matrix = as.matrix(max(working_file) - working_file)
-        lost_nUMI = lost_mito = 0
+        lost_nUMI = lost_mito = lost_cyto = 0
         lost_nUMI = after_subset - lost_nUMI
         lost_mito = lost_nUMI - lost_mito
+        lost_cyto = lost_mito - lost_cyto 
         new.dim = dim(qc.matrix)[[2]]
         
         nUMI_cutoff = mito_cutoff = NA
@@ -172,7 +192,7 @@ apply_qc = function(filenames, region, analysis_num , qc_table_path, filepath = 
           save.filename = paste0(filepath, region, "/Analysis", analysis_num , "_", region, "/", region, "_",data.type, "_qc.RDS")
         } else { save.filename = paste0(filepath, region, "/Analysis", analysis_num , "_", region, "/", region, "_" ,data.type,"_", edition, "_qc.RDS") }
         saveRDS(qc.matrix, save.filename)
-        newest_qc = c(data.type, edition, before_subset, after_subset, lost_nUMI, nUMI_cutoff, lost_mito, mito_cutoff, new.dim)
+        newest_qc = c(data.type, edition, before_subset, after_subset, lost_nUMI, nUMI_cutoff, lost_mito, mito_cutoff, lost_cyto, cytoplasmic_cutoff, new.dim)
         qc_summary = rbind(qc_summary, newest_qc) }
       
     }
@@ -187,11 +207,10 @@ apply_qc = function(filenames, region, analysis_num , qc_table_path, filepath = 
   
   #Output a .csv to the Analysis directory
   csv_filename = paste0(filepath, region, "/Analysis", analysis_num , "_", region, "/", region, "_Overall_qc.csv")
-  colnames(qc_summary) = c("Datatype", "Edition", "OriginalDimensions", "AnalysisDimensions", "FailnUMI", "nUMIThreshold", "FailMito", "MitoThreshold", "FinalDimensions")
+  colnames(qc_summary) = c("Datatype", "Edition", "OriginalDimensions", "AnalysisDimensions", "FailnUMI", "nUMIThreshold", "FailMito", "MitoThreshold", "FailCyto", "CytoThreshold", "FinalDimensions")
   
   write.table(qc_summary, csv_filename)
 }
-
 preprocess_data = function(filepath, region, analysis_num, chunk_size, num_genes = 2500, gene_num_tolerance = 100, var_thresh_start = 2, max_var_thresh = 4){
   qc_files = list.files(paste0(filepath, region, "/Analysis", analysis_num , "_", region, "/"))
   qc_files = grep(paste0(region,"_(tenx_|smart_|atac_|meth_|huang_).*(qc.RDS)"), qc_files, value = TRUE)
