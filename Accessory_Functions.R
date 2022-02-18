@@ -299,6 +299,36 @@ preprocess_data = function(filepath, region, analysis_num, chunk_size, num_genes
   return(object_new)
 }
 
+#object is a fully processed object, with clusters from either louvain or max factor assignment, assignment is a factor covering at least k of the cells in the object, k is used for nearest neighbors.
+transfer_labels = function(object, annotations, k = 20){
+  H.norm = object@H.norm
+  previous_clusters = object@clusters
+  cells = rownames(object@H.norm)
+  
+  known_samples = H.norm[rownames(H.norm) %in% names(annotations),]
+  unknown_samples = H.norm[setdiff(rownames(H.norm), names(annotations)),]
+  annotations = droplevels(annotations[rownames(known_samples)])
+  out = RANN::nn2(known_samples, unknown_samples, k = k)
+  
+  levels_annotations <- levels(annotations)
+  
+  vote = apply(out$nn.idx, MARGIN = 1, function(unknown){
+    (1:nlevels(annotations))[which.max(tabulate(match(annotations[unknown], levels_annotations)))]
+  })
+  names(vote) = rownames(unknown_samples)
+  transfered_annotations = factor(c(annotations, vote))
+  levels(transfered_annotations) = levels(annotations)
+  cluster_comp = sapply(levels(previous_clusters), function(prev_clust){
+    sapply(levels(transfered_annotations), function(trans_clust){
+      sum(previous_clusters[cells] == prev_clust & transfered_annotations[cells] == trans_clust)
+    })
+  })
+  cluster_assignments = apply(cluster_comp, MARGIN = 2, function(x){
+    levels(transfered_annotations)[which.max(x)]})
+  levels(object@clusters) = cluster_assignments
+  return(object)
+}
+
 
 
 ####################################### Function to create a master QC file
