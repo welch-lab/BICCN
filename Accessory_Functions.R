@@ -210,17 +210,16 @@ apply_qc = function(filenames, region, analysis_num , qc_table_path, filepath = 
   colnames(qc_summary) = c("Datatype", "Edition", "OriginalDimensions", "AnalysisDimensions", "FailnUMI", "nUMIThreshold", "FailMito", "MitoThreshold", "FailCyto", "CytoThreshold", "FinalDimensions")
   
   write.table(qc_summary, csv_filename)
-}
-preprocess_data = function(filepath, region, analysis_num, chunk_size, num_genes = 2500, gene_num_tolerance = 100, var_thresh_start = 2, max_var_thresh = 4){
-  qc_files = list.files(paste0(filepath, region, "/Analysis", analysis_num , "_", region, "/"))
+}preprocess_data = function(filepath, region, analysis_num, chunk_size, num_genes = 2500, gene_num_tolerance = 100, var_thresh_start = 2, max_var_thresh = 4){
+  qc_files = list.files(paste0(filepath, "/", region, "/Analysis", analysis_num , "_", region, "/"))
   qc_files = grep(paste0(region,"_(tenx_|smart_|atac_|meth_|huang_).*(qc.RDS)"), qc_files, value = TRUE)
   non_meth_files = grep("[^(meth)]",qc_files, value = TRUE)
   
   rhdf5::h5closeAll()
-
-  hdf5_files = gsub(".RDS", ".H5",non_meth_files)
+  
+  hdf5_files = paste0(filepath, "/", region, "/Analysis", analysis_num , "_", region, "/",gsub(".RDS", ".H5",non_meth_files))
   for (i in 1:length(hdf5_files)){
-    current_matrix = readRDS(paste0(filepath, region, "/Analysis", analysis_num , "_", region, "/",non_meth_files[i]))
+    current_matrix = Matrix::Matrix(readRDS(paste0(filepath, "/", region, "/Analysis", analysis_num , "_", region, "/",non_meth_files[i])), sparse = TRUE)
     rhdf5::h5createFile(hdf5_files[[i]])
     rhdf5::h5createGroup(hdf5_files[[i]], "matrix")
     rhdf5::h5write(current_matrix@Dimnames[[2]], file=hdf5_files[[i]], name="matrix/barcodes") # cell barcodes
@@ -237,7 +236,7 @@ preprocess_data = function(filepath, region, analysis_num, chunk_size, num_genes
   }
   data_names = gsub("(_qc.RDS)", "",non_meth_files)
   names(hdf5_files) = data_names
-  object = createLiger(raw.data = hdf5_files)
+  object = createLiger(raw.data = as.list(hdf5_files))
   object = normalize(object, chunk = chunk_size)
   datasets_use = grep("[tenx_|smart_]",non_meth_files)
   object = selectGenes(object, var.thresh = var_thresh_start, datasets.use = datasets_use)
@@ -253,52 +252,58 @@ preprocess_data = function(filepath, region, analysis_num, chunk_size, num_genes
       high = var_thresh_old
     }
     object = selectGenes(object, var.thresh = var_thresh_new, datasets.use = datasets_use)
+    var_thresh_old = var_thresh_new
   }
-  message(paste0(num_genes, " genes found with var.thresh = ",var_thresh_new))
+  message(paste0(length(object@var.genes), " genes found with var.thresh = ",var_thresh_old))
   object = scaleNotCenter(object, chunk = chunk_size)
   
   meth_files = setdiff(qc_files, non_meth_files)
-  hdf5_files = gsub(".RDS", ".H5",meth_files)
-  data_names = gsub("(_qc.RDS)", "",meth_files)
-  
-  
-  for(i in 1:length(hdf5_files)){
-    current_matrix = readRDS(paste0(filepath, region, "/Analysis", analysis_num , "_", region, "/",meth_file[i]))
-    current_matrix = current_matrix[object@var.genes,]
-    current_matrix = as.matrix(max(current_matrix) - current_matrix)
+  if(length(meth_files)>0){
+    hdf5_files = paste0(filepath, "/", region, "/Analysis", analysis_num , "_", region, "/",gsub(".RDS", ".H5",meth_files))
+    data_names = gsub("(_qc.RDS)", "",meth_files)
     
-    met.cell.data = data.frame(dataset = rep(data_names[i], ncol(current_matrix)), nUMI = rep(1,ncol(current_matrix)), nGene = rep(1,ncol(current_matrix)), barcode = colnames(current_matrix))
-    met.cell.data$dataset = as.character(met.cell.data$dataset)
-    met.cell.data$barcode = as.character(met.cell.data$barcode)
-    rhdf5::h5createFile(hdf5_files[i])
-    rhdf5::h5createGroup(hdf5_files[i], "matrix")
-    rhdf5::h5write(colnames(current_matrix), file=hdf5_files[i], name="matrix/barcodes")
-    rhdf5::h5createGroup(hdf5_files[i], file.path("matrix", "features"))
-    rhdf5::h5write(rownames(current_matrix), file=hdf5_files[i], name="matrix/features/name")
-    rhdf5::h5write(dim(current_matrix), file=hdf5_files[i], name="matrix/shape")
-    rhdf5::h5createDataset(hdf5_files[i],"matrix/data",dims=3,storage.mode="double", chunk = 1)
-    rhdf5::h5write(1:3, file=hdf5_files[i], name="matrix/data", index = list(1:3))
-    rhdf5::h5createDataset(hdf5_files[i],"matrix/indices",dims=3,storage.mode="integer", chunk = 1)
-    rhdf5::h5write(1:3, file=hdf5_files[i], name="matrix/indices",index = list(1:3)) # already zero-indexed.
-    rhdf5::h5createDataset(hdf5_files[i],"matrix/indptr",dims=3,storage.mode="integer", chunk = 1)
-    rhdf5::h5write(1:3, file=hdf5_files[i], name="matrix/indptr",index = list(1:3))
-    rhdf5::h5createDataset(hdf5_files[i],"norm.data",dims=3,storage.mode="integer", chunk = 1)
-    rhdf5::h5write(1:3, file=hdf5_files[i], name="norm.data",index = list(1:3))
-    rhdf5::h5createDataset(hdf5_files[i],"scale.data",dims=c(nrow(current_matrix),ncol(current_matrix)),storage.mode="double", chunk = c(nrow(current_matrix),chunk_size))
-    rhdf5::h5write(current_matrix, file=hdf5_files[i], name="scale.data",index = list(NULL, 1:ncol(current_matrix)))
-    rhdf5::h5write(met.cell.data, file=hdf5_files[i], name="cell.data")
-    rhdf5::h5closeAll()
+    
+    for(i in 1:length(hdf5_files)){
+      current_matrix = readRDS(paste0(filepath, "/",  region, "/Analysis", analysis_num , "_", region, "/",meth_files[i]))
+      current_matrix = current_matrix[object@var.genes,]
+      current_matrix = as.matrix(max(current_matrix) - current_matrix)
+      
+      met.cell.data = data.frame(dataset = rep(data_names[i], ncol(current_matrix)), nUMI = rep(1,ncol(current_matrix)), nGene = rep(1,ncol(current_matrix)), barcode = colnames(current_matrix))
+      met.cell.data$dataset = as.character(met.cell.data$dataset)
+      met.cell.data$barcode = as.character(met.cell.data$barcode)
+      rhdf5::h5createFile(hdf5_files[i])
+      rhdf5::h5createGroup(hdf5_files[i], "matrix")
+      rhdf5::h5write(colnames(current_matrix), file=hdf5_files[i], name="matrix/barcodes")
+      rhdf5::h5createGroup(hdf5_files[i], file.path("matrix", "features"))
+      rhdf5::h5write(rownames(current_matrix), file=hdf5_files[i], name="matrix/features/name")
+      rhdf5::h5write(dim(current_matrix), file=hdf5_files[i], name="matrix/shape")
+      rhdf5::h5createDataset(hdf5_files[i],"matrix/data",dims=3,storage.mode="double", chunk = 1)
+      rhdf5::h5write(1:3, file=hdf5_files[i], name="matrix/data", index = list(1:3))
+      rhdf5::h5createDataset(hdf5_files[i],"matrix/indices",dims=3,storage.mode="integer", chunk = 1)
+      rhdf5::h5write(1:3, file=hdf5_files[i], name="matrix/indices",index = list(1:3)) # already zero-indexed.
+      rhdf5::h5createDataset(hdf5_files[i],"matrix/indptr",dims=3,storage.mode="integer", chunk = 1)
+      rhdf5::h5write(1:3, file=hdf5_files[i], name="matrix/indptr",index = list(1:3))
+      rhdf5::h5createDataset(hdf5_files[i],"norm.data",dims=3,storage.mode="integer", chunk = 1)
+      rhdf5::h5write(1:3, file=hdf5_files[i], name="norm.data",index = list(1:3))
+      rhdf5::h5createDataset(hdf5_files[i],"scale.data",dims=c(nrow(current_matrix),ncol(current_matrix)),storage.mode="double", chunk = c(nrow(current_matrix),chunk_size))
+      rhdf5::h5write(current_matrix, file=hdf5_files[i], name="scale.data",index = list(NULL, 1:ncol(current_matrix)))
+      rhdf5::h5write(met.cell.data, file=hdf5_files[i], name="cell.data")
+      rhdf5::h5closeAll()
+    }
   }
-  hdf5_files = gsub(".RDS", ".H5",qc_files)
+  
+  hdf5_files = paste0(filepath, "/", region, "/Analysis", analysis_num , "_", region, "/",gsub(".RDS", ".H5",qc_files))
   data_names = gsub("(_qc.RDS)", "",qc_files)
   names(hdf5_files) = data_names
   rhdf5::h5closeAll()
-
-  object_new = createLiger(hdf5_files)
-  object_new@var.genes = object@var.genes
+  
+  var.genes = object@var.genes
+  rm(object)
+  
+  object_new = createLiger(as.list(hdf5_files))
+  object_new@var.genes = var.genes
   return(object_new)
 }
-
 #object is a fully processed object, with clusters from either louvain or max factor assignment, assignment is a factor covering at least k of the cells in the object, k is used for nearest neighbors.
 transfer_labels = function(object, annotations, k = 20){
   H.norm = object@H.norm
