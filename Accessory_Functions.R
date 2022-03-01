@@ -33,9 +33,6 @@ library(edgeR)
 # Base QC table is available at "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Base_Reference_Files/QC_table.RDS"
 # @slot analysis_num Determines directory and output file naming conventions, also ensures that Analysis one will ignore methylation Data
 
-
-
-
 apply_qc = function(filenames, region, analysis_num , qc_table_path, filepath_cytoplasmic = "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Base_Reference_Files/Cytoplasmic_genes.csv",  filepath = "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/", verbose = TRUE){
   if(str_sub(filepath, start = -1L, end = -1L) != "/"){
     filepath = paste0(filepath, "/")
@@ -107,11 +104,6 @@ apply_qc = function(filenames, region, analysis_num , qc_table_path, filepath_cy
       use.cells = rownames(results)
     }
     
-    before_subset = dim(working_file)[[2]]
-    working_file = working_file[,use.cells]
-    after_subset = dim(working_file)[[2]]
-    
-    
     ######################### Pre-process 
     #Change the names of the Rik genes. This needs to be done for the TenX and SMART datasets
     if (data.type == "tenx" | data.type == "smart"){
@@ -131,7 +123,7 @@ apply_qc = function(filenames, region, analysis_num , qc_table_path, filepath_cy
       #Find the appropriate cutoff to apply
       if (data.type == "atac"){ qc_stats = filter(qc_table, qc_table$DataType == "atac")}
       if(data.type == "tenx" | data.type == "huang"){
-        qc_stats = filter(qc_table, qc_table$DataType == "tenx")
+        qc_stats = filter(qc_table, qc_table$DataType == data.type)
         qc_stats = filter(qc_stats, qc_stats$Analysis == analysis_num)
         if (region != "OLF" & region != "CB"){
           qc_stats = filter(qc_stats, qc_stats$Region == "ALL")
@@ -151,56 +143,76 @@ apply_qc = function(filenames, region, analysis_num , qc_table_path, filepath_cy
       }
       #Calculate doublet score if it is a Tenx dataset
       if (data.type == "huang" | data.type == "tenx"){
-        ligs = createLiger(list(dataset = working_file))
-        ligs = normalize(ligs)
-        ligs = selectGenes(ligs, var.thresh = 0.001, num.genes = 5000)
-        vargenes = ligs@var.genes
-        rm(ligs) 
-        gc()
-        doubles = doubletFinder(working_file, select.genes = vargenes) 
-        doubles = doubles[colnames(working_file)]
-        celldata$DoubletScore = doubles
-        cellData$VarGenesforDoublet = length(vargenes)
-        
+        if (analysis_num == 1){
+          ligs = createLiger(list(dataset = working_file))
+          ligs = normalize(ligs)
+          ligs = selectGenes(ligs, var.thresh = 0.001, num.genes = 5000)
+          vargenes = ligs@var.genes
+          rm(ligs) 
+          gc()
+          doubles = doubletFinder(working_file, select.genes = vargenes) 
+          doubles = doubles[colnames(working_file)]
+          celldata$DoubletScore = doubles
+          celldata$VarGenesforDoublet = length(vargenes)
+          doublet_scores = data.frame(celldata$DoubletScore, celldata$VarGenesforDoublet)
+          rownames(doublet_scores) = rownames(celldata)
+          colnames(doublet_scores) = c("DoubletScore", "VarGenesforDoublet")
+          doublet_filename = paste0(filepath,region, "_BICCN/Analysis1_", region, "/BICCN_", region, "_", data.type, "_DoubletScores.RDS")
+          saveRDS (doublet_scores, doublet_filename)} 
+        if (analysis_num != 1 ){
+          doublet_filename = paste0(filepath,region, "_BICCN/Analysis1_", region, "/BICCN_", region, "_", data.type, "_DoubletScores.RDS")
+          doublets = readRDS(doublet_filename)
+          doublets$Barcodes = rownames(doublets)
+          celldata = dplyr::left_join(celldata %>% mutate(Barcodes = rownames(celldata)), doublets, by = 'Barcodes')
+          rownames(celldata) = celldata$Barcodes
+          
+        }
       } 
       #ATAC needs to be filtered by nUMI and mitochondrial counts 
       #Huang needs to be fitlered by nUMI, mitochondrial, and doublet score
       #Tenx needs to be fitlered by nUMI, mitochondrial, doublet score, and cytoplasmic score
       if (data.type == "atac" | data.type == "tenx" | data.type == "huang"){
         celldata = filter(celldata, celldata$nUMI >= nUMI_cutoff)
-        lost_nUMI = dim(celldata)[[1]]
+        remaining_nUMI = rownames(celldata)
         celldata = filter(celldata, celldata$Mito <= mito_cutoff)
-        lost_mito = dim(celldata)[[1]]
+        remaining_mito = rownames(celldata)
       }
       
       if (data.type == "tenx"){
         celldata = filter(celldata, celldata$Cytoplasmic_Score > cytoplasmic_cutoff)
       }
-      lost_cyto = dim(celldata)[[1]]
+      remaining_cyto = rownames(celldata)
       if (data.type == "tenx" | data.type == "huang"){
         celldata = filter(celldata, celldata$DoubletScore < 0.3)
-      }
-      lost_doublet = dim(celldata)[[1]]
+        remaining_doublet = rownames(celldata)
+      } 
     }
     if(data.type != "meth"){
+      before_subset = dim(working_file)[[2]] #Gets you original dimensions of matrix
+      working_file = working_file[,use.cells] #Gets you a matrix subset for the appropriate cell population
+      after_subset = dim(working_file)[[2]]  #Gets you dimensions of matrix after subsetting for the appropriate cell population
+      cells_after_subset = colnames(working_file) #Gets you the cell names present after subsetting for cell populations
       
+      ###### Subset for QC 
       if (data.type == "huang" | data.type == "tenx" | data.type == "atac"){
         #If datatype is ATAC huang Tenx, filter for QC cells
-        qc.matrix = working_file[, celldata$Barcodes]
+        qc.matrix = working_file[, rownames(celldata)]
       }
       
       if (data.type == "smart"){
-        qc.matrix = working_file
-        lost_doublet = lost_nUMI = lost_mito = lost_cyto = before_subset - after_subset
+        qc.matrix = working_file[,use.cells]  #only grab applicable cell populations
+        remaining_doublet = remaining_nUMI = remaining_mito = remaining_cyto = colnames(qc.matrix)
         nUMI_cutoff = mito_cutoff = cytoplasmic_cutoff = NA
         
       }
       
       #Count removed Cells
-      lost_nUMI = after_subset - lost_nUMI
-      lost_mito = lost_nUMI - lost_mito
-      lost_cyto = lost_mito - lost_cyto 
-      lost_doublets = lost_cyto -  lost_doublet
+      '%notin%' = Negate('%in%')
+      #Cell kept after discarding cells that did not pass nUMI threshold
+      lost_nUMI = length(subset(cells_after_subset, cells_after_subset %notin% remaining_nUMI))
+      lost_mito = length(subset(remaining_nUMI, remaining_nUMI %notin% remaining_mito))
+      lost_cyto = length(subset(remaining_mito, remaining_mito %notin% remaining_cyto))
+      lost_doublets = length(subset(remaining_cyto, remaining_cyto %notin% remaining_doublet))  
       new.dim = dim(qc.matrix)[[2]]
       if (edition == 0){
         save.filename = paste0(filepath, region, "/Analysis", analysis_num , "_", region, "/", region, "_", data.type, "_qc.RDS")
@@ -210,38 +222,43 @@ apply_qc = function(filenames, region, analysis_num , qc_table_path, filepath_cy
       qc_summary = rbind(qc_summary, newest_qc)
     } 
     if( data.type == "meth") {
-      #Remember we do not do methylation data for analysis 1 or 2
-      if (analysis_num != 1 & analysis_num != 2){
-        qc.matrix = as.matrix(max(working_file) - working_file)
-        lost_nUMI = lost_mito = lost_cyto = 0
-        lost_nUMI = after_subset - lost_nUMI
-        lost_mito = lost_nUMI - lost_mito
-        lost_cyto = lost_mito - lost_cyto
-        lost_doublets = lost_cyto -  lost_doublet
-        new.dim = dim(qc.matrix)[[2]]
+      if (analysis_num == 1 | analysis_num == 2){
+        print("No preprocessing for methylation data necessary, it is not used")
         
-        nUMI_cutoff = mito_cutoff = NA
-        if (edition == 0){
-          save.filename = paste0(filepath, region, "/Analysis", analysis_num , "_", region, "/", region, "_",data.type, "_qc.RDS")
-        } else { save.filename = paste0(filepath, region, "/Analysis", analysis_num , "_", region, "/", region, "_" ,data.type,"_", edition, "_qc.RDS") }
-        saveRDS(qc.matrix, save.filename)
-        newest_qc = c(data.type, edition, before_subset, after_subset, lost_nUMI, nUMI_cutoff, lost_mito, mito_cutoff, lost_cyto, cytoplasmic_cutoff, lost_doublets, new.dim)
-        qc_summary = rbind(qc_summary, newest_qc) }
-      
-    }
+        if (analysis_num != 1 & analysis_num != 2){
+          
+          before_subset = dim(working_file)[[2]] #Gets you orginal dimensions of matrix
+          qc.matrix = working_file[,use.cells] #Gets you a matrix subset for the appropriate cell population
+          after_subset = dim(qc.matrix)[[2]]  #Gets you dimensions of matrix after subsetting for the appropriate cell population
+          cells_after_subset = colnames(working_file)
+          lost_doublet = lost_nUMI = lost_mito = lost_cyto = 0
+          nUMI_cutoff = mito_cutoff = cytoplasmic_cutoff = NA
+          new.dim = dim(qc.matrix)[[2]]
+          
+          nUMI_cutoff = mito_cutoff = NA
+          if (edition == 0){
+            save.filename = paste0(filepath, region, "/Analysis", analysis_num , "_", region, "/", region, "_",data.type, "_qc.RDS")
+          } else { save.filename = paste0(filepath, region, "/Analysis", analysis_num , "_", region, "/", region, "_" ,data.type,"_", edition, "_qc.RDS") }
+          saveRDS(qc.matrix, save.filename)
+          newest_qc = c(data.type, edition, before_subset, after_subset, lost_nUMI, nUMI_cutoff, lost_mito, mito_cutoff, lost_cyto, cytoplasmic_cutoff, lost_doublets, new.dim)
+          qc_summary = rbind(qc_summary, newest_qc) }}}
     if(verbose){
       message("Done Processing ", data.type, " ", edition)
     }
-  }
-  if (data.type != "meth" & data.type != "atac" & data.type != "smart" & data.type != "tenx"){
-    warning("Uknown Data Type submitted", immediate. = T)
     
+    if (data.type != "meth" & data.type != "atac" & data.type != "smart" & data.type != "tenx"){
+      warning("Uknown Data Type submitted", immediate. = T)
+      
+    }
+    #Output a .csv to the Analysis directory
+    csv_filename = paste0(filepath, region, "/Analysis", analysis_num , "_", region, "/", region, "_Overall_qc.csv")
+    colnames(qc_summary) = c("Datatype", "Edition", "OriginalDimensions", "AnalysisDimensions", "FailnUMI", "nUMIThreshold", "FailMito", "MitoThreshold", "FailCyto", "CytoThreshold", "Lost for Doublets", "FinalDimensions")
+    write.table(qc_summary, csv_filename)
   }
-  #Output a .csv to the Analysis directory
-  csv_filename = paste0(filepath, region, "/Analysis", analysis_num , "_", region, "/", region, "_Overall_qc.csv")
-  colnames(qc_summary) = c("Datatype", "Edition", "OriginalDimensions", "AnalysisDimensions", "FailnUMI", "nUMIThreshold", "FailMito", "MitoThreshold", "FailCyto", "CytoThreshold", "Lost for Doublets", "FinalDimensions")
-  write.table(qc_summary, csv_filename)
 }
+
+
+
 
 
 
