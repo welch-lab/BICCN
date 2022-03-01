@@ -539,6 +539,49 @@ master_csv = function(region, filepath = "/nfs/turbo/umms-welchjd/BRAIN_initiati
   saveWorkbook(wb, output_filepath)
 }
 
+############################################ Run online iNMF
+#' @parameter region Brain region of interest, i.e. AUD
+#' @parameter high_resolution Louvain Resolution for high resolution umaps
+#' @parameter generate.plots, indicates whether or not to create UMAPs, default is TRUE
+#' @parameter qn_ref please provide the name of the dataset that is the highest discernable quality
+#' runOnline("/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses", "ORB", qn_ref = )
+runOnline = function(filepath = NA, region = NA, analysis = 1, qn_ref = NA, low_resolution= 0.25, generate.plots = TRUE){
+  pre_processed_filename = paste0("/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/", region, "/Analysis", analysis, "_", region, "/preprocessed_object.RDS" )
+  print("Reading from ", pre_processed_filename)
+  liger = readRDS(pre_processed_filename)
+  liger = online_iNMF(liger, k = 30, lambda = 5, max.epochs = 20, seed = 123)
+  if (!is.na(qn_ref)){
+  liger = quantile_norm(liger, do.center = T, ref_dataset = qn_ref)
+  } else{
+    liger = quantile_norm(liger, do.center = T)
+  }
+  #Save LIGER object
+  liger_name = paste0("nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/", region, "/Analysis", analysis, "_", region, "/onlineINMF_",region, "_object.RDS" )
+  saveRDS(liger, liger_name)
+  }
+################################## 
+
+
+
+#Downstream processing
+
+#Repeat for each resolution 
+#Quantile Normalization
+
+
+#Louvain Resolution
+
+
+#UMAP
+
+
+
+
+
+
+
+
+
 
 
 
