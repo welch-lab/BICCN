@@ -16,7 +16,7 @@ create.directories = function(region = "X", desired.filepath = "/nfs/turbo/umms-
     dir.create(sub_directory_name)
     dir.create(sub_images_name)
   }
-  loom_directory = paste0(main_directory, "Loom_Directory")
+  loom_directory = paste0(main_directory, "/Analysis", i, "_", region,"Loom_Directory")
   dir.create(loom_directory)
 }
 ################## QC function
@@ -157,10 +157,10 @@ apply_qc = function(filenames, region, analysis_num , qc_table_path, filepath_cy
           doublet_scores = data.frame(celldata$DoubletScore, celldata$VarGenesforDoublet)
           rownames(doublet_scores) = rownames(celldata)
           colnames(doublet_scores) = c("DoubletScore", "VarGenesforDoublet")
-          doublet_filename = paste0(filepath,region, "_BICCN/Analysis1_", region, "/BICCN_", region, "_", data.type, "_DoubletScores.RDS")
+          doublet_filename = paste0(filepath,region, "/Analysis1_", region, "/BICCN_", region, "_", data.type, "_DoubletScores.RDS")
           saveRDS (doublet_scores, doublet_filename)} 
         if (analysis_num != 1 ){
-          doublet_filename = paste0(filepath,region, "_BICCN/Analysis1_", region, "/BICCN_", region, "_", data.type, "_DoubletScores.RDS")
+          doublet_filename = paste0(filepath,region, "/Analysis1_", region, "/BICCN_", region, "_", data.type, "_DoubletScores.RDS")
           doublets = readRDS(doublet_filename)
           doublets$Barcodes = rownames(doublets)
           celldata = dplyr::left_join(celldata %>% mutate(Barcodes = rownames(celldata)), doublets, by = 'Barcodes')
@@ -227,7 +227,7 @@ apply_qc = function(filenames, region, analysis_num , qc_table_path, filepath_cy
         
         if (analysis_num != 1 & analysis_num != 2){
           
-          before_subset = dim(working_file)[[2]] #Gets you orginal dimensions of matrix
+          before_subset = dim(working_file)[[2]] #Gets you original dimensions of matrix
           qc.matrix = working_file[,use.cells] #Gets you a matrix subset for the appropriate cell population
           after_subset = dim(qc.matrix)[[2]]  #Gets you dimensions of matrix after subsetting for the appropriate cell population
           cells_after_subset = colnames(working_file)
@@ -246,14 +246,14 @@ apply_qc = function(filenames, region, analysis_num , qc_table_path, filepath_cy
       message("Done Processing ", data.type, " ", edition)
     }
     
-    if (data.type != "meth" & data.type != "atac" & data.type != "smart" & data.type != "tenx"){
+    if (data.type != "meth" & data.type != "atac" & data.type != "smart" & data.type != "tenx" & data.type != "huang"){
       warning("Uknown Data Type submitted", immediate. = T)
       
     }
     #Output a .csv to the Analysis directory
     csv_filename = paste0(filepath, region, "/Analysis", analysis_num , "_", region, "/", region, "_Overall_qc.csv")
     colnames(qc_summary) = c("Datatype", "Edition", "OriginalDimensions", "AnalysisDimensions", "FailnUMI", "nUMIThreshold", "FailMito", "MitoThreshold", "FailCyto", "CytoThreshold", "Lost for Doublets", "FinalDimensions")
-    write.table(qc_summary, csv_filename)
+    write.csv(qc_summary, csv_filename)
   }
 }
 
@@ -577,7 +577,125 @@ runOnline = function(filepath = NA, region = NA, analysis = 1, qn_ref = NA, low_
 
 
 
+#' Doublet detection in single-cell RNA sequencing data
+#' This function generaetes artificial nearest neighbors from existing single-cell RNA
+#' sequencing data. First, real and artificial data are merged. Second, dimension reduction
+#' is performed on the merged real-artificial dataset using PCA. Third, the proportion of
+#' artificial nearest neighbors is defined for each real cell. Finally, real cells are rank-
+#' ordered and predicted doublets are defined via thresholding based on the expected number
+#' of doublets.
+#'
+#' zizheny@alleninstitute.org
+#'
+#' @param data count matrix
+#' @param select.genes : selected genes Default rownames(data) 
+#' @param proportion.artificial : The proportion (from 0-1) of the merged real-artificial dataset
+#' that is artificial. In other words, this argument defines the total number of artificial doublets.
+#' Default is set to 25%, based on optimization on PBMCs (see McGinnis, Murrow and Gartner 2018, BioRxiv).
+#' @param k : max number of nearest neighbor RANN:nn2() 
+#' @param plot : flag for plots
+#' @return doublet.score : doublet score
+#' @examples
+#' doubletFinder <- function(data, select.genes, proportion.artificial = 0.20,
+#'                           k = round(pmin(100, ncol(data) * 0.01)), plot=FALSE)
+#'
 
+#library(devtools)
+#devtools::install_github("AllenInstitute/scrattch.hicat")
+#Note: for successful installation, I first had to install:'impute' and 'GO.db' from Bioconductor
+library(scrattch.hicat)
+library(RANN)
+library(ggplot2)
+
+doubletFinder <- function(data, select.genes, proportion.artificial = 0.20,
+                          k = round(pmin(100, ncol(data) * 0.01)), plot=FALSE) {
+  
+  ## Step 1: Generate artificial doublets from Seurat object input
+  print("Creating artificial doublets...")
+  real.cells <- colnames(data)
+  
+  n_real.cells <- length(real.cells)
+  n_doublets <- round(n_real.cells/(1-proportion.artificial)-n_real.cells)
+  real.cells1 <- sample(real.cells, n_doublets, replace = TRUE)
+  real.cells2 <- sample(real.cells, n_doublets, replace = TRUE)
+  doublets <- (data[ , real.cells1] + data[ , real.cells2])
+  colnames(doublets) <- paste("X", 1:n_doublets, sep="")
+  
+  data_wdoublets <- cbind(data, doublets)  
+  norm.dat = logCPM(data_wdoublets)
+  
+  print("Running PCA")
+  if(ncol(data) > 10000){
+    sampled.cells = sample(1:ncol(data), pmin(ncol(data),10000))
+    rd.dat = rd_PCA(norm.dat, select.genes=select.genes, select.cells= colnames(data_wdoublets), th=0, max.pca=50, sampled.cells= sampled.cells)
+  }
+  else{
+    #sampled.cells = sample(1:ncol(data), ncol(data)*0.6)
+    rd.dat = rd_PCA(norm.dat, select.genes=select.genes, select.cells= colnames(data_wdoublets), th=0, max.pca=50)
+  }
+  
+  rd.dat<-rd.dat$rd.dat ##depending on hicat version used rd.dat is embedded or not.
+  print("Initialize pANN structure") 
+  knn.result = RANN::nn2(rd.dat, k=k)
+  knn.idx = knn.result[[1]]
+  knn.dist = knn.result[[2]]
+  
+  num = ncol(data)
+  knn.result1 = RANN::nn2(rd.dat[1:num,], rd.dat[(num+1):nrow(rd.dat),], k = 10)
+  knn.dist1 = knn.result1[[2]]
+  
+  dist.th = mean(as.vector(knn.dist1)) + 1.64 * sd(as.vector(knn.dist1))
+  
+  doublet.freq = knn.idx  > ncol(data) & knn.dist < dist.th
+  doublet.score =  doublet.freq[1:ncol(data),]
+  row.names(doublet.score) = colnames(data)
+  doublet.score = pmax(rowMeans(doublet.freq),rowMeans(doublet.freq[,1:ceiling(k/2)]))
+  names(doublet.score) = colnames(data_wdoublets)
+  
+  if (plot == TRUE) {
+    print("plotting")
+    ds = pmax(rowMeans(doublet.freq),rowMeans(doublet.freq[,1:ceiling(k/2)])) 
+    ds=as.data.frame(ds)
+    ds$sample <- colnames(data_wdoublets)
+    
+    ds$group <- ""
+    idx <- startsWith(ds$sample,"X")
+    ds[idx, "group"] <- "artifical doublets"
+    idx <- !startsWith(ds$sample,"X")
+    ds[idx, "group"] <- "samples"
+    
+    plot.title <- gsub("^.*?-","",ds[1,2])
+    
+    p=ggplot2::ggplot(ds, aes(x = doublet.score, fill=group, color=group)) +geom_density(alpha=0.4)+scale_color_manual(values=c("#F9627D","#2F3061"))+scale_fill_manual(values=c("#F9627D","#2F3061")) +labs(title=plot.title)
+    
+    return(list(doublet.score, p))
+    
+  } else {  
+    return(doublet.score) 
+  }
+  
+}
+
+#' QC score based on marker genes
+#' 
+#' sum of marker genes is used as the qc.score
+#'
+#' @param data : count matrix
+#' @param qc.gene.FN : filename holding QC gene list 
+#' @return qc.score : qc score
+#' @examples
+#' qc.score <- cal_qc_score(data, qc.gene.FN="AIBS_qc_genes_10X.csv") 
+
+cal_qc_score <- function (data, qc.gene.FN="AIBS_qc_genes_10X.csv") {
+  
+  qc.genes = read.csv(qc.gene.FN)[, "Gene"]
+  common.qc.genes = intersect(qc.genes, row.names(data))
+  norm.dat = logCPM(data[common.qc.genes,])
+  qc.score = apply(norm.dat, 2, sum)
+  #qc.score = Matrix::colSums(norm.dat[common.qc.genes,])
+  
+  return(qc.score)
+}
 
 
 
