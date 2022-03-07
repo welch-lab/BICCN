@@ -541,11 +541,9 @@ master_csv = function(region, filepath = "/nfs/turbo/umms-welchjd/BRAIN_initiati
 
 ############################################ Run online iNMF
 #' @parameter region Brain region of interest, i.e. AUD
-#' @parameter high_resolution Louvain Resolution for high resolution umaps
-#' @parameter generate.plots, indicates whether or not to create UMAPs, default is TRUE
 #' @parameter qn_ref please provide the name of the dataset that is the highest discernable quality
 #' runOnline("/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses", "ORB", qn_ref = )
-runOnline = function(filepath = "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/", region = NA, analysis = 1, qn_ref = NA, low_resolution= 0.25, generate.plots = TRUE, knownAnnotations = "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Base_Reference_Files/Reference_Annotations.RDS"){
+runOnline = function(filepath = "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/", region = NA, analysis = 1, qn_ref = NA, knownAnnotations = "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Base_Reference_Files/Reference_Annotations.RDS"){
   pre_processed_filename = paste0(filepath, region, "/Analysis", analysis, "_", region, "/preprocessed_object.RDS" )
   print("Reading from ", pre_processed_filename)
   liger = readRDS(pre_processed_filename)
