@@ -84,7 +84,7 @@ apply_qc = function(filenames, region, analysis_num , qc_table_path, filepath_cy
       if(data.type != "meth"){
         results_filename = paste0(filepath,region, "_BICCN/Analysis1_", region, "/Analysis1_", region, "_Results_Table.RDS")
         results = readRDS(results_filename)
-        results = filter(results, results$ann !="NN")
+        results = filter(results, results$ann !="NonN")
         results = subset(results, rownames(results) %in% colnames(working_file))
         use.cells = rownames(results)
       } else {use.cells = colnames(working_file)}
@@ -545,8 +545,8 @@ master_csv = function(region, filepath = "/nfs/turbo/umms-welchjd/BRAIN_initiati
 #' @parameter generate.plots, indicates whether or not to create UMAPs, default is TRUE
 #' @parameter qn_ref please provide the name of the dataset that is the highest discernable quality
 #' runOnline("/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses", "ORB", qn_ref = )
-runOnline = function(filepath = NA, region = NA, analysis = 1, qn_ref = NA, low_resolution= 0.25, generate.plots = TRUE){
-  pre_processed_filename = paste0("/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/", region, "/Analysis", analysis, "_", region, "/preprocessed_object.RDS" )
+runOnline = function(filepath = "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/", region = NA, analysis = 1, qn_ref = NA, low_resolution= 0.25, generate.plots = TRUE, knownAnnotations = "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Base_Reference_Files/Reference_Annotations.RDS"){
+  pre_processed_filename = paste0(filepath, region, "/Analysis", analysis, "_", region, "/preprocessed_object.RDS" )
   print("Reading from ", pre_processed_filename)
   liger = readRDS(pre_processed_filename)
   liger = online_iNMF(liger, k = 30, lambda = 5, max.epochs = 20, seed = 123)
@@ -556,24 +556,83 @@ runOnline = function(filepath = NA, region = NA, analysis = 1, qn_ref = NA, low_
     liger = quantile_norm(liger, do.center = T)
   }
   #Save LIGER object
-  liger_name = paste0("nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/", region, "/Analysis", analysis, "_", region, "/onlineINMF_",region, "_object.RDS" )
+  liger_name = paste0(filepath, region, "/Analysis", analysis, "_", region, "/onlineINMF_",region, "_object.RDS" )
+  print("Saving LIGER object")
+  
   saveRDS(liger, liger_name)
+  print("Running low resolution louvain clustering")
+  if (analysis == 2){
+    low_resolution = 0.75
+    high_resolution = 1
   }
-################################## 
-
-
-
-#Downstream processing
-
-#Repeat for each resolution 
-#Quantile Normalization
-
-
-#Louvain Resolution
-
-
-#UMAP
-
+  if (analysis != 2){
+    low_resolution = 0.25
+    high_resolution = 1
+  }
+  liger_low = louvainCluster(liger, resolution = low_resolution, k = 200)
+  liger_low = runUMAP(liger_low,  n_neighbors=30, min_dist=0.3, distance ="cosine")
+  liger_high = louvainCluster(liger, resolution = low_resolution, k = 200)
+  liger_high = runUMAP(liger_high,  n_neighbors=30, min_dist=0.3, distance ="cosine")
+  
+  #Plot both high and low resolution UMAPs####################
+  print("Plotting unlabeled UMAPS....")
+  plots_low = plotByDatasetAndCluster(liger_low, return.plots = TRUE)
+  low_umap1 =paste0(filepath, region, "/Analysis", analysis, "_", region, "/Images/Umap1_", region, "_Analysis_", analysis, ".pdf")
+  low_umap2 =paste0(filepath, region, "/Analysis", analysis, "_", region, "/Images/Umap2_", region, "_Analysis_", analysis, "unlabeled.lowresolution.pdf")
+  pdf(low_umap1, width = 10, height = 8)
+  print(plots_low[[1]])
+  dev.off()
+  pdf(low_umap2, width = 10, height = 8)
+  print(plots_low[[2]])
+  dev.off()
+  plots_high = plotByDatasetAndCluster(liger_high, return.plots = TRUE)
+  high_umap2 =paste0(filepath, region, "/Analysis", analysis, "_", region, "/Images/Umap2_", region, "_Analysis_", analysis, "unlabeled.highresolution.pdf")
+  pdf(high_umap2, width = 10, height = 8)
+  print(plots_high[[2]])
+  dev.off()
+  ##########################################################
+  #Generate a saved results table
+  result = data.frame(liger@tsne.coords)
+  result$dataset = liger@cell.data$dataset
+  result$lowRcluster = liger_low@clusters
+  result$highRcluster = liger_high@clusters
+  
+  #Here we add the old annotations, and also generate a UMAP labeled with these old annotations. Need to discuss with J.S. how to best incorporate nearest neighbors clustering/annotation function
+  master = readRDS(knownAnnotations)
+  if (analysis == 1){
+    #Graph neuronal vs. non-neuronal
+    annies = master$Level1
+    names(annies) = master$Cell_Barcodes
+  }
+  if (analysis == 3){
+    #Graph Excitatory vs Inhibitory
+    annies = master$Class
+    names(annies) = master$Cell_Barcodes
+  }
+  if (analysis == 2 | analysis == 4 | analysis == 5){
+    #Graph Type
+    annies = master$Type
+    names(annies) = master$Cell_Barcodes
+    
+  }
+  
+  clusts = liger_low@clusters
+  result$ann = annies[names(clusts)]
+  liger_low@clusters = as.factor(annies[names(clusts)])
+  
+  #Return UMAP with OG labels
+  print("Plotting labeled UMAPS....")
+  plots_low = plotByDatasetAndCluster(liger_low, return.plots = TRUE)
+  low_umap2 =paste0(filepath, region, "/Analysis", analysis, "_", region, "/Images/Umap2_", region, "_Analysis_", analysis, "labeled.pdf")
+  pdf(low_umap1, width = 10, height = 8)
+  print(plots_low[[2]])
+  dev.off()
+  #Rename Results Table
+  names(result) = c("UMAP1","UMAP2","dataset","lowRcluster","highRcluster", "OG_Annotations")
+  results_filename = paste0(filepath,region, "_BICCN/Analysis", analysis, "_", region, "/Analysis", analysis, "_", region, "_Results_Table.RDS")
+  saveRDS(result, results_filename)
+}
+  
 
 
 
@@ -698,10 +757,23 @@ cal_qc_score <- function (data, qc.gene.FN="AIBS_qc_genes_10X.csv") {
 }
 
 
-
-
-
-
+#################### Notes on how we generated the annotation labels
+# ann = readRDS("/nfs/turbo/umms-welchjd/BRAIN_initiative/cell_type_annotations_full.RDS")  #4 lists
+# annotations = as.factor(c(as.character(ann[[1]]), as.character(ann[[2]]), as.character(ann[[3]]), as.character(ann[[4]])));  # make each one a factorized character and combine into a giant list
+# names(annotations) = c(names(ann[[1]]), names(ann[[2]]), names(ann[[3]]), names(ann[[4]]))  #name each element in the giant list
+# annot = data.frame(annotations)
+# colnames(annot) = c("Type")
+# annot$Cell_Barcodes = rownames(annot)
+# types_annot = read.csv("/nfs/turbo/umms-welchjd/akriebel/Brain_initiative/cell_type_annot.csv")[1:121,]
+# types_annot$Class = sub("Non-neuron", "NonN", types_annot$Class)
+# types_annot$Class = sub("Excitatory Neuron", "Exc", types_annot$Class)
+# types_annot$Class = sub("Inhibitory Neuron", "Inh", types_annot$Class)
+# master = left_join(annot, types_annot)
+# decoder = data.frame(c("NonN", "Exc", "Inh"), c("NonN", "Neu", "Neu"))
+# colnames(decoder) = c("Class", "Level1")
+# master = left_join(master, decoder)
+# saveRDS(master, "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Base_Reference_Files/Reference_Annotations.RDS")
+#  
 
 
 
