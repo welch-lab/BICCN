@@ -386,6 +386,10 @@ transfer_labels = function(object, annotations, k = 20){
   
   known_samples = H.norm[rownames(H.norm) %in% names(annotations),]
   unknown_samples = H.norm[setdiff(rownames(H.norm), names(annotations)),]
+  if(nrow(known_samples) == 0){
+    message("No annotations available")
+    return(object)
+  }
   annotations = droplevels(annotations[rownames(known_samples)])
   out = RANN::nn2(known_samples, unknown_samples, k = k)
   
