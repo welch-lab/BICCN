@@ -507,7 +507,7 @@ annotate_by_modality = function(filepath,
         
         for(i in 1:length(hdf5_files)){
           current_matrix = readRDS(paste0(filepath, "/",  region, "/Analysis", analysis_num , "_", region, "/",files[["meth"]][i]))
-          current_matrix = current_matrix[vargenes_rna,]
+          current_matrix = current_matrix[rownames(current_matrix) %in% vargenes_rna,]
           current_matrix = as.matrix(max(current_matrix) - current_matrix)
           
           met.cell.data = data.frame(dataset = rep(data_names[i], ncol(current_matrix)), nUMI = rep(1,ncol(current_matrix)), nGene = rep(1,ncol(current_matrix)), barcode = colnames(current_matrix))
@@ -534,7 +534,7 @@ annotate_by_modality = function(filepath,
         }
       }
       names(hdf5_files) = data_names
-      object_new = createLiger(as.list(hdf5_files))
+      object = createLiger(as.list(hdf5_files))
       object = online_iNMF(object,h5_chunk_size = chunk_size, k=k, lambda=lambda, max.epochs=max.epochs, miniBatch_max_iters=miniBatch_max_iters, miniBatch_size=miniBatch_size, seed=seed)
       object = quantile_norm(object, do.center = T)
       object = runUMAP(object, n_neighbors=30, min_dist=0.3, distance ="cosine")
