@@ -184,7 +184,7 @@ apply_qc = function(filenames, region, analysis_num , qc_table_path, filepath_cy
       remaining_cyto = rownames(celldata)
       if (data.type == "tenx" | data.type == "huang"){
         celldata = filter(celldata, celldata$DoubletScore < 0.3)
-        remaining_doublet = rownames(celldata)
+        remaining_doublets = rownames(celldata)
       } 
     }
     if(data.type != "meth"){
@@ -200,12 +200,12 @@ apply_qc = function(filenames, region, analysis_num , qc_table_path, filepath_cy
         qc.matrix = working_file[, sub_cells]
       }
       if(data.type == "atac"){
-        remaining_doublet = colnames(qc.matrix)
+        remaining_doublets = colnames(qc.matrix)
       }
       
       if (data.type == "smart"){
         qc.matrix = working_file[,use.cells]  #only grab applicable cell populations
-        remaining_doublet = remaining_nUMI = remaining_mito = remaining_cyto = colnames(qc.matrix)
+        remaining_doublets = remaining_nUMI = remaining_mito = remaining_cyto = colnames(qc.matrix)
         nUMI_cutoff = mito_cutoff = cytoplasmic_cutoff = NA
         
       }
@@ -216,7 +216,7 @@ apply_qc = function(filenames, region, analysis_num , qc_table_path, filepath_cy
       lost_nUMI = length(subset(cells_after_subset, cells_after_subset %notin% remaining_nUMI))
       lost_mito = length(subset(remaining_nUMI, remaining_nUMI %notin% remaining_mito))
       lost_cyto = length(subset(remaining_mito, remaining_mito %notin% remaining_cyto))
-      lost_doublets = length(subset(remaining_cyto, remaining_cyto %notin% remaining_doublet))  
+      lost_doublets = length(subset(remaining_cyto, remaining_cyto %notin% remaining_doublets))  
       new.dim = dim(qc.matrix)[[2]]
       if (edition == 0){
         save.filename = paste0(filepath, region, "/Analysis", analysis_num , "_", region, "/", region, "_", data.type, "_qc.RDS")
@@ -236,7 +236,7 @@ apply_qc = function(filenames, region, analysis_num , qc_table_path, filepath_cy
           qc.matrix = working_file[,use.cells] #Gets you a matrix subset for the appropriate cell population
           after_subset = dim(qc.matrix)[[2]]  #Gets you dimensions of matrix after subsetting for the appropriate cell population
           cells_after_subset = colnames(working_file)
-          lost_doublet = lost_nUMI = lost_mito = lost_cyto = 0
+          lost_doublets = lost_nUMI = lost_mito = lost_cyto = 0
           nUMI_cutoff = mito_cutoff = cytoplasmic_cutoff = NA
           new.dim = dim(qc.matrix)[[2]]
           
