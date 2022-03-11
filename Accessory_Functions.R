@@ -442,6 +442,7 @@ annotate_by_modality = function(filepath,
   } else {
     annotations = annot$Type
   }
+  annotations = as.factor(annotations)
   names(annotations) = annot$Cell_Barcodes
   for(modality in names(files)){
     if(modality != "meth"){
