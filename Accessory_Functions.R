@@ -76,8 +76,8 @@ apply_qc = function(filenames, region, analysis_num , qc_table_path, filepath_cy
         results_filename = paste0(filepath,region, "_BICCN/Analysis1_", region, "/Analysis1_", region, "_Results_Table.RDS")
         results = readRDS(results_filename)
         results = filter(results, results$ann =="NonN")
-        results = subset(results, rownames(results) %in% colnames(working_file))
-        use.cells = rownames(results)
+        results = subset(results, results$Barcode %in% colnames(working_file))
+        use.cells = results$Barcode
       } else {use.cells = colnames(working_file)}
     }
     if(analysis_num == 3){
@@ -85,23 +85,23 @@ apply_qc = function(filenames, region, analysis_num , qc_table_path, filepath_cy
         results_filename = paste0(filepath,region, "_BICCN/Analysis1_", region, "/Analysis1_", region, "_Results_Table.RDS")
         results = readRDS(results_filename)
         results = filter(results, results$ann =="Neu")
-        results = subset(results, rownames(results) %in% colnames(working_file))
-        use.cells = rownames(results)
+        results = subset(results, results$Barcode %in% colnames(working_file))
+        use.cells = results$Barcode
       } else {use.cells = colnames(working_file)}
     }
     if(analysis_num == 4){
       results_filename = paste0(filepath,region, "_BICCN/Analysis3_", region, "/Analysis3_", region, "_Results_Table.RDS")
       results = readRDS(results_filename)
       results = filter(results, results$ann =="Inh")
-      results = subset(results, rownames(results) %in% colnames(working_file))
-      use.cells = rownames(results)
+      results = subset(results, results$Barcode %in% colnames(working_file))
+      use.cells = results$Barcode
     }
     if(analysis_num == 5){
       results_filename = paste0(filepath,region, "_BICCN/Analysis3_", region, "/Analysis3_", region, "_Results_Table.RDS")
       results = readRDS(results_filename)
       results = filter(results, results$ann =="Exc")
-      results = subset(results, rownames(results) %in% colnames(working_file))
-      use.cells = rownames(results)
+      results = subset(results, results$Barcode %in% colnames(working_file))
+      use.cells = results$Barcode
     }
     
     ######################### Pre-process 
@@ -627,6 +627,7 @@ runOnline = function(filepath = "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_
   dev.off()
   #Rename Results Table
   names(result) = c("UMAP1","UMAP2","dataset","lowRcluster","highRcluster", "OG_Annotations")
+  result$Barcode = rownames(result)
   print("Outputting Annotation CSV")
   cluster_breakdowns = result %>% group_by(highRcluster, dataset, OG_Annotations)  %>% tally()
   csv_filename = paste0(filepath, region, "/Analysis", analysis, "_", region, "/Cluster_Breakdowns_",region, "_Analysis_", analysis, ".csv")
@@ -637,7 +638,7 @@ runOnline = function(filepath = "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_
     max_assignments = max_assignments %>% group_by(highRcluster, OG_Annotations)  %>% tally() %>% filter(n == max(n))
     max_assignments =max_assignments[,c("highRcluster", "OG_Annotations")]
     colnames(max_assignments) = c("highRcluster", "Final_Annotations")
-    result = merge(result, max_assignments)
+    result = left_join(result, max_assignments)
   }
   results_filename = paste0("/scratch/welchjd_root/welchjd0/akriebel/BICCN_Validation/ByHand/AUD/Analysis1_AUD/Analysis1_AUD_Results_Table.RDS")
   saveRDS(result, results_filename)
