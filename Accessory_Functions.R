@@ -628,16 +628,16 @@ runOnline = function(filepath = "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_
   #Rename Results Table
   names(result) = c("UMAP1","UMAP2","dataset","lowRcluster","highRcluster", "OG_Annotations")
   print("Outputting Annotation CSV")
-  cluster_breakdowns = results %>% group_by(highRcluster, dataset, OG_Annotations)  %>% tally()
+  cluster_breakdowns = result %>% group_by(highRcluster, dataset, OG_Annotations)  %>% tally()
   csv_filename = paste0(filepath, region, "/Analysis", analysis, "_", region, "/Cluster_Breakdowns_",region, "_Analysis_", analysis, ".csv")
   write.csv(cluster_breakdowns, csv_filename)
   if (analysis == 1 | analysis == 3){
     print("Performing max final annotations")
-    max_assignments = na.omit(results)
+    max_assignments = na.omit(result)
     max_assignments = max_assignments %>% group_by(highRcluster, OG_Annotations)  %>% tally() %>% filter(n == max(n))
     max_assignments =max_assignments[,c("highRcluster", "OG_Annotations")]
     colnames(max_assignments) = c("highRcluster", "Final_Annotations")
-    results = merge(results, max_assignments)
+    result = merge(result, max_assignments)
   }
   results_filename = paste0("/scratch/welchjd_root/welchjd0/akriebel/BICCN_Validation/ByHand/AUD/Analysis1_AUD/Analysis1_AUD_Results_Table.RDS")
   saveRDS(result, results_filename)
