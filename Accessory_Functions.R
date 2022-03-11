@@ -273,7 +273,7 @@ preprocess_data = function(filepath, region, analysis_num, chunk_size, num_genes
   non_meth_files = grep("[^(meth)]",qc_files, value = TRUE)
   
   rhdf5::h5closeAll()
-  
+  print("Writing H5s")
   hdf5_files = paste0(filepath, "/", region, "/Analysis", analysis_num , "_", region, "/",gsub(".RDS", ".H5",non_meth_files))
   for (i in 1:length(hdf5_files)){
     current_matrix = Matrix::Matrix(readRDS(paste0(filepath, "/", region, "/Analysis", analysis_num , "_", region, "/",non_meth_files[i])), sparse = TRUE)
@@ -294,8 +294,10 @@ preprocess_data = function(filepath, region, analysis_num, chunk_size, num_genes
   data_names = gsub("(_qc.RDS)", "",non_meth_files)
   names(hdf5_files) = data_names
   object = createLiger(raw.data = as.list(hdf5_files))
+  print("Normalizing data")
   object = normalize(object, chunk = chunk_size)
   datasets_use = grep("[tenx_|smart_]",non_meth_files)
+  print("Selecting Genes")
   object = selectGenes(object, var.thresh = var_thresh_start, datasets.use = datasets_use)
   var_thresh_old = var_thresh_start
   high = max_var_thresh
@@ -312,6 +314,8 @@ preprocess_data = function(filepath, region, analysis_num, chunk_size, num_genes
     var_thresh_old = var_thresh_new
   }
   message(paste0(length(object@var.genes), " genes found with var.thresh = ",var_thresh_old))
+  print("Scaling Object")
+  
   object = scaleNotCenter(object, chunk = chunk_size)
   
   meth_files = setdiff(qc_files, non_meth_files)
@@ -359,6 +363,8 @@ preprocess_data = function(filepath, region, analysis_num, chunk_size, num_genes
   
   object_new = createLiger(as.list(hdf5_files))
   object_new@var.genes = var.genes
+  pre_processed_filename = paste0(filepath, region, "/Analysis", analysis_num, "_", region, "/preprocessed_object.RDS" )
+  saveRDS(object_new, pre_processed_filename)
   return(object_new)
 }
 #object is a fully processed object, with clusters from either louvain or max factor assignment, assignment is a factor covering at least k of the cells in the object, k is used for nearest neighbors.
@@ -545,7 +551,7 @@ master_csv = function(region, filepath = "/nfs/turbo/umms-welchjd/BRAIN_initiati
 #' runOnline("/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses", "ORB", qn_ref = )
 runOnline = function(filepath = "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/", region = NA, analysis = 1, qn_ref = NA, knownAnnotations = "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Base_Reference_Files/Reference_Annotations.RDS"){
   pre_processed_filename = paste0(filepath, region, "/Analysis", analysis, "_", region, "/preprocessed_object.RDS" )
-  print("Reading from ", pre_processed_filename)
+  print("Reading preprocessed file:")
   liger = readRDS(pre_processed_filename)
   liger = online_iNMF(liger, k = 30, lambda = 5, max.epochs = 20, seed = 123)
   if (!is.na(qn_ref)){
