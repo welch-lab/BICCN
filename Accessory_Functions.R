@@ -408,8 +408,7 @@ transfer_labels = function(object, annotations, k = 20){
   return(object)
 }
 
-annotate_by_modality = function(object, 
-                                filepath, 
+annotate_by_modality = function(filepath, 
                                 region, 
                                 analysis_num, 
                                 chunk_size,
@@ -584,10 +583,9 @@ runOnline = function(filepath = "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_
     low_resolution = 0.25
     high_resolution = 1
   }
+  liger = runUMAP(liger,  n_neighbors=30, min_dist=0.3, distance ="cosine")
   liger_low = louvainCluster(liger, resolution = low_resolution, k = 200)
-  liger_low = runUMAP(liger_low,  n_neighbors=30, min_dist=0.3, distance ="cosine")
   liger_high = louvainCluster(liger, resolution = low_resolution, k = 200)
-  liger_high = runUMAP(liger_high,  n_neighbors=30, min_dist=0.3, distance ="cosine")
   
   #Plot both high and low resolution UMAPs####################
   print("Plotting unlabeled UMAPS....")
