@@ -506,7 +506,7 @@ annotate_by_modality = function(filepath,
         
         
         for(i in 1:length(hdf5_files)){
-          current_matrix = readRDS(paste0(filepath, "/",  region, "/Analysis", analysis_num , "_", region, "/",meth_files[i]))
+          current_matrix = readRDS(paste0(filepath, "/",  region, "/Analysis", analysis_num , "_", region, "/",files[["meth"]][i]))
           current_matrix = current_matrix[vargenes_rna,]
           current_matrix = as.matrix(max(current_matrix) - current_matrix)
           
