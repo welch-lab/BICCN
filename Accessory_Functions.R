@@ -44,7 +44,7 @@ apply_qc = function(filenames, region, analysis_num , qc_table_path, filepath_cy
     # For Analysis != 1, we will need to filter the matrices on the basis on their results
     #i.e. Analysis one should be all cells, not including methylation
     #Analysis 2 should just be non-neuronal cells
-    #Analysis 3 should be just neuronal cells + methy
+    #Analysis 3 should be just neuronal cells + meth
     #Analysis 4 should be just inhib
     #Analysis 5 should be just excit
     #Read in each file
