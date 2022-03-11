@@ -412,7 +412,7 @@ annotate_by_modality = function(filepath,
                                 region, 
                                 analysis_num, 
                                 chunk_size,
-                                annotations,
+                                knownAnnotations = "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Base_Reference_Files/Reference_Annotations.RDS",
                                 knn = 10,
                                 num_genes = 2500, 
                                 gene_num_tolerance = 100, 
@@ -434,6 +434,15 @@ annotate_by_modality = function(filepath,
   files[length(files) == 0] = NULL
   dir.create(paste0(filepath, "/", region, "/Analysis", analysis_num , "_", region, "/analysis_by_modality"))
   object_list = list()
+  annot = readRDS(knownAnnotations)
+  if(analysis_num == 1){
+    annotations = annot$Level1
+  } else if(analysis_num %in% c(2,3)){
+    annotations = annot$Class 
+  } else {
+    annotations = annot$Type
+  }
+  names(annotations) = annot$Cell_Barcodes
   for(modality in names(files)){
     if(modality != "meth"){
       rhdf5::h5closeAll()
