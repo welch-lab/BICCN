@@ -561,7 +561,7 @@ master_csv = function(region, filepath = "/nfs/turbo/umms-welchjd/BRAIN_initiati
 #' @parameter qn_ref please provide the name of the dataset that is the highest discernable quality
 #' runOnline("/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses", "ORB", qn_ref = )
 runOnline = function(filepath = "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/", region = NA, analysis = 1, qn_ref = NA, knownAnnotations = "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Base_Reference_Files/Reference_Annotations.RDS"){
-  pre_processed_filename = paste0(filepath, region, "/Analysis", analysis, "_", region, "/preprocessed_object.RDS" )
+  pre_processed_filename = paste0(filepath, "/", region, "/Analysis", analysis, "_", region, "/preprocessed_object.RDS" )
   print("Reading preprocessed file:")
   liger = readRDS(pre_processed_filename)
   liger = online_iNMF(liger, k = 30, lambda = 5, max.epochs = 20, seed = 123)
@@ -571,7 +571,7 @@ runOnline = function(filepath = "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_
     liger = quantile_norm(liger, do.center = T)
   }
   #Save LIGER object
-  liger_name = paste0(filepath, region, "/Analysis", analysis, "_", region, "/onlineINMF_",region, "_object.RDS" )
+  liger_name = paste0(filepath, "/", region, "/Analysis", analysis, "_", region, "/onlineINMF_",region, "_object.RDS" )
   print("Saving LIGER object")
   
   saveRDS(liger, liger_name)
@@ -592,8 +592,8 @@ runOnline = function(filepath = "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_
   #Plot both high and low resolution UMAPs####################
   print("Plotting unlabeled UMAPS....")
   plots_low = plotByDatasetAndCluster(liger_low, return.plots = TRUE)
-  low_umap1 =paste0(filepath, region, "/Analysis", analysis, "_", region, "/Images/Umap1_", region, "_Analysis_", analysis, ".pdf")
-  low_umap2 =paste0(filepath, region, "/Analysis", analysis, "_", region, "/Images/Umap2_", region, "_Analysis_", analysis, "unlabeled.lowresolution.pdf")
+  low_umap1 =paste0(filepath, "/",  region, "/Analysis", analysis, "_", region, "/Images/Umap1_", region, "_Analysis_", analysis, ".pdf")
+  low_umap2 =paste0(filepath, "/", region, "/Analysis", analysis, "_", region, "/Images/Umap2_", region, "_Analysis_", analysis, "unlabeled.lowresolution.pdf")
   pdf(low_umap1, width = 10, height = 8)
   print(plots_low[[1]])
   dev.off()
@@ -601,7 +601,7 @@ runOnline = function(filepath = "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_
   print(plots_low[[2]])
   dev.off()
   plots_high = plotByDatasetAndCluster(liger_high, return.plots = TRUE)
-  high_umap2 =paste0(filepath, region, "/Analysis", analysis, "_", region, "/Images/Umap2_", region, "_Analysis_", analysis, "unlabeled.highresolution.pdf")
+  high_umap2 =paste0(filepath,"/",  region, "/Analysis", analysis, "_", region, "/Images/Umap2_", region, "_Analysis_", analysis, "unlabeled.highresolution.pdf")
   pdf(high_umap2, width = 10, height = 8)
   print(plots_high[[2]])
   dev.off()
@@ -638,7 +638,7 @@ runOnline = function(filepath = "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_
   #Return UMAP with OG labels
   print("Plotting labeled UMAPS....")
   plots_low = plotByDatasetAndCluster(liger_low, return.plots = TRUE)
-  low_umap2 =paste0(filepath, region, "/Analysis", analysis, "_", region, "/Images/Umap2_", region, "_Analysis_", analysis, "labeled.pdf")
+  low_umap2 =paste0(filepath,"/", region, "/Analysis", analysis, "_", region, "/Images/Umap2_", region, "_Analysis_", analysis, "labeled.pdf")
   pdf(low_umap1, width = 10, height = 8)
   print(plots_low[[2]])
   dev.off()
@@ -647,7 +647,7 @@ runOnline = function(filepath = "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_
   result$Barcode = rownames(result)
   print("Outputting Annotation CSV")
   cluster_breakdowns = result %>% group_by(highRcluster, dataset, OG_Annotations)  %>% tally()
-  csv_filename = paste0(filepath, region, "/Analysis", analysis, "_", region, "/Cluster_Breakdowns_",region, "_Analysis_", analysis, ".csv")
+  csv_filename = paste0(filepath,"/",  region, "/Analysis", analysis, "_", region, "/Cluster_Breakdowns_",region, "_Analysis_", analysis, ".csv")
   write.csv(cluster_breakdowns, csv_filename)
   if (analysis == 1 | analysis == 3){
     print("Performing max final annotations")
