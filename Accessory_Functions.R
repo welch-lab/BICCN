@@ -73,33 +73,33 @@ apply_qc = function(filenames, region, analysis_num , qc_table_path, filepath_cy
     }
     if(analysis_num == 2){ 
       if(data.type != "meth"){
-        results_filename = paste0(filepath,region, "_BICCN/Analysis1_", region, "/Analysis1_", region, "_Results_Table.RDS")
+        results_filename = paste0(filepath,region, "/Analysis1_", region, "/Analysis1_", region, "_Results_Table.RDS")
         results = readRDS(results_filename)
-        results = filter(results, results$ann =="NonN")
+        results = filter(results, results$Final_Annotations =="NonN")
         results = subset(results, results$Barcode %in% colnames(working_file))
         use.cells = results$Barcode
       } else {use.cells = colnames(working_file)}
     }
     if(analysis_num == 3){
       if(data.type != "meth"){
-        results_filename = paste0(filepath,region, "_BICCN/Analysis1_", region, "/Analysis1_", region, "_Results_Table.RDS")
+        results_filename = paste0(filepath,region, "/Analysis1_", region, "/Analysis1_", region, "_Results_Table.RDS")
         results = readRDS(results_filename)
-        results = filter(results, results$ann =="Neu")
+        results = filter(results, results$Final_Annotations =="Neu")
         results = subset(results, results$Barcode %in% colnames(working_file))
         use.cells = results$Barcode
       } else {use.cells = colnames(working_file)}
     }
     if(analysis_num == 4){
-      results_filename = paste0(filepath,region, "_BICCN/Analysis3_", region, "/Analysis3_", region, "_Results_Table.RDS")
+      results_filename = paste0(filepath,region, "/Analysis3_", region, "/Analysis3_", region, "_Results_Table.RDS")
       results = readRDS(results_filename)
-      results = filter(results, results$ann =="Inh")
+      results = filter(results, results$Final_Annotations =="Inh")
       results = subset(results, results$Barcode %in% colnames(working_file))
       use.cells = results$Barcode
     }
     if(analysis_num == 5){
-      results_filename = paste0(filepath,region, "_BICCN/Analysis3_", region, "/Analysis3_", region, "_Results_Table.RDS")
+      results_filename = paste0(filepath,region, "/Analysis3_", region, "/Analysis3_", region, "_Results_Table.RDS")
       results = readRDS(results_filename)
-      results = filter(results, results$ann =="Exc")
+      results = filter(results, results$Final_Annotations =="Exc")
       results = subset(results, results$Barcode %in% colnames(working_file))
       use.cells = results$Barcode
     }
@@ -196,7 +196,11 @@ apply_qc = function(filenames, region, analysis_num , qc_table_path, filepath_cy
       ###### Subset for QC 
       if (data.type == "huang" | data.type == "tenx" | data.type == "atac"){
         #If datatype is ATAC huang Tenx, filter for QC cells
-        qc.matrix = working_file[, rownames(celldata)]
+        sub_cells = subset(rownames(celldata), rownames(celldata) %in% colnames(working_file))
+        qc.matrix = working_file[, sub_cells]
+      }
+      if(data.type == "atac"){
+        remaining_doublet = colnames(qc.matrix)
       }
       
       if (data.type == "smart"){
@@ -224,10 +228,11 @@ apply_qc = function(filenames, region, analysis_num , qc_table_path, filepath_cy
     if( data.type == "meth") {
       if (analysis_num == 1 | analysis_num == 2){
         print("No preprocessing for methylation data necessary, it is not used")
-        
+      }
         if (analysis_num != 1 & analysis_num != 2){
           
           before_subset = dim(working_file)[[2]] #Gets you original dimensions of matrix
+          use.cells = subset(use.cells, use.cells %in% colnames(working_file))
           qc.matrix = working_file[,use.cells] #Gets you a matrix subset for the appropriate cell population
           after_subset = dim(qc.matrix)[[2]]  #Gets you dimensions of matrix after subsetting for the appropriate cell population
           cells_after_subset = colnames(working_file)
@@ -254,7 +259,6 @@ apply_qc = function(filenames, region, analysis_num , qc_table_path, filepath_cy
     csv_filename = paste0(filepath, region, "/Analysis", analysis_num , "_", region, "/", region, "_Overall_qc.csv")
     colnames(qc_summary) = c("Datatype", "Edition", "OriginalDimensions", "AnalysisDimensions", "FailnUMI", "nUMIThreshold", "FailMito", "MitoThreshold", "FailCyto", "CytoThreshold", "Lost for Doublets", "FinalDimensions")
     write.csv(qc_summary, csv_filename)
-  }
 }
 
 
@@ -267,7 +271,7 @@ apply_qc = function(filenames, region, analysis_num , qc_table_path, filepath_cy
 
 
 
-preprocess_data = function(filepath, region, analysis_num, chunk_size, num_genes = 2500, gene_num_tolerance = 100, var_thresh_start = 2, max_var_thresh = 4){
+preprocess_data = function(filepath, region, analysis_num, chunk_size, num_genes = 2500, gene_num_tolerance = 100, var_thresh_start = 2, max_var_thresh = 4, customGeneList = NA){
   qc_files = list.files(paste0(filepath, "/", region, "/Analysis", analysis_num , "_", region, "/"))
   qc_files = grep(paste0(region,"_(tenx_|smart_|atac_|meth_|huang_).*(qc.RDS)"), qc_files, value = TRUE)
   non_meth_files = grep("[^(meth)]",qc_files, value = TRUE)
@@ -297,8 +301,9 @@ preprocess_data = function(filepath, region, analysis_num, chunk_size, num_genes
   print("Normalizing data")
   object = normalize(object, chunk = chunk_size)
   datasets_use = grep("[tenx_|smart_]",non_meth_files)
-  print("Selecting Genes")
   object = selectGenes(object, var.thresh = var_thresh_start, datasets.use = datasets_use)
+  if (is.na(customGeneList)){
+  print("Selecting Genes")
   var_thresh_old = var_thresh_start
   high = max_var_thresh
   low = 0
@@ -314,6 +319,12 @@ preprocess_data = function(filepath, region, analysis_num, chunk_size, num_genes
     var_thresh_old = var_thresh_new
   }
   message(paste0(length(object@var.genes), " genes found with var.thresh = ",var_thresh_old))
+  } 
+  if (!is.na(customGeneList)){
+    print("Using custom gene list")
+    customGenes = readRDS(customGeneList)
+    object@var.genes = customGenes
+  }
   print("Scaling Object")
   
   object = scaleNotCenter(object, chunk = chunk_size)
