@@ -75,7 +75,7 @@ apply_qc = function(filenames, region, analysis_num , qc_table_path, filepath_cy
       if(data.type != "meth"){
         results_filename = paste0(filepath,region, "_BICCN/Analysis1_", region, "/Analysis1_", region, "_Results_Table.RDS")
         results = readRDS(results_filename)
-        results = filter(results, results$ann =="NN")
+        results = filter(results, results$ann =="NonN")
         results = subset(results, rownames(results) %in% colnames(working_file))
         use.cells = rownames(results)
       } else {use.cells = colnames(working_file)}
@@ -84,7 +84,7 @@ apply_qc = function(filenames, region, analysis_num , qc_table_path, filepath_cy
       if(data.type != "meth"){
         results_filename = paste0(filepath,region, "_BICCN/Analysis1_", region, "/Analysis1_", region, "_Results_Table.RDS")
         results = readRDS(results_filename)
-        results = filter(results, results$ann !="NonN")
+        results = filter(results, results$ann =="Neu")
         results = subset(results, rownames(results) %in% colnames(working_file))
         use.cells = rownames(results)
       } else {use.cells = colnames(working_file)}
