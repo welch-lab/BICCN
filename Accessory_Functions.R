@@ -162,7 +162,10 @@ apply_qc = function(filenames, region, analysis_num , qc_table_path, filepath_cy
           saveRDS (doublet_scores, doublet_filename)} 
         if(!is.na(doublet_list)){
           doublet_filename = paste0(filepath,region, "/Analysis1_", region, "/BICCN_", region, "_", data.type, "_DoubletScores.RDS")
-          doublet_scores = readRDS(doublet_filename)
+          doublets = readRDS(doublet_filename)
+          doublets$Barcodes = rownames(doublets)
+          celldata = dplyr::left_join(celldata %>% mutate(Barcodes = rownames(celldata)), doublets, by = 'Barcodes')
+          rownames(celldata) = celldata$Barcodes
         }
         }
         if (analysis_num != 1 ){
