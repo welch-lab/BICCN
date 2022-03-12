@@ -680,7 +680,7 @@ runOnline = function(filepath = "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_
     colnames(max_assignments) = c("highRcluster", "Final_Annotations")
     result = left_join(result, max_assignments)
   }
-  results_filename = paste0("/scratch/welchjd_root/welchjd0/akriebel/BICCN_Validation/ByHand/AUD/Analysis1_AUD/Analysis1_AUD_Results_Table.RDS")
+  results_filename = paste0(filepath,"/",  region, "/Analysis", analysis, "_", region, "/Analysis", analysis, "_", region"_Results_Table.RDS")
   saveRDS(result, results_filename)
 
 }
