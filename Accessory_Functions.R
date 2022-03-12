@@ -33,7 +33,7 @@ library(edgeR)
 # Base QC table is available at "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Base_Reference_Files/QC_table.RDS"
 # @slot analysis_num Determines directory and output file naming conventions, also ensures that Analysis one will ignore methylation Data
 
-apply_qc = function(filenames, region, analysis_num , qc_table_path, filepath_cytoplasmic = "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Base_Reference_Files/Cytoplasmic_genes.csv",  filepath = "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/", verbose = TRUE){
+apply_qc = function(filenames, region, analysis_num , qc_table_path, filepath_cytoplasmic = "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Base_Reference_Files/Cytoplasmic_genes.csv",  filepath = "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/", verbose = TRUE, doublet_list = NA){
   if(str_sub(filepath, start = -1L, end = -1L) != "/"){
     filepath = paste0(filepath, "/")
   }
@@ -144,6 +144,7 @@ apply_qc = function(filenames, region, analysis_num , qc_table_path, filepath_cy
       #Calculate doublet score if it is a Tenx dataset
       if (data.type == "huang" | data.type == "tenx"){
         if (analysis_num == 1){
+          if (is.na(doublet_list)){
           ligs = createLiger(list(dataset = working_file))
           ligs = normalize(ligs)
           ligs = selectGenes(ligs, var.thresh = 0.001, num.genes = 5000)
@@ -159,6 +160,11 @@ apply_qc = function(filenames, region, analysis_num , qc_table_path, filepath_cy
           colnames(doublet_scores) = c("DoubletScore", "VarGenesforDoublet")
           doublet_filename = paste0(filepath,region, "/Analysis1_", region, "/BICCN_", region, "_", data.type, "_DoubletScores.RDS")
           saveRDS (doublet_scores, doublet_filename)} 
+        if(!is.na(doublet_list)){
+          doublet_filename = paste0(filepath,region, "/Analysis1_", region, "/BICCN_", region, "_", data.type, "_DoubletScores.RDS")
+          doublet_scores = readRDS(doublet_filename)
+        }
+        }
         if (analysis_num != 1 ){
           doublet_filename = paste0(filepath,region, "/Analysis1_", region, "/BICCN_", region, "_", data.type, "_DoubletScores.RDS")
           doublets = readRDS(doublet_filename)
@@ -172,14 +178,14 @@ apply_qc = function(filenames, region, analysis_num , qc_table_path, filepath_cy
       #Huang needs to be fitlered by nUMI, mitochondrial, and doublet score
       #Tenx needs to be fitlered by nUMI, mitochondrial, doublet score, and cytoplasmic score
       if (data.type == "atac" | data.type == "tenx" | data.type == "huang"){
-        celldata = filter(celldata, celldata$nUMI >= nUMI_cutoff)
+        celldata = filter(celldata, celldata$nUMI >= as.numeric(nUMI_cutoff))
         remaining_nUMI = rownames(celldata)
-        celldata = filter(celldata, celldata$Mito <= mito_cutoff)
+        celldata = filter(celldata, celldata$Mito <= as.numeric(mito_cutoff))
         remaining_mito = rownames(celldata)
       }
       
       if (data.type == "tenx"){
-        celldata = filter(celldata, celldata$Cytoplasmic_Score > cytoplasmic_cutoff)
+        celldata = filter(celldata, celldata$Cytoplasmic_Score > as.numeric(cytoplasmic_cutoff))
       }
       remaining_cyto = rownames(celldata)
       if (data.type == "tenx" | data.type == "huang"){
