@@ -103,7 +103,7 @@ apply_qc = function(filenames, region, analysis_num , qc_table_path, filepath_cy
       results = subset(results, results$Barcode %in% colnames(working_file))
       use.cells = results$Barcode
     }
-    
+    if (length(use.cells) < 30){next}
     ######################### Pre-process 
     #Change the names of the Rik genes. This needs to be done for the TenX and SMART datasets
     if (data.type == "tenx" | data.type == "smart"){
