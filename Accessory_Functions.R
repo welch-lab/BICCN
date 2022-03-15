@@ -280,7 +280,7 @@ apply_qc = function(filenames, region, analysis_num , qc_table_path, filepath_cy
 
 
 
-preprocess_data = function(filepath, region, analysis_num, chunk_size, num_genes = 2500, gene_num_tolerance = 100, var_thresh_start = 2, max_var_thresh = 4, customGeneList = NA){
+preprocess_data = function(filepath, region, analysis_num, chunk_size, num_genes = 2500, gene_num_tolerance = 100, var_thresh_start = 2, max_var_thresh = 4, customGeneList = NA, return.object = FALSE){
   qc_files = list.files(paste0(filepath, "/", region, "/Analysis", analysis_num , "_", region, "/"))
   qc_files = grep(paste0(region,"_(tenx_|smart_|atac_|meth_|huang_).*(qc.RDS)"), qc_files, value = TRUE)
   non_meth_files = grep("[^(meth)]",qc_files, value = TRUE)
@@ -385,7 +385,9 @@ preprocess_data = function(filepath, region, analysis_num, chunk_size, num_genes
   object_new@var.genes = var.genes
   pre_processed_filename = paste0(filepath, region, "/Analysis", analysis_num, "_", region, "/preprocessed_object.RDS" )
   saveRDS(object_new, pre_processed_filename)
-  return(object_new)
+  if(return.object0){
+      return(object_new)
+  }
 }
 #object is a fully processed object, with clusters from either louvain or max factor assignment, assignment is a factor covering at least k of the cells in the object, k is used for nearest neighbors.
 transfer_labels = function(object, annotations, k = 20){
@@ -584,7 +586,7 @@ master_csv = function(region, filepath = "/nfs/turbo/umms-welchjd/BRAIN_initiati
 #' @parameter region Brain region of interest, i.e. AUD
 #' @parameter qn_ref please provide the name of the dataset that is the highest discernable quality
 #' runOnline("/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses", "ORB", qn_ref = )
-runOnline = function(filepath = "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/", region = NA, analysis = 1, qn_ref = NA, knownAnnotations = "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Base_Reference_Files/Reference_Annotations.RDS"){
+run_online = function(filepath = "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/", region = NA, analysis = 1, qn_ref = NA, knownAnnotations = "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Base_Reference_Files/Reference_Annotations.RDS", return.object = FALSE){
   pre_processed_filename = paste0(filepath, "/", region, "/Analysis", analysis, "_", region, "/preprocessed_object.RDS" )
   print("Reading preprocessed file:")
   liger = readRDS(pre_processed_filename)
@@ -682,7 +684,9 @@ runOnline = function(filepath = "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_
   }
   results_filename = paste0(filepath,"/",  region, "/Analysis", analysis, "_", region, "/Analysis", analysis, "_", region,"_Results_Table.RDS")
   saveRDS(result, results_filename)
-
+  if(return.object){
+    return(liger) 
+  }
 }
   
 
