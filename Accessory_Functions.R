@@ -590,6 +590,12 @@ run_online = function(filepath = "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN
   pre_processed_filename = paste0(filepath, "/", region, "/Analysis", analysis, "_", region, "/preprocessed_object.RDS" )
   print("Reading preprocessed file:")
   liger = readRDS(pre_processed_filename)
+  
+  qc_files = list.files(paste0(filepath, "/", region, "/Analysis", analysis , "_", region, "/"))
+  qc_files = grep(paste0(region,"_(tenx_|smart_|atac_|meth_|huang_).*(qc.RDS)"), qc_files, value = TRUE)
+  hdf5_files = paste0(filepath, "/", region, "/Analysis", analysis , "_", region, "/",gsub(".RDS", ".H5",qc_files))
+  liger = restoreOnlineLiger(liger, hdf5_files)
+  
   liger = online_iNMF(liger, k = 30, lambda = 5, max.epochs = 20, seed = 123)
   if (!is.na(qn_ref)){
   liger = quantile_norm(liger, do.center = T, ref_dataset = qn_ref)
