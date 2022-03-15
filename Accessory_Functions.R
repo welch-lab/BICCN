@@ -385,7 +385,7 @@ preprocess_data = function(filepath, region, analysis_num, chunk_size, num_genes
   object_new@var.genes = var.genes
   pre_processed_filename = paste0(filepath, region, "/Analysis", analysis_num, "_", region, "/preprocessed_object.RDS" )
   saveRDS(object_new, pre_processed_filename)
-  if(return.object0){
+  if(return.object){
       return(object_new)
   }
 }
