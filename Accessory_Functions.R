@@ -143,8 +143,9 @@ apply_qc = function(filenames, region, analysis_num , qc_table_path, filepath_cy
       }
       #Calculate doublet score if it is a Tenx dataset
       if (data.type == "huang" | data.type == "tenx"){
-        if(!is.na(doublet_list)){
-          doublets = readRDS(doublet_list)
+        if(!is.na(doublet_list[[data.type]])){
+          doublet_file = doublet_list[[data.type]]
+          doublets = readRDS(doublet_file)
           doublets$Barcodes = rownames(doublets)
           celldata = dplyr::left_join(celldata %>% mutate(Barcodes = rownames(celldata)), doublets, by = 'Barcodes')
           rownames(celldata) = celldata$Barcodes
