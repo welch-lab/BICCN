@@ -423,6 +423,7 @@ transfer_labels = function(object, annotations, k = 20){
   return(object)
 }
 
+
 annotate_by_modality = function(filepath, 
                                 region, 
                                 analysis_num, 
@@ -452,17 +453,18 @@ annotate_by_modality = function(filepath,
   annotations = as.factor(annotations)
   names(annotations) = annot$Cell_Barcodes
   
-  liger_name = paste0(filepath, "/", region, "/Analysis", analysis, "_", region, "/onlineINMF_",region, "_object.RDS" )
+  liger_name = paste0(filepath, "/", region, "/Analysis", analysis_num, "_", region, "/onlineINMF_",region, "_object.RDS" )
   object = readRDS(liger_name)
   dataset = object@cell.data$dataset
   names(dataset) = rownames(object@cell.data)
   annot_dataset = dataset[names(dataset) %in% names(annotations)]
   freq = table(annot_dataset)
   if(0 == sum(freq[grepl("_(atac_)",names(freq))]) * sum(freq[grepl("_(meth_)",names(freq))]) * sum(freq[grepl("_(tenx_|smart_|huang_)",names(freq))])){
-    message(“Annotations missing for at least one modality – joint annotation transfer being conducted”)
+    message("Annotations missing for at least one modality --  joint annotation transfer being conducted")
     object = transfer_labels(object, annotations, k)
     return(list("all" = object))
   } else {
+    rm(object)
     qc_files = list.files(paste0(filepath, "/", region, "/Analysis", analysis_num , "_", region, "/"))
     qc_files = grep(paste0(region,"_(tenx_|smart_|atac_|meth_|huang_).*(qc.RDS)"), qc_files, value = TRUE)
     files = list()
@@ -471,11 +473,11 @@ annotate_by_modality = function(filepath,
     files[["meth"]] = grep(paste0("_(meth_)"), qc_files, value = TRUE)
     files[length(files) == 0] = NULL
     object_list = list()
-
+    
     for(modality in names(files)){
       if(modality != "meth"){
         rhdf5::h5closeAll()
-
+        
         hdf5_files = paste0(filepath, "/", region, "/Analysis", analysis_num , "_", region, "/",modality,"_subanalysis_",gsub(".RDS", ".H5",files[[modality]]))
         for (i in 1:length(hdf5_files)){
           current_matrix = Matrix::Matrix(readRDS(paste0(filepath, "/", region, "/Analysis", analysis_num , "_", region, "/",files[[modality]][i])), sparse = TRUE)
@@ -524,14 +526,14 @@ annotate_by_modality = function(filepath,
         if(length(files[["meth"]])>0){
           hdf5_files = paste0(filepath, "/", region, "/Analysis", analysis_num , "_", region, "/",modality,"_subanalysis_",gsub(".RDS", ".H5",files[["meth"]]))
           data_names = gsub("(_qc.RDS)", "",files[["meth"]])
-
+          
           genes_use = object_list[["rna"]]@var.genes
           for(i in 1:length(hdf5_files)){
             current_matrix = readRDS(paste0(filepath, "/",  region, "/Analysis", analysis_num , "_", region, "/",files[["meth"]][i]))
             current_matrix = current_matrix[rownames(current_matrix) %in% vargenes_rna,]
             genes_use = intersect(genes_use, rownames(current_matrix))
             current_matrix = as.matrix(max(current_matrix) - current_matrix)
-
+            
             met.cell.data = data.frame(dataset = rep(data_names[i], ncol(current_matrix)), nUMI = rep(1,ncol(current_matrix)), nGene = rep(1,ncol(current_matrix)), barcode = colnames(current_matrix))
             met.cell.data$dataset = as.character(met.cell.data$dataset)
             met.cell.data$barcode = as.character(met.cell.data$barcode)
@@ -554,22 +556,21 @@ annotate_by_modality = function(filepath,
             rhdf5::h5write(met.cell.data, file=hdf5_files[i], name="cell.data")
             rhdf5::h5closeAll()
           }
+          
+          names(hdf5_files) = data_names
+          object = createLiger(as.list(hdf5_files))
+          object@var.genes = genes_use
+          object = online_iNMF(object,h5_chunk_size = chunk_size, k=k, lambda=lambda, max.epochs=max.epochs, miniBatch_max_iters=miniBatch_max_iters, miniBatch_size=miniBatch_size, seed=seed)
+          object = quantile_norm(object, do.center = T)
+          object = runUMAP(object, n_neighbors=30, min_dist=0.3, distance ="cosine")
+          object = transfer_labels(object, annotations, knn)
+          object_list[[modality]] = object
         }
-        names(hdf5_files) = data_names
-        object = createLiger(as.list(hdf5_files))
-        object@var.genes = genes_use
-        object = online_iNMF(object,h5_chunk_size = chunk_size, k=k, lambda=lambda, max.epochs=max.epochs, miniBatch_max_iters=miniBatch_max_iters, miniBatch_size=miniBatch_size, seed=seed)
-        object = quantile_norm(object, do.center = T)
-        object = runUMAP(object, n_neighbors=30, min_dist=0.3, distance ="cosine")
-        object = transfer_labels(object, annotations, knn)
-        object_list[[modality]] = object
       }
-
     }
     return(object_list)
   }
 }
-  
 
 
 
