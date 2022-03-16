@@ -502,9 +502,6 @@ annotate_by_modality = function(filepath,
       }
       message(paste0(length(object@var.genes), " genes found with var.thresh = ",var_thresh_old))
       object = scaleNotCenter(object, chunk = chunk_size)
-      if(modality == "rna"){
-        vargenes_rna = object@var.genes
-      }
       object = online_iNMF(object,h5_chunk_size = chunk_size, k=k, lambda=lambda, max.epochs=max.epochs, miniBatch_max_iters=miniBatch_max_iters, miniBatch_size=miniBatch_size, seed=seed)      
       object = quantile_norm(object, do.center = T)
       object = runUMAP(object, n_neighbors=30, min_dist=0.3, distance ="cosine")
@@ -515,7 +512,7 @@ annotate_by_modality = function(filepath,
         hdf5_files = paste0(filepath, "/", region, "/Analysis", analysis_num , "_", region, "/",modality,"_subanalysis_",gsub(".RDS", ".H5",files[["meth"]]))
         data_names = gsub("(_qc.RDS)", "",files[["meth"]])
         
-        genes_use = vargenes_rna
+        genes_use = object_list[["rna"]]@var.genes
         for(i in 1:length(hdf5_files)){
           current_matrix = readRDS(paste0(filepath, "/",  region, "/Analysis", analysis_num , "_", region, "/",files[["meth"]][i]))
           current_matrix = current_matrix[rownames(current_matrix) %in% vargenes_rna,]
