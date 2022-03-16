@@ -143,8 +143,14 @@ apply_qc = function(filenames, region, analysis_num , qc_table_path, filepath_cy
       }
       #Calculate doublet score if it is a Tenx dataset
       if (data.type == "huang" | data.type == "tenx"){
+        if(!is.na(doublet_list)){
+          doublets = readRDS(doublet_list)
+          doublets$Barcodes = rownames(doublets)
+          celldata = dplyr::left_join(celldata %>% mutate(Barcodes = rownames(celldata)), doublets, by = 'Barcodes')
+          rownames(celldata) = celldata$Barcodes
+        }
+        if (is.na(doublet_list)){
         if (analysis_num == 1){
-          if (is.na(doublet_list)){
           ligs = createLiger(list(dataset = working_file))
           ligs = normalize(ligs)
           ligs = selectGenes(ligs, var.thresh = 0.001, num.genes = 5000)
@@ -160,14 +166,6 @@ apply_qc = function(filenames, region, analysis_num , qc_table_path, filepath_cy
           colnames(doublet_scores) = c("DoubletScore", "VarGenesforDoublet")
           doublet_filename = paste0(filepath,region, "/Analysis1_", region, "/BICCN_", region, "_", data.type, "_DoubletScores.RDS")
           saveRDS (doublet_scores, doublet_filename)} 
-        if(!is.na(doublet_list)){
-          doublet_filename = paste0(filepath,region, "/Analysis1_", region, "/BICCN_", region, "_", data.type, "_DoubletScores.RDS")
-          doublets = readRDS(doublet_filename)
-          doublets$Barcodes = rownames(doublets)
-          celldata = dplyr::left_join(celldata %>% mutate(Barcodes = rownames(celldata)), doublets, by = 'Barcodes')
-          rownames(celldata) = celldata$Barcodes
-        }
-        }
         if (analysis_num != 1 ){
           doublet_filename = paste0(filepath,region, "/Analysis1_", region, "/BICCN_", region, "_", data.type, "_DoubletScores.RDS")
           doublets = readRDS(doublet_filename)
@@ -175,6 +173,7 @@ apply_qc = function(filenames, region, analysis_num , qc_table_path, filepath_cy
           celldata = dplyr::left_join(celldata %>% mutate(Barcodes = rownames(celldata)), doublets, by = 'Barcodes')
           rownames(celldata) = celldata$Barcodes
           
+        }
         }
       } 
       #ATAC needs to be filtered by nUMI and mitochondrial counts 
