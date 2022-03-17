@@ -670,7 +670,7 @@ run_online = function(filepath = "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN
   print("Plotting labeled UMAPS....")
   plots_low = plotByDatasetAndCluster(liger_low, return.plots = TRUE)
   low_umap2 =paste0(filepath,"/", region, "/Analysis", analysis, "_", region, "/Images/Umap2_", region, "_Analysis_", analysis, "labeled.pdf")
-  pdf(low_umap1, width = 10, height = 8)
+  pdf(low_umap2, width = 10, height = 8)
   print(plots_low[[2]])
   dev.off()
   #Rename Results Table
