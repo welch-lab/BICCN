@@ -388,6 +388,7 @@ preprocess_data = function(filepath, region, analysis_num, chunk_size, num_genes
   if(return.object){
       return(object_new)
   }
+  rmm(object_new)
 }
 #object is a fully processed object, with clusters from either louvain or max factor assignment, assignment is a factor covering at least k of the cells in the object, k is used for nearest neighbors.
 transfer_labels = function(object, annotations, k = 20){
@@ -705,6 +706,7 @@ run_online = function(filepath = "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN
   if(return.object){
     return(liger) 
   }
+  rm(liger)
 }
   
 
