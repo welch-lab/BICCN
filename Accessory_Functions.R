@@ -702,11 +702,18 @@ run_online = function(filepath = "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN
   saveWorkbook(wb, output_filepath)
   if (analysis == 1 | analysis == 3){
     print("Performing max final annotations")
+    num_clusts = length(unique(result$highRcluster))
     max_assignments = na.omit(result)
     max_assignments = max_assignments %>% group_by(highRcluster, OG_Annotations)  %>% tally() %>% filter(n == max(n))
     max_assignments =max_assignments[,c("highRcluster", "OG_Annotations")]
     colnames(max_assignments) = c("highRcluster", "Final_Annotations")
+    max_assign = length(unique(max_assignments$highRcluster))
     result = left_join(result, max_assignments)
+    if(max_assign != num_clusts){
+      warning("Completely unannotated clusters. Please annotate these clusters before proceeding with further analyses")
+    }
+    
+    
   }
   results_filename = paste0(filepath,"/",  region, "/Analysis", analysis, "_", region, "/Analysis", analysis, "_", region,"_Results_Table.RDS")
   saveRDS(result, results_filename)
