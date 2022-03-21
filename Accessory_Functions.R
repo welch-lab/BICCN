@@ -631,7 +631,7 @@ run_online = function(filepath = "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN
   }
   liger = runUMAP(liger,  n_neighbors=30, min_dist=0.3, distance ="cosine")
   liger_low = louvainCluster(liger, resolution = low_resolution, k = 200)
-  liger_high = louvainCluster(liger, resolution = low_resolution, k = 200)
+  liger_high = louvainCluster(liger, resolution = high_resolution, k = 200)
   
   #Plot both high and low resolution UMAPs####################
   print("Plotting unlabeled UMAPS....")
