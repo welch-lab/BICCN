@@ -33,7 +33,7 @@ library(edgeR)
 # Base QC table is available at "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Base_Reference_Files/QC_table.RDS"
 # @slot analysis_num Determines directory and output file naming conventions, also ensures that Analysis one will ignore methylation Data
 
-apply_qc = function(filenames, region, analysis_num , qc_table_path, filepath_cytoplasmic = "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Base_Reference_Files/Cytoplasmic_genes.csv",  filepath = "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/", verbose = TRUE, doublet_list = NA){
+apply_qc = function(filenames, region, analysis_num , qc_table_path, filepath_cytoplasmic = "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Base_Reference_Files/Cytoplasmic_genes.csv",  filepath = "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/", verbose = TRUE, doublet_list = list(tenx = NA, huang = NA)){
   if(str_sub(filepath, start = -1L, end = -1L) != "/"){
     filepath = paste0(filepath, "/")
   }
@@ -150,7 +150,7 @@ apply_qc = function(filenames, region, analysis_num , qc_table_path, filepath_cy
           celldata = dplyr::left_join(celldata %>% mutate(Barcodes = rownames(celldata)), doublets, by = 'Barcodes')
           rownames(celldata) = celldata$Barcodes
         }
-        if (is.na(doublet_list)){
+        if (is.na(doublet_list[[data.type]])){
         if (analysis_num == 1){
           ligs = createLiger(list(dataset = working_file))
           ligs = normalize(ligs)
