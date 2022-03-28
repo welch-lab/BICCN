@@ -567,7 +567,7 @@ preprocess_and_run = function(filepath, region, analysis_num, chunk_size, num_ge
       rhdf5::h5write(1:3, file=fname, name="matrix/indptr",index = list(1:3))
       rhdf5::h5createDataset(fname,"norm.data",dims=3,storage.mode="integer", chunk = 1)
       rhdf5::h5write(1:3, file=fname, name="norm.data",index = list(1:3))
-      rhdf5::h5createDataset(fname,"scale.data",dims=c(nrow(current_matrix),ncol(current_matrix)),storage.mode="double", chunk = c(nrow(current_matrix),chunk_size))
+      rhdf5::h5createDataset(fname,"scale.data",dims=c(nrow(current_matrix),ncol(current_matrix)),storage.mode="double", chunk = c(nrow(current_matrix),min(chunk_size, ncol(current_matrix))))
       rhdf5::h5write(current_matrix, file=fname, name="scale.data",index = list(NULL, 1:ncol(current_matrix)))
       rhdf5::h5write(met.cell.data, file=fname, name="cell.data")
       rhdf5::h5closeAll()
