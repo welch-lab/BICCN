@@ -432,7 +432,7 @@ annotate_by_modality = function(filepath,
             rhdf5::h5write(1:3, file=hdf5_files[i], name="matrix/indptr",index = list(1:3))
             rhdf5::h5createDataset(hdf5_files[i],"norm.data",dims=3,storage.mode="integer", chunk = 1)
             rhdf5::h5write(1:3, file=hdf5_files[i], name="norm.data",index = list(1:3))
-            rhdf5::h5createDataset(hdf5_files[i],"scale.data",dims=c(nrow(current_matrix),ncol(current_matrix)),storage.mode="double", chunk = c(nrow(current_matrix),chunk_size))
+            rhdf5::h5createDataset(hdf5_files[i],"scale.data",dims=c(nrow(current_matrix),ncol(current_matrix)),storage.mode="double", chunk = c(nrow(current_matrix), chunk = c(nrow(meth_1),min(chunk_size, ncol(meth_1)))))
             rhdf5::h5write(current_matrix, file=hdf5_files[i], name="scale.data",index = list(NULL, 1:ncol(current_matrix)))
             rhdf5::h5write(met.cell.data, file=hdf5_files[i], name="cell.data")
             rhdf5::h5closeAll()
@@ -592,8 +592,8 @@ preprocess_and_run = function(filepath, region, analysis_num, chunk_size, num_ge
     object_new = quantile_norm(object_new, do.center = T)
   }
   liger_name = paste0(filepath, "/", region, "/Analysis", analysis_num, "_", region, "/onlineINMF_",region, "_object.RDS" )
-   print("Saving LIGER object")
-     saveRDS(object_new, liger_name)
+  print("Saving LIGER object")
+  saveRDS(object_new, liger_name)
   print("Running low resolution louvain clustering")
   if (analysis_num == 2){
     low_resolution = 0.75
@@ -607,7 +607,7 @@ preprocess_and_run = function(filepath, region, analysis_num, chunk_size, num_ge
   liger_low = louvainCluster(object_new, resolution = low_resolution, k = 200)
   liger_high = louvainCluster(object_new, resolution = high_resolution, k = 200)
   
-  #Plot both high and low resolution UMAPs####################
+  # #Plot both high and low resolution UMAPs####################
   print("Plotting unlabeled UMAPS....")
   plots_low = plotByDatasetAndCluster(liger_low, return.plots = TRUE)
   low_umap1 =paste0(filepath, "/",  region, "/Analysis", analysis_num, "_", region, "/Images/Umap1_", region, "_Analysis_", analysis_num, ".pdf")
@@ -624,13 +624,13 @@ preprocess_and_run = function(filepath, region, analysis_num, chunk_size, num_ge
   print(plots_high[[2]])
   dev.off()
   ##########################################################
-  #Generate a saved results table
+  # #Generate a saved results table
   result = data.frame(object_new@tsne.coords)
   result$dataset = object_new@cell.data$dataset
   result$lowRcluster = liger_low@clusters
   result$highRcluster = liger_high@clusters
-  
-  #Here we add the old annotations, and also generate a UMAP labeled with these old annotations. Need to discuss with J.S. how to best incorporate nearest neighbors clustering/annotation function
+  #
+  # #Here we add the old annotations, and also generate a UMAP labeled with these old annotations. Need to discuss with J.S. how to best incorporate nearest neighbors clustering/annotation function
   master = readRDS(knownAnnotations)
   if (analysis_num == 1){
     #Graph neuronal vs. non-neuronal
@@ -643,7 +643,7 @@ preprocess_and_run = function(filepath, region, analysis_num, chunk_size, num_ge
     names(annies) = master$Cell_Barcodes
   }
   if (analysis_num == 2 | analysis_num == 4 | analysis_num == 5){
-    #Graph Type
+    #   #Graph Type
     annies = master$Type
     names(annies) = master$Cell_Barcodes
     
@@ -653,20 +653,20 @@ preprocess_and_run = function(filepath, region, analysis_num, chunk_size, num_ge
   result$ann = annies[names(clusts)]
   liger_low@clusters = as.factor(annies[names(clusts)])
   
-  #Return UMAP with OG labels
+  # #Return UMAP with OG labels
   print("Plotting labeled UMAPS....")
   plots_low = plotByDatasetAndCluster(liger_low, return.plots = TRUE)
   low_umap2 =paste0(filepath,"/", region, "/Analysis", analysis_num, "_", region, "/Images/Umap2_", region, "_Analysis_", analysis_num, "labeled.pdf")
   pdf(low_umap2, width = 10, height = 8)
   print(plots_low[[2]])
   dev.off()
-  #Rename Results Table
+  # #Rename Results Table
   names(result) = c("UMAP1","UMAP2","dataset","lowRcluster","highRcluster", "OG_Annotations")
   result$Barcode = rownames(result)
   print("Outputting Annotation CSV")
   cluster_breakdowns_high = result %>% group_by(highRcluster, dataset, OG_Annotations)  %>% tally()
   cluster_breakdowns_low = result %>% group_by(lowRcluster, dataset, OG_Annotations)  %>% tally()
-  
+  #
   output_filepath = paste0(filepath,"/",  region, "/Analysis", analysis_num, "_", region, "/Cluster_Breakdowns_",region, "_Analysis_", analysis_num, ".xlsx")
   wb <- createWorkbook()
   addWorksheet(wb = wb, sheetName = "LowRes")
@@ -690,6 +690,7 @@ preprocess_and_run = function(filepath, region, analysis_num, chunk_size, num_ge
   results_filename = paste0(filepath,"/",  region, "/Analysis", analysis_num, "_", region, "/Analysis", analysis_num, "_", region,"_Results_Table.RDS")
   saveRDS(result, results_filename)
 }
+
 
 
 
