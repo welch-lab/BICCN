@@ -528,6 +528,8 @@ preprocess_and_run = function(filepath, region, analysis_num, chunk_size, num_ge
     customGenes = readRDS(customGeneList)
     object@var.genes = customGenes
   }
+  meth_files = setdiff(qc_files, non_meth_files)
+  
   if(length(meth_files)>0){
     hdf5_files = paste0(filepath, "/", region, "/Analysis", analysis_num , "_", region, "/",gsub(".RDS", ".H5",meth_files))
     data_names = gsub("(_qc.RDS)", "",meth_files)
@@ -542,7 +544,6 @@ preprocess_and_run = function(filepath, region, analysis_num, chunk_size, num_ge
   
   object = scaleNotCenter(object, chunk = chunk_size)
   
-  meth_files = setdiff(qc_files, non_meth_files)
   if(length(meth_files)>0){
     hdf5_files = paste0(filepath, "/", region, "/Analysis", analysis_num , "_", region, "/",gsub(".RDS", ".H5",meth_files))
     data_names = gsub("(_qc.RDS)", "",meth_files)
