@@ -1,6 +1,10 @@
 library(magrittr)
 library(stringr)
 
+
+'%notin%' = Negate('%in%')
+
+
 create.directories = function(region = "X", desired.filepath = "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/"){
   #Initialize main region directory
   #Add a slash at the end of directory if one is not provided
