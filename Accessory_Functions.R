@@ -539,7 +539,7 @@ preprocess_and_run = function(filepath, region, analysis_num, chunk_size, num_ge
     data_names = gsub("(_qc.RDS)", "",meth_files)
     current_matrix = readRDS(paste0(filepath, "/",  region, "/Analysis", analysis_num , "_", region, "/",meth_files[1]))
     meth_genes = rownames(current_matrix)
-    new_genes = subset(object@var.genes, object@var.genes %notin% meth_genes)
+    new_genes = subset(object@var.genes, object@var.genes %in% meth_genes)
     object@var.genes = new_genes
     message(paste0(length(object@var.genes), " Genes after accounting for those in common with methylation data"))
   }
