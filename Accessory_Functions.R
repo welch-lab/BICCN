@@ -623,10 +623,10 @@ preprocess_and_run = function(filepath, region, analysis_num, chunk_size, num_ge
   low_umap2 =paste0(filepath, "/", region, "/Analysis", analysis_num, "_", region, "/Images/Umap2_", region, "_Analysis_", analysis_num, "unlabeled.lowresolution.pdf")
   low_umap1png =paste0(filepath, "/",  region, "/Analysis", analysis_num, "_", region, "/Images/Umap1_", region, "_Analysis_", analysis_num, ".png")
   low_umap2png =paste0(filepath, "/", region, "/Analysis", analysis_num, "_", region, "/Images/Umap2_", region, "_Analysis_", analysis_num, "unlabeled.lowresolution.png")
-  png(low_umap1png)
+  png(low_umap1png, 1000, 800)
   print(plots_low[[1]])
   dev.off()
-  png(low_umap2png)
+  png(low_umap2png, 1000, 800)
   print(plots_low[[2]])
   dev.off()
   pdf(low_umap1, width = 10, height = 8)
@@ -641,7 +641,7 @@ preprocess_and_run = function(filepath, region, analysis_num, chunk_size, num_ge
   print(plots_high[[2]])
   dev.off()
   high_umap2png =paste0(filepath,"/",  region, "/Analysis", analysis_num, "_", region, "/Images/Umap2_", region, "_Analysis_", analysis_num, "unlabeled.highresolution.png")
-  png(high_umap2png)
+  png(high_umap2png, 1000, 800)
   print(plots_high[[2]])
   dev.off()
   
@@ -1158,7 +1158,7 @@ generate_umaps =  function(filepath, analysis_num, region){
   low_umap2 =paste0(filepath, "/", region, "/Analysis", analysis_num, "_", region, "/Images/Umap2_", region, "_Analysis_", analysis_num, "ligerlabeled.lowresolution.pdf")
   low_umap2png =paste0(filepath, "/", region, "/Analysis", analysis_num, "_", region, "/Images/Umap2_", region, "_Analysis_", analysis_num, "ligerlabeled.lowresolution.png")
   
-  png(low_umap2png)
+  png(low_umap2png, 1000, 800)
   print(plot.labeled.low[[2]])
   dev.off()
   
@@ -1166,12 +1166,12 @@ generate_umaps =  function(filepath, analysis_num, region){
   print(plot.labeled.low[[2]])
   dev.off()
   
-  ligs_high@tsne.coords = umaps_high
+  ligs_high@tsne.coords = umaps
   plot.labeled.high = plotByDatasetAndCluster(ligs_high,return.plots = TRUE)
   high_umap2 =paste0(filepath, "/", region, "/Analysis", analysis_num, "_", region, "/Images/Umap2_", region, "_Analysis_", analysis_num, "ligerlabeled.highresolution.pdf")
   high_umap2png =paste0(filepath, "/", region, "/Analysis", analysis_num, "_", region, "/Images/Umap2_", region, "_Analysis_", analysis_num, "ligerlabeled.highresolution.png")
   
-  png(high_umap2png)
+  png(high_umap2png, 1000, 800)
   print(plot.labeled.high[[2]])
   dev.off()
   
