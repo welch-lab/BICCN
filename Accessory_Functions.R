@@ -79,7 +79,7 @@ apply_qc = function(filenames, region, analysis_num , qc_table_path, filepath_cy
       if(data.type != "meth"){
         results_filename = paste0(filepath,region, "/Analysis1_", region, "/Analysis1_", region, "_Results_Table.RDS")
         results = readRDS(results_filename)
-        results = filter(results, results$Final_Annotations =="NonN")
+        results = filter(results, results$highRAnnotations =="NonN")
         results = subset(results, results$Barcode %in% colnames(working_file))
         use.cells = results$Barcode
       } else {use.cells = colnames(working_file)}
@@ -88,7 +88,7 @@ apply_qc = function(filenames, region, analysis_num , qc_table_path, filepath_cy
       if(data.type != "meth"){
         results_filename = paste0(filepath,region, "/Analysis1_", region, "/Analysis1_", region, "_Results_Table.RDS")
         results = readRDS(results_filename)
-        results = filter(results, results$Final_Annotations =="Neu")
+        results = filter(results, results$highRAnnotations =="Neu")
         results = subset(results, results$Barcode %in% colnames(working_file))
         use.cells = results$Barcode
       } else {use.cells = colnames(working_file)}
@@ -96,14 +96,14 @@ apply_qc = function(filenames, region, analysis_num , qc_table_path, filepath_cy
     if(analysis_num == 4){
       results_filename = paste0(filepath,region, "/Analysis3_", region, "/Analysis3_", region, "_Results_Table.RDS")
       results = readRDS(results_filename)
-      results = filter(results, results$Final_Annotations =="Inh")
+      results = filter(results, results$highRAnnotations =="Inh")
       results = subset(results, results$Barcode %in% colnames(working_file))
       use.cells = results$Barcode
     }
     if(analysis_num == 5){
       results_filename = paste0(filepath,region, "/Analysis3_", region, "/Analysis3_", region, "_Results_Table.RDS")
       results = readRDS(results_filename)
-      results = filter(results, results$Final_Annotations =="Exc")
+      results = filter(results, results$highRAnnotations =="Exc")
       results = subset(results, results$Barcode %in% colnames(working_file))
       use.cells = results$Barcode
     }
@@ -707,7 +707,7 @@ preprocess_and_run = function(filepath, region, analysis_num, chunk_size, num_ge
     max_assignments = na.omit(result)
     max_assignments = max_assignments %>% group_by(highRcluster, OG_Annotations)  %>% tally() %>% filter(n == max(n))
     max_assignments =max_assignments[,c("highRcluster", "OG_Annotations")]
-    colnames(max_assignments) = c("highRcluster", "Final_Annotations")
+    colnames(max_assignments) = c("highRcluster", "highRAnnotations")
     max_assign = length(unique(max_assignments$highRcluster))
     result = left_join(result, max_assignments)
     if(max_assign != num_clusts){
