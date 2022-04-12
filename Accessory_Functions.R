@@ -621,6 +621,14 @@ preprocess_and_run = function(filepath, region, analysis_num, chunk_size, num_ge
   plots_low = plotByDatasetAndCluster(liger_low, return.plots = TRUE)
   low_umap1 =paste0(filepath, "/",  region, "/Analysis", analysis_num, "_", region, "/Images/Umap1_", region, "_Analysis_", analysis_num, ".pdf")
   low_umap2 =paste0(filepath, "/", region, "/Analysis", analysis_num, "_", region, "/Images/Umap2_", region, "_Analysis_", analysis_num, "unlabeled.lowresolution.pdf")
+  low_umap1png =paste0(filepath, "/",  region, "/Analysis", analysis_num, "_", region, "/Images/Umap1_", region, "_Analysis_", analysis_num, ".png")
+  low_umap2png =paste0(filepath, "/", region, "/Analysis", analysis_num, "_", region, "/Images/Umap2_", region, "_Analysis_", analysis_num, "unlabeled.lowresolution.png")
+  png(low_umap1png)
+  print(plots_low[[1]])
+  dev.off()
+  png(low_umap2png)
+  print(plots_low[[2]])
+  dev.off()
   pdf(low_umap1, width = 10, height = 8)
   print(plots_low[[1]])
   dev.off()
@@ -632,6 +640,11 @@ preprocess_and_run = function(filepath, region, analysis_num, chunk_size, num_ge
   pdf(high_umap2, width = 10, height = 8)
   print(plots_high[[2]])
   dev.off()
+  high_umap2png =paste0(filepath,"/",  region, "/Analysis", analysis_num, "_", region, "/Images/Umap2_", region, "_Analysis_", analysis_num, "unlabeled.highresolution.png")
+  png(high_umap2png)
+  print(plots_high[[2]])
+  dev.off()
+  
   ##########################################################
   # #Generate a saved results table
   result = data.frame(object_new@tsne.coords)
@@ -667,6 +680,11 @@ preprocess_and_run = function(filepath, region, analysis_num, chunk_size, num_ge
   plots_low = plotByDatasetAndCluster(liger_low, return.plots = TRUE)
   low_umap2 =paste0(filepath,"/", region, "/Analysis", analysis_num, "_", region, "/Images/Umap2_", region, "_Analysis_", analysis_num, "labeled.pdf")
   pdf(low_umap2, width = 10, height = 8)
+  print(plots_low[[2]])
+  dev.off()
+  
+  low_umap2.png =paste0(filepath,"/", region, "/Analysis", analysis_num, "_", region, "/Images/Umap2_", region, "_Analysis_", analysis_num, "labeled.png")
+  png(low_umap2.png, 1000, 800)
   print(plots_low[[2]])
   dev.off()
   # #Rename Results Table
