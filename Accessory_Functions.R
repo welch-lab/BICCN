@@ -1124,6 +1124,69 @@ graph_celltypes = function(resolution, cluster_picked){
     geom_text(aes(label = n), vjust = -0.2, size = 4, position = position_dodge(0.9))+ facet_wrap(facets = vars(dataset))  + labs(x ="Original Annotations", y = "Number of Cells") +  guides(fill=guide_legend(title="Original Annotation")) + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+ theme(text = element_text(size = 20))  
   return(final_plot)
 }
+
+#`filepath` = "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Sample_Validation/Automated/"
+#`analysis_num` = 3
+#`region` = "AUD"
+
+
+#' The generate_umaps function generates labeled umaps given our newly derived LIGER annotations
+#' 2nd: It generates a READme with all of the region/analysis umaps in one place
+generate_umaps =  function(filepath, analysis_num, region){
+  liger.path = paste0(filepath, region, "/Analysis", analysis_num, "_", region, "/onlineINMF_", region, "_object.RDS")
+  ligs = readRDS(liger.path)
+  results.path = paste0(filepath, region, "/Analysis", analysis_num, "_", region, "/Analysis", analysis_num, "_", region, "_Results_Table.RDS")
+  results = readRDS(results.path)
+  ligs_clusts = names(ligs@clusters)
+  results = results[match(ligs_clusts, results$Barcode), ] 
+  low_re = results$lowRAnnotations
+  names(low_re) = results$Barcode
+  high_re = results$highRAnnotations
+  names(high_re) = results$Barcode
+  
+  ligs_low  = ligs
+  ligs_low@clusters = as.factor(low_re)
+  ligs_high = ligs
+  ligs_high@clusters = as.factor(high_re)
+  
+  umaps = data.frame(results$UMAP1, results$UMAP2)
+  rownames(umaps) = results$Barcode
+  umaps = as.matrix(umaps)
+  
+  ligs_low@tsne.coords = umaps
+  plot.labeled.low = plotByDatasetAndCluster(ligs_low,return.plots = TRUE)
+  low_umap2 =paste0(filepath, "/", region, "/Analysis", analysis_num, "_", region, "/Images/Umap2_", region, "_Analysis_", analysis_num, "ligerlabeled.lowresolution.pdf")
+  low_umap2png =paste0(filepath, "/", region, "/Analysis", analysis_num, "_", region, "/Images/Umap2_", region, "_Analysis_", analysis_num, "ligerlabeled.lowresolution.png")
+  
+  png(low_umap2png)
+  print(plot.labeled.low[[2]])
+  dev.off()
+  
+  pdf(low_umap2, width = 10, height = 8)
+  print(plot.labeled.low[[2]])
+  dev.off()
+  
+  ligs_high@tsne.coords = umaps_high
+  plot.labeled.high = plotByDatasetAndCluster(ligs_high,return.plots = TRUE)
+  high_umap2 =paste0(filepath, "/", region, "/Analysis", analysis_num, "_", region, "/Images/Umap2_", region, "_Analysis_", analysis_num, "ligerlabeled.highresolution.pdf")
+  high_umap2png =paste0(filepath, "/", region, "/Analysis", analysis_num, "_", region, "/Images/Umap2_", region, "_Analysis_", analysis_num, "ligerlabeled.highresolution.png")
+  
+  png(high_umap2png)
+  print(plot.labeled.high[[2]])
+  dev.off()
+  
+  pdf(high_umap2 , width = 10, height = 8)
+  print(plot.labeled.high[[2]])
+  dev.off()
+  ###### Plot the png and pdf
+  print("Done! New graphs have been generated and saved!")
+  
+}
+
+
+
+
+
 #################################################################################################### Understanding Marker Genes #####################################################################
 ################################# 
 ################### Need to generate a reference list object for each datatype
