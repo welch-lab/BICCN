@@ -179,7 +179,7 @@ apply_qc = function(filenames, region, analysis_num , qc_table_path, filepath_cy
       remaining_nUMI = rownames(celldata)
       celldata = filter(celldata, celldata$nGene >= as.numeric(GeneCount_cutoff))
       remaining_GeneCounts = rownames(celldata)
-      celldata = filter(celldata, celldata$Mito <= as.numeric(mito_cutoff))
+     # celldata = filter(celldata, celldata$Mito <= as.numeric(mito_cutoff))
       remaining_mito = rownames(celldata)
       if (analysis_num == 3 | analysis_num == 4 | analysis_num == 5){
         celldata = filter(celldata, celldata$Cytoplasmic_Score > as.numeric(cytoplasmic_cutoff))
