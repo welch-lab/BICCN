@@ -25,7 +25,7 @@ create.directories = function(region = "X", desired.filepath = "/nfs/turbo/umms-
 }
 ################## QC function
 #Input: List of filenames and types
-#Types should be listed as "sc10Xv3", "smartseq", "atac", "meth", "sn10Xv3"
+#Types should be listed as "sc10Xv3", "smartseq", "atac", "meth", "sn10Xv3", "sc10Xv2"
 #If more than one of each type of file exists, they should be listed as "sc10Xv3_1", "sc10Xv3_2", etc.
 #output: All files will be out put as .RDS files. QC metrics will be stored in Analysis#_region_Overall_qc.RDS
 library(sjmisc)
@@ -154,10 +154,10 @@ apply_qc = function(filenames, region, analysis_num , qc_table_path, filepath_cy
       
     }
     
-    if (data.type == "sc10Xv3"){  #i.e. originally called tenx
+    if (data.type == "sc10Xv3" | data.type == "sc10Xv2"){  #i.e. originally called tenx
       qc_table = readRDS(qc_table_path)
       #Find the appropriate cutoff to apply
-      qc_stats = filter(qc_table, qc_table$DataType == data.type)
+      qc_stats = filter(qc_table, qc_table$DataType == "sc10Xv3")
       qc_stats = filter(qc_stats, qc_stats$Analysis == analysis_num)
       if (region != "OLF" & region != "CB"){
         qc_stats = filter(qc_stats, qc_stats$Region == "ALL")
@@ -194,9 +194,9 @@ apply_qc = function(filenames, region, analysis_num , qc_table_path, filepath_cy
       qc.matrix = working_file[, sub_cells]
     }
     
-    if (data.type == "sn10Xv3"){
+    if (data.type == "sn10Xv3" | data.type == "sn10Xv2"){
       qc_table = readRDS(qc_table_path)
-      qc_stats = filter(qc_table, qc_table$DataType == data.type)
+      qc_stats = filter(qc_table, qc_table$DataType == "sn10Xv3" )
       nUMI_cutoff = qc_stats$nUMI
       mito_cutoff = qc_stats$mito
       cytoplasmic_cutoff = qc_stats$CytoplasmicScore
@@ -259,7 +259,7 @@ apply_qc = function(filenames, region, analysis_num , qc_table_path, filepath_cy
     message("Done Processing ", data.type, " ", edition)
   }
   
-  if (data.type != "meth" & data.type != "atac" & data.type != "smartseq" & data.type != "sc10Xv3" & data.type != "sn10Xv3"){
+  if (data.type != "meth" & data.type != "atac" & data.type != "smartseq" & data.type != "sc10Xv3" & data.type != "sn10Xv3" & data.type != "sc10Xv2"){
     warning("Uknown Data Type submitted", immediate. = T)
     
   }
@@ -338,16 +338,16 @@ annotate_by_modality = function(filepath,
   names(dataset) = rownames(object@cell.data)
   annot_dataset = dataset[names(dataset) %in% names(annotations)]
   freq = table(annot_dataset)
-  if(0 == sum(freq[grepl("_(atac_)",names(freq))]) * sum(freq[grepl("_(meth_)",names(freq))]) * sum(freq[grepl("_(sc10Xv3_|smartseq_|sn10Xv3_)",names(freq))])){
+  if(0 == sum(freq[grepl("_(atac_)",names(freq))]) * sum(freq[grepl("_(meth_)",names(freq))]) * sum(freq[grepl("_(sc10Xv3_|smartseq_|sn10Xv3_|sc10Xv2_)",names(freq))])){
     message("Annotations missing for at least one modality --  joint annotation transfer being conducted")
     object = transfer_labels(object, annotations, k)
     return(list("all" = object))
   } else {
     rm(object)
     qc_files = list.files(paste0(filepath, "/", region, "/Analysis", analysis_num , "_", region, "/"))
-    qc_files = grep(paste0(region,"_(sc10Xv3_|smartseq_|atac_|meth_|sn10Xv3_).*(qc.RDS)"), qc_files, value = TRUE)
+    qc_files = grep(paste0(region,"_(sc10Xv3_|smartseq_|atac_|meth_|sn10Xv3_|sc10Xv2_).*(qc.RDS)"), qc_files, value = TRUE)
     files = list()
-    files[["rna"]] = grep(paste0("_(sc10Xv3_|smartseq_|sn10Xv3_)"), qc_files, value = TRUE)
+    files[["rna"]] = grep(paste0("_(sc10Xv3_|smartseq_|sn10Xv3_|sc10Xv2_)"), qc_files, value = TRUE)
     files[["atac"]] = grep(paste0("_(atac_)"), qc_files, value = TRUE)
     files[["meth"]] = grep(paste0("_(meth_)"), qc_files, value = TRUE)
     files[length(files) == 0] = NULL
@@ -378,7 +378,7 @@ annotate_by_modality = function(filepath,
         names(hdf5_files) = data_names
         object = createLiger(raw.data = as.list(hdf5_files))
         object = normalize(object, chunk = chunk_size)
-        datasets_use = grep("[sc10Xv3_|smartseq_]",files[[modality]])
+        datasets_use = grep("[sc10Xv3_|smartseq_|sc10Xv2_]",files[[modality]])
         object = selectGenes(object, var.thresh = var_thresh_start, datasets.use = datasets_use)
         var_thresh_old = var_thresh_start
         high = max_var_thresh
@@ -481,7 +481,7 @@ library(dplyr)
 library(edgeR)
 preprocess_and_run = function(filepath, region, analysis_num, chunk_size, num_genes = 2500, gene_num_tolerance = 100, var_thresh_start = 2, max_var_thresh = 4, customGeneList = NA, return.object = FALSE, qn_ref = NA, knownAnnotations = "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Base_Reference_Files/Reference_Annotations.RDS"){
   qc_files = list.files(paste0(filepath, "/", region, "/Analysis", analysis_num , "_", region, "/"))
-  qc_files = grep(paste0(region,"_(sc10Xv3_|smartseq_|atac_|meth_|sn10Xv3_).*(qc.RDS)"), qc_files, value = TRUE)
+  qc_files = grep(paste0(region,"_(sc10Xv3_|smartseq_|atac_|meth_|sn10Xv3_|sc10Xv2_).*(qc.RDS)"), qc_files, value = TRUE)
   non_meth_files = grep("meth",qc_files, value = TRUE, invert = TRUE)
   rhdf5::h5closeAll()
   print("Writing H5s")
@@ -507,7 +507,7 @@ preprocess_and_run = function(filepath, region, analysis_num, chunk_size, num_ge
   object = createLiger(raw.data = as.list(hdf5_files))
   print("Normalizing data")
   object = normalize(object, chunk = chunk_size)
-  datasets_use = grep("[sc10Xv3_|smartseq_]",non_meth_files)
+  datasets_use = grep("[sc10Xv3_|smartseq_|sc10Xv2_]",non_meth_files)
   object = selectGenes(object, var.thresh = var_thresh_start, datasets.use = datasets_use)
   if (is.na(customGeneList)){
     print("Selecting Genes")
