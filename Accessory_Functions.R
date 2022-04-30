@@ -618,7 +618,7 @@ preprocess_and_run = function(filepath, region, analysis_num, chunk_size, num_ge
   
   # #Plot both high and low resolution UMAPs####################
   print("Plotting unlabeled UMAPS....")
-  plots_low = plotByDatasetAndCluster(liger_low, return.plots = TRUE)
+  plots_low = plotByDatasetAndCluster(liger_low, return.plots = TRUE, text.size = 6)
   low_umap1 =paste0(filepath, "/",  region, "/Analysis", analysis_num, "_", region, "/Images/Umap1_", region, "_Analysis_", analysis_num, ".pdf")
   low_umap2 =paste0(filepath, "/", region, "/Analysis", analysis_num, "_", region, "/Images/Umap2_", region, "_Analysis_", analysis_num, "unlabeled.lowresolution.pdf")
   low_umap1png =paste0(filepath, "/",  region, "/Analysis", analysis_num, "_", region, "/Images/Umap1_", region, "_Analysis_", analysis_num, ".png")
@@ -635,7 +635,7 @@ preprocess_and_run = function(filepath, region, analysis_num, chunk_size, num_ge
   pdf(low_umap2, width = 10, height = 8)
   print(plots_low[[2]])
   dev.off()
-  plots_high = plotByDatasetAndCluster(liger_high, return.plots = TRUE)
+  plots_high = plotByDatasetAndCluster(liger_high, return.plots = TRUE, text.size = 6)
   high_umap2 =paste0(filepath,"/",  region, "/Analysis", analysis_num, "_", region, "/Images/Umap2_", region, "_Analysis_", analysis_num, "unlabeled.highresolution.pdf")
   pdf(high_umap2, width = 10, height = 8)
   print(plots_high[[2]])
@@ -677,7 +677,7 @@ preprocess_and_run = function(filepath, region, analysis_num, chunk_size, num_ge
   
   # #Return UMAP with OG labels
   print("Plotting labeled UMAPS....")
-  plots_low = plotByDatasetAndCluster(liger_low, return.plots = TRUE)
+  plots_low = plotByDatasetAndCluster(liger_low, return.plots = TRUE, text.size = 6)
   low_umap2 =paste0(filepath,"/", region, "/Analysis", analysis_num, "_", region, "/Images/Umap2_", region, "_Analysis_", analysis_num, "labeled.pdf")
   pdf(low_umap2, width = 10, height = 8)
   print(plots_low[[2]])
@@ -1154,7 +1154,7 @@ generate_umaps =  function(filepath, analysis_num, region){
   umaps = as.matrix(umaps)
   
   ligs_low@tsne.coords = umaps
-  plot.labeled.low = plotByDatasetAndCluster(ligs_low,return.plots = TRUE)
+  plot.labeled.low = plotByDatasetAndCluster(ligs_low,return.plots = TRUE, text.size = 6 )
   low_umap2 =paste0(filepath, "/", region, "/Analysis", analysis_num, "_", region, "/Images/Umap2_", region, "_Analysis_", analysis_num, "ligerlabeled.lowresolution.pdf")
   low_umap2png =paste0(filepath, "/", region, "/Analysis", analysis_num, "_", region, "/Images/Umap2_", region, "_Analysis_", analysis_num, "ligerlabeled.lowresolution.png")
   
@@ -1167,7 +1167,7 @@ generate_umaps =  function(filepath, analysis_num, region){
   dev.off()
   
   ligs_high@tsne.coords = umaps
-  plot.labeled.high = plotByDatasetAndCluster(ligs_high,return.plots = TRUE)
+  plot.labeled.high = plotByDatasetAndCluster(ligs_high,return.plots = TRUE, text.size = 6)
   high_umap2 =paste0(filepath, "/", region, "/Analysis", analysis_num, "_", region, "/Images/Umap2_", region, "_Analysis_", analysis_num, "ligerlabeled.highresolution.pdf")
   high_umap2png =paste0(filepath, "/", region, "/Analysis", analysis_num, "_", region, "/Images/Umap2_", region, "_Analysis_", analysis_num, "ligerlabeled.highresolution.png")
   
