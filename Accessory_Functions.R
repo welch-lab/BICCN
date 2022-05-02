@@ -195,6 +195,7 @@ apply_qc = function(filenames, region, analysis_num , qc_table_path, filepath_cy
     }
     
     if (data.type == "sn10Xv3" | data.type == "sn10Xv2"){
+      #Remember, new macosko data is already pre-filtered. No need to apply any QC.
       qc_table = readRDS(qc_table_path)
       qc_stats = filter(qc_table, qc_table$DataType == "sn10Xv3" )
       nUMI_cutoff = qc_stats$nUMI
@@ -202,12 +203,10 @@ apply_qc = function(filenames, region, analysis_num , qc_table_path, filepath_cy
       cytoplasmic_cutoff = qc_stats$CytoplasmicScore
       ligs = createLiger(list(qc_mat = working_file))
       celldata = ligs@cell.data
-      celldata$Mito = getProportionMito(ligs)
-      celldata = filter(celldata, celldata$nUMI >= as.numeric(nUMI_cutoff))
       remaining_nUMI = rownames(celldata)
-      celldata = filter(celldata, celldata$Mito <= as.numeric(mito_cutoff))
       remaining_cyto = remaining_mito = rownames(celldata)
       before_subset = dim(working_file)[[2]] #Gets you original dimensions of matrix
+      use.cells = as.character(use.cells)
       working_file = working_file[,use.cells] #Gets you a matrix subset for the appropriate cell population
       after_subset = dim(working_file)[[2]]  #Gets you dimensions of matrix after subsetting for the appropriate cell population
       cells_after_subset = colnames(working_file) #Gets you the cell names present after subsetting for cell populations
