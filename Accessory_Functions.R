@@ -111,15 +111,17 @@ apply_qc = function(filenames, region, analysis_num , qc_table_path, filepath_cy
     ######################### Pre-process 
     #Change the names of the Rik genes. This needs to be done for the sc10Xv3 and smartseq datasets
     if (data.type == "smartseq"){
-      rik_converter = readRDS("/nfs/turbo/umms-welchjd/BRAIN_initiative/Ensembl_conversion/ConvertRik.Tenx.SMART.RDS")
+      #With the new smartseq data, we no longer need the gene converter
+      
+      #rik_converter = readRDS("/nfs/turbo/umms-welchjd/BRAIN_initiative/Ensembl_conversion/ConvertRik.Tenx.SMART.RDS")
       #Need to raise a warning if there are genes in the smartseq matrix that are not in the conversion table
-      refined_genes = rownames(working_file)
-      potential_outliers = subset(refined_genes, refined_genes %notin% rik_converter$Og_Barcode)
-      if (length(potential_outliers >= 1)) { 
-        warning("There are genes in the matrix that are not covered in the conversion table. Please update the conversion table to address these genes and then rerun the function.", immediate. = T)
-      } 
-      rowname_new = rik_converter$New_Barcode[match(rownames(working_file), rik_converter$Og_Barcode)]
-      rownames(working_file) = rowname_new 
+      #refined_genes = rownames(working_file)
+      #potential_outliers = subset(refined_genes, refined_genes %notin% rik_converter$Og_Barcode)
+      #if (length(potential_outliers >= 1)) { 
+      #  warning("There are genes in the matrix that are not covered in the conversion table. Please update the conversion table to address these genes and then rerun the function.", immediate. = T)
+      #} 
+      #rowname_new = rik_converter$New_Barcode[match(rownames(working_file), rik_converter$Og_Barcode)]
+      #rownames(working_file) = rowname_new 
       qc.matrix = working_file[,use.cells]  #only grab applicable cell populations
       remaining_GeneCounts = remaining_nUMI = remaining_mito = remaining_cyto = colnames(qc.matrix)
       nUMI_cutoff = mito_cutoff = cytoplasmic_cutoff = GeneCount_cutoff = NA
