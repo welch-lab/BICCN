@@ -22,6 +22,8 @@ create.directories = function(region = "X", desired.filepath = "/nfs/turbo/umms-
   }
   loom_directory = paste0(main_directory, "/", region,"_Loom_Directory")
   dir.create(loom_directory)
+  deconv_directory = paste0(main_directory, "/", region,"_Deconvolution_Output")
+  dir.create(deconv_directory)
 }
 ################## QC function
 #Input: List of filenames and types
