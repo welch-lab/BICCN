@@ -1199,6 +1199,332 @@ generate_umaps =  function(filepath, analysis_num, region){
   
 }
 
+deconvolve_spatial = function(filepath,
+  region,
+  spatial.data.file,
+  annotation.level = 3,
+  n.cells = 500,
+  known.annotations = "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Base_Reference_Files/Reference_Annotations.RDS",
+  deconv.gene.num = 2000,
+  gene.num.tol = 50,
+  clusters = NULL,
+  lambda = 1,
+  thresh = 1e-8,
+  max.iters = 100,
+  nrep = 1,
+  rand.seed = 1,
+  print.obj = FALSE,
+  verbose = TRUE,
+  z = 1){
+    message("Loading Data")  
+    object_path = paste0(filepath, region, "/Analysis1_", region, "/onlineINMF_",region, "_object.RDS" )
+    object = readRDS(object_path)
+    
+    
+    if(!is.null(known.annotations)){
+      if(is.character(known.annotations)){
+        master = readRDS(known.annotations)
+        if (annotation.level == 1){
+          clusters = master$Level1
+        }
+        if (annotation.level == 2){
+          clusters = master$Class
+        }
+        else {
+          clusters = master$Type
+        }
+        clusters = as.factor(clusters)
+        names(clusters) = master$Cell_Barcodes
+      } else {
+        clusters = known.annotations
+      }
+      
+    } else {
+      #prelim, just for testing until april says something
+      clusters = c()
+      for(analysis_num in c(2,4,5)){
+        analysis_results = readRDS(paste0(filepath,"/",  region, "/Analysis", analysis_num, "_", region, "/Analysis", analysis_num, "_", region,"_Results_Table.RDS"))
+        analysis_clusters = paste0(analysis_num, "_", analysis_results$lowRannotations)
+        names(analysis_clusters) = analysis_results$Barcode
+        clusters = c(clusters, analysis_clusters)
+      }
+      clusters = clusters[clusters != ""]
+    
+    }
+    
+    h5_files = sapply(1:length(object@norm.data), function(i){object@h5file.info[[i]]$file.path})
+    rna_files = grep(paste0("_(sc10Xv3_|smartseq_|sn10Xv3_|sc10Xv2_)"), h5_files, value = TRUE)
+    
+    liger_genes = lapply(rna_files, function(i){
+      rhdf5::h5read(i, "/matrix/features")[[1]] #change, extract from H5
+    })
+    liger_cells = lapply(rna_files, function(i){
+      rhdf5::h5read(i, "/matrix/barcodes")#change, extract from H5
+    })
+    
+    message("Preprocessing for gene selection")
+    
+    norm.data = lapply(1:length(rna_files), function(i){
+      n = rna_files[i]
+      rliger:::Matrix.column_norm(Matrix::sparseMatrix(
+          dims = c(length(liger_genes[[i]]), length(liger_cells[[i]])),
+          i = as.numeric(rhdf5::h5read(n, "/matrix/indices")+1),
+          p = as.numeric(rhdf5::h5read(n, "/matrix/indptr")),
+          x = as.numeric(rhdf5::h5read(n, "/matrix/data"))
+      ))
+    })
+
+    spatial.data = readRDS(spatial.data.file)[,1:927]
+
+    spatial.data[spatial.data == -1] = NA
+    genes_NA = apply(spatial.data, MARGIN = 1, function(x){sum(is.na(x))})
+    mean_genes_NA = mean(genes_NA)
+    genes_use = genes_NA < (mean_genes_NA + z * mean_genes_NA)
+    spatial.data = spatial.data[genes_use,]
+    #simplest way to handle this
+    spatial.data[is.na(spatial.data)] = 0
+    annotated_cells = intersect(names(clusters),Reduce(union, liger_cells))
+    
+    shared_genes = intersect(rownames(spatial.data), Reduce(intersect, liger_genes))
+    
+    clusters = clusters[names(clusters) %in% annotated_cells]
+    clusters = droplevels(clusters)
+    
+    freq_cells = table(clusters)
+    freq_cells = freq_cells[names(freq_cells) != ""]
+    
+    sample.cells = Reduce(c, lapply(names(freq_cells), function(cell_type){
+      Reduce(c, lapply(1:length(norm.data), function(i){
+        cells = intersect(names(clusters[clusters == cell_type]), liger_cells[[i]])
+        if(length(cells)> 0){
+          return(sample(cells, min(length(cells), n.cells), replace =TRUE))
+        } else {
+          return(c())
+        }
+      }))
+    }))
+    norm.data = lapply(1:length(norm.data), function(i){
+      rownames(norm.data[[i]]) = liger_genes[[i]]
+      colnames(norm.data[[i]]) = liger_cells[[i]]
+      gene_means = rhdf5::h5read(rna_files[i], "gene_means")[liger_genes[[i]] %in% shared_genes]
+      gene_sum_sq = rhdf5::h5read(rna_files[i], "gene_sum_sq")[liger_genes[[i]] %in% shared_genes]
+      root_mean_sum_sq = sqrt(gene_sum_sq/(ncol(norm.data[[i]])-1))
+      norm.data[[i]]= sweep(norm.data[[i]][liger_genes[[i]] %in% shared_genes, liger_cells[[i]] %in% sample.cells], 1, root_mean_sum_sq, "/") #liger_cells[[i]] %in% sample.cells
+      norm.data[[i]][is.na( norm.data[[i]])] = 0
+      norm.data[[i]][ norm.data[[i]] == Inf] = 0
+      return(norm.data[[i]])
+    })
+    norm.data = norm.data[!sapply(norm.data, function(x){length(x) == 0})]
+    
+    message("Selecting genes with the KW test")
+    chisq_list = list()
+    for(i in 1:length(norm.data)){
+      chisq_list[[i]] = matrixTests::row_kruskalwallis(as.matrix(norm.data[[i]]),as.vector(clusters[names(clusters) %in%colnames(norm.data[[i]])]))$statistic
+      names(chisq_list[[i]]) = rownames(norm.data[[i]])
+    }
+    
+    
+    var_thresh_start = 0.5
+    var_thresh_old = var_thresh_start
+    high = 1
+    low = 0
+    
+    gene_vec = shared_genes
+    for(i in 1:length(chisq_list)){
+      chisq_list[[i]][is.na(chisq_list[[i]])] = 0
+      gene_vec = intersect(gene_vec, names(chisq_list[[i]][chisq_list[[i]] > quantile(chisq_list[[i]], var_thresh_start)]))
+    }
+    
+    while(abs(length(gene_vec)-deconv.gene.num) > gene.num.tol){
+      if(length(gene_vec)>deconv.gene.num){
+        var_thresh_new = (var_thresh_old+high)/2
+        low = var_thresh_old
+      } else {
+        var_thresh_new = (var_thresh_old+low)/2
+        high = var_thresh_old
+      }
+      gene_vec = shared_genes
+      for(i in 1:length(chisq_list)){
+        gene_vec = intersect(gene_vec, names(chisq_list[[i]][chisq_list[[i]] > quantile(chisq_list[[i]], var_thresh_new, na.rm = TRUE)]))
+      }
+      var_thresh_old = var_thresh_new
+    }
+    
+    message(paste0(length(gene_vec), " genes found with p = ",var_thresh_old))
+    
+    saveRDS(list(chisq_vals = chisq_list, genes_used = gene_vec), paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/gene_selection_output.RDS"))
+
+    message("Learning gene signatures")
+    E = lapply(norm.data, function(x){as.matrix(t(x)[,gene_vec])})
+    
+    if (!all(sapply(X = E, FUN = is.matrix))) {
+      stop("All values in 'object' must be a matrix")
+    }
+    N <- length(x = E)
+    ns <- sapply(X = E, FUN = nrow)
+    #if (k >= min(ns)) {
+    #  stop('Select k lower than the number of cells in smallest dataset: ', min(ns))
+    #}
+    tmp <- gc()
+    
+    clust_levels = levels(clusters)
+    numeric_clust = as.numeric(clusters)
+    names(numeric_clust) = names(clusters)
+    H_cells = lapply(norm.data, colnames)
+    clust_vec = rep(0, length(clust_levels))
+    N = length(E)
+    
+    H_indic <- lapply(
+      X = H_cells,
+      FUN = function(n) {
+        numeric_clust_sub = numeric_clust[n]
+        mat = do.call(rbind, lapply(X = 1:length(n),
+                                    FUN = function(cell){
+                                      return(replace(clust_vec,numeric_clust[n[cell]],1))
+                                    }))
+        rownames(mat) = n
+        colnames(mat) = as.character(clust_levels)
+        return(mat)
+      }
+    )
+    g <- ncol(x = E[[1]])
+    k = length(clust_levels)
+    W <- matrix(
+      data = abs(x = runif(n = g * k, min = 0, max = 2)),
+      nrow = k,
+      ncol = g
+    )
+    
+    V <- lapply(
+      X = 1:N,
+      FUN = function(i) {
+        return(matrix(
+          data = abs(x = runif(n = g * k, min = 0, max = 2)),
+          nrow = k,
+          ncol = g
+        ))
+      }
+    )
+    tmp <- gc()
+    best_obj <- Inf
+    V_m = V
+    W_m = W
+    H_m = H_indic
+
+    #E = lapply(E, t)
+    for (rep_num in 1:nrep) {
+      set.seed(seed = rand.seed + i - 1)
+      start_time <- Sys.time()
+      delta <- 1
+      iters <- 0
+      pb <- txtProgressBar(min = 0, max = max.iters, style = 3)
+      sqrt_lambda <- sqrt(x = lambda)
+      obj0 <- sum(sapply(
+        X = 1:N,
+        FUN = function(i) {
+          return(norm(x = E[[i]] - H_indic[[i]] %*% (W + V[[i]]), type = "F") ^ 2)
+        }
+      )) +
+        sum(sapply(
+          X = 1:N,
+          FUN = function(i) {
+            return(lambda * norm(x = H_indic[[i]] %*% V[[i]], type = "F") ^ 2)
+          }
+        ))
+      tmp <- gc()
+
+      while (delta > thresh & iters < max.iters) {
+        W <- rliger:::solveNNLS(
+          C = do.call(rbind, H_indic),
+          B = do.call(rbind, lapply(X = 1:N,
+                                    FUN = function(i){
+                                      return(E[[i]] - H_indic[[i]] %*% (W + V[[i]]))})
+          )
+        )
+        
+        tmp <- gc()
+        V <- lapply(
+          X = 1:N,
+          FUN = function(i) {
+            return(rliger:::solveNNLS(
+              C = rbind(H_indic[[i]], sqrt_lambda * H_indic[[i]]),
+              B = rbind(E[[i]] - H_indic[[i]] %*% W, matrix(data = 0, nrow = ns[[i]], ncol = g))
+            ))
+          }
+        )
+        tmp <- gc()
+        obj <- sum(sapply(
+          X = 1:N,
+          FUN = function(i) {
+            return(norm(x = E[[i]] - H_indic[[i]] %*% (W + V[[i]]), type = "F") ^ 2)
+          }
+        )) +
+          sum(sapply(
+            X = 1:N,
+            FUN = function(i) {
+              return(lambda * norm(x = H_indic[[i]] %*% V[[i]], type = "F") ^ 2)
+            }
+          ))
+        tmp <- gc()
+        delta <- abs(x = obj0 - obj) / (mean(obj0, obj))
+        obj0 <- obj
+        iters <- iters + 1
+        setTxtProgressBar(pb = pb, value = iters)
+      }
+      setTxtProgressBar(pb = pb, value = max.iters)
+      # if (iters == max.iters) {
+      #   print("Warning: failed to converge within the allowed number of iterations.
+      #         Re-running with a higher max.iters is recommended.")
+      # }
+      if (obj < best_obj) {
+        W_m <- W
+        V_m <- V
+        best_obj <- obj
+        best_seed <- rand.seed + i - 1
+      }
+
+
+      
+      if (verbose) {
+        if (print.obj) {
+          cat("Objective:", obj, "\n")
+        }
+        cat("Best results with seed ", best_seed, ".\n", sep = "")
+      }
+    }
+    out <- list()
+    out$H <- H_m
+    for (i in 1:length(E)) {
+      rownames(x = out$H[[i]]) <- rownames(x = E[[i]])
+    }
+
+    out$V <- V_m
+    out$W <- W_m
+
+    out$H_refined <- lapply(X = 1:length(E),
+                FUN = function(i){
+                  mat = t(x = rliger:::solveNNLS(
+                    C = rbind(t(x = W) + t(x = V[[i]]), sqrt_lambda * t(x = V[[i]])),
+                    B = rbind(t(x = E[[i]]), matrix(data = 0, nrow = g, ncol = ns[[i]]))
+                  )
+                  )
+                  rownames(mat) = rownames(E[[i]])
+                  return(mat)
+                })
+
+    names(x = out$V) <- names(x = out$H) <- names(x = out$H_refined) <- names(x = E)
+
+    saveRDS(out, paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/gene_signature_output.RDS"))
+    
+    message("Deconvolving spatial data")
+    spatial.data = t(scale(t(spatial.data[gene_vec,]), center = FALSE))
+    spatial.data[spatial.data < 0 ] = 0
+    deconv_h = t(rliger:::solveNNLS(t(W),spatial.data))
+    colnames(deconv_h) = clust_levels
+    deconv_frac = t(apply(deconv_h, MARGIN = 1, function(x){x/sum(x)}))
+    saveRDS(list(raw = deconv_h, proportions = deconv_frac), paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/deconvolution_output.RDS"))
+  }
+
 
 
 
