@@ -1529,30 +1529,32 @@ generate_loading_gifs = function(
   filepath,
   region,
   coords,
-  mat_use = "proportions",
-  cell_types_plot = NULL,
+  mat.use = "proportions",
+  cell.types.plot = NULL,
   dims = c(500, 500)
 ){
+  library(rgl)
+  loadings = readRDS(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/deconvolution_output.RDS"))
   if(!dir.exists(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/gifs"))){
     dir.create(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/gifs"))
   }
   grDevices::palette(viridis::viridis(option="A",n=50,direction = -1))
-  if(is.null(cell_types_plot)){
-    cell_types_plot = colnames(loadings[[mat_use]])
+  if(is.null(cell.types.plot)){
+    cell.types.plot = colnames(loadings[[mat.use]])
   } else {
-    cell_types_plot = intersect(cell_types_plot, colnames(loadings[[mat_use]]))
+    cell.types.plot = intersect(cell.types.plot, colnames(loadings[[mat.use]]))
   }
   if(is.character(coords)){
     coords = readRDS(coords)
   }
-  for(cell_type in cell_types_plot){
-    colors_view = as.numeric(cut(loadings[[mat_use]][,cell_type],breaks=50))
+  for(cell_type in cell.types.plot){
+    colors_view = as.numeric(cut(loadings[[mat.use]][,cell_type],breaks=50))
     try(rgl.close(), silent = TRUE)
     open3d(windowRect = c(0,0, dims[1], dims[2]));
     plot3d(coords[,1],coords[,2],coords[,3],col = colors_view,aspect=c(67,41,58),xlab="Anterior-Posterior",ylab="Inferior-Superior",zlab="Left-Right",size=5, add = TRUE)
     decorate3d(xlab = colnames(coords)[1], ylab = colnames(coords)[2],zlab = colnames(coords)[3], box = FALSE, axes = FALSE)
     axes3d(c("x--","y--","z--"))#axes3d(c("x--","y--","z--"))
-    movie3d(spin3d(axis = c(0, 0, 1)), duration = 20, movie = paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/gifs/", region, "_",sub(" ", "_",cell_type),"_spatial_summary"))
+    movie3d(spin3d(axis = c(0, 0, 1)), duration = 20, movie = paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/gifs/", region, "_",sub("/", "-",sub(" ", "_",cell_type)),"_spatial_summary"))
   }
 }
 
