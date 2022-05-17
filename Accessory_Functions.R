@@ -857,7 +857,7 @@ max_factor_assignment = function(object){
   return(object)
 }
 
-#################### Notes on how we generated the annotation labels
+# #################### Notes on how we generated the annotation labels
 # ann = readRDS("/nfs/turbo/umms-welchjd/BRAIN_initiative/cell_type_annotations_full.RDS")  #4 lists
 # annotations = as.factor(c(as.character(ann[[1]]), as.character(ann[[2]]), as.character(ann[[3]]), as.character(ann[[4]])));  # make each one a factorized character and combine into a giant list
 # names(annotations) = c(names(ann[[1]]), names(ann[[2]]), names(ann[[3]]), names(ann[[4]]))  #name each element in the giant list
@@ -865,16 +865,17 @@ max_factor_assignment = function(object){
 # colnames(annot) = c("Type")
 # annot$Cell_Barcodes = rownames(annot)
 # types_annot = read.csv("/nfs/turbo/umms-welchjd/akriebel/Brain_initiative/cell_type_annot.csv")[1:121,]
-# types_annot$Class = sub("Non-neuron", "NonN", types_annot$Class)
-# types_annot$Class = sub("Excitatory Neuron", "Exc", types_annot$Class)
-# types_annot$Class = sub("Inhibitory Neuron", "Inh", types_annot$Class)
-# master = left_join(annot, types_annot)
-# decoder = data.frame(c("NonN", "Exc", "Inh"), c("NonN", "Neu", "Neu"))
-# colnames(decoder) = c("Class", "Level1")
-# master = left_join(master, decoder)
+#  types_annot$Class = sub("Non-neuron", "NonN", types_annot$Class)
+#  types_annot$Class = sub("Excitatory Neuron", "Exc", types_annot$Class)
+#  types_annot$Class = sub("Inhibitory Neuron", "Inh", types_annot$Class)
+#  master = left_join(annot, types_annot)
+#  decoder = data.frame(c("NonN", "Exc", "Inh"), c("NonN", "Neu", "Neu"))
+#  colnames(decoder) = c("Class", "Level1")
+#  master = left_join(master, decoder)
 # saveRDS(master, "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Base_Reference_Files/Reference_Annotations.RDS")
-#  
-
+# huh = readRDS("/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Base_Reference_Files/Reference_Annotations.RDS")
+# unique_cell_types = data.frame(unique(huh$Type))
+# write.csv(unique_cell_types, "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Base_Reference_Files/unique_celltypes.csv")
 
 ############################ Functions for Shiny App
 library(dplyr)
