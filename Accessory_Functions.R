@@ -22,6 +22,8 @@ create.directories = function(region = "X", desired.filepath = "/nfs/turbo/umms-
   }
   loom_directory = paste0(main_directory, "/", region,"_Loom_Directory")
   dir.create(loom_directory)
+  deconv_directory = paste0(main_directory, "/", region,"_Deconvolution_Output")
+  dir.create(deconv_directory)
 }
 ################## QC function
 #Input: List of filenames and types
@@ -1198,6 +1200,521 @@ generate_umaps =  function(filepath, analysis_num, region){
   
 }
 
+deconvolve_spatial = function(filepath,
+  region,
+  spatial.data.file,
+  annotation.level = 3,
+  n.cells = 500,
+  known.annotations = "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Base_Reference_Files/Reference_Annotations.RDS",
+  deconv.gene.num = 2000,
+  gene.num.tol = 50,
+  clusters = NULL,
+  lambda = 1,
+  thresh = 1e-8,
+  max.iters = 100,
+  nrep = 1,
+  rand.seed = 1,
+  print.obj = FALSE,
+  verbose = TRUE,
+  z = 1){
+    message("Loading Data")  
+    object_path = paste0(filepath, region, "/Analysis1_", region, "/onlineINMF_",region, "_object.RDS" )
+    object = readRDS(object_path)
+    
+    
+    if(!is.null(known.annotations)){
+      if(is.character(known.annotations)){
+        master = readRDS(known.annotations)
+        if (annotation.level == 1){
+          clusters = master$Level1
+        }
+        if (annotation.level == 2){
+          clusters = master$Class
+        }
+        else {
+          clusters = master$Type
+        }
+        clusters = as.factor(clusters)
+        names(clusters) = master$Cell_Barcodes
+      } else {
+        clusters = known.annotations
+      }
+      
+    } else {
+      #prelim, just for testing until april says something
+      clusters = c()
+      for(analysis_num in c(2,4,5)){
+        analysis_results = readRDS(paste0(filepath,"/",  region, "/Analysis", analysis_num, "_", region, "/Analysis", analysis_num, "_", region,"_Results_Table.RDS"))
+        analysis_clusters = paste0(analysis_num, "_", analysis_results$lowRannotations)
+        names(analysis_clusters) = analysis_results$Barcode
+        clusters = c(clusters, analysis_clusters)
+      }
+      clusters = clusters[clusters != ""]
+    
+    }
+    
+    h5_files = sapply(1:length(object@norm.data), function(i){object@h5file.info[[i]]$file.path})
+    rna_files = grep(paste0("_(sc10Xv3_|smartseq_|sn10Xv3_|sc10Xv2_)"), h5_files, value = TRUE)
+    
+    liger_genes = lapply(rna_files, function(i){
+      rhdf5::h5read(i, "/matrix/features")[[1]] #change, extract from H5
+    })
+    liger_cells = lapply(rna_files, function(i){
+      rhdf5::h5read(i, "/matrix/barcodes")#change, extract from H5
+    })
+    
+    message("Preprocessing for gene selection")
+    
+    norm.data = lapply(1:length(rna_files), function(i){
+      n = rna_files[i]
+      rliger:::Matrix.column_norm(Matrix::sparseMatrix(
+          dims = c(length(liger_genes[[i]]), length(liger_cells[[i]])),
+          i = as.numeric(rhdf5::h5read(n, "/matrix/indices")+1),
+          p = as.numeric(rhdf5::h5read(n, "/matrix/indptr")),
+          x = as.numeric(rhdf5::h5read(n, "/matrix/data"))
+      ))
+    })
+
+    spatial.data = readRDS(spatial.data.file)
+
+    spatial.data[spatial.data == -1] = NA
+    genes_NA = apply(spatial.data, MARGIN = 1, function(x){sum(is.na(x))})
+    mean_genes_NA = mean(genes_NA)
+    genes_use = genes_NA < (mean_genes_NA + z * mean_genes_NA)
+    spatial.data = spatial.data[genes_use,]
+    #simplest way to handle this
+    spatial.data[is.na(spatial.data)] = 0
+    annotated_cells = intersect(names(clusters),Reduce(union, liger_cells))
+    
+    shared_genes = intersect(rownames(spatial.data), Reduce(intersect, liger_genes))
+    
+    clusters = clusters[names(clusters) %in% annotated_cells]
+    clusters = droplevels(clusters)
+    
+    freq_cells = table(clusters)
+    freq_cells = freq_cells[names(freq_cells) != ""]
+    
+    sample.cells = Reduce(c, lapply(names(freq_cells), function(cell_type){
+      Reduce(c, lapply(1:length(norm.data), function(i){
+        cells = intersect(names(clusters[clusters == cell_type]), liger_cells[[i]])
+        if(length(cells)> 0){
+          return(sample(cells, min(length(cells), n.cells), replace =TRUE))
+        } else {
+          return(c())
+        }
+      }))
+    }))
+    norm.data = lapply(1:length(norm.data), function(i){
+      rownames(norm.data[[i]]) = liger_genes[[i]]
+      colnames(norm.data[[i]]) = liger_cells[[i]]
+      gene_means = rhdf5::h5read(rna_files[i], "gene_means")[liger_genes[[i]] %in% shared_genes]
+      gene_sum_sq = rhdf5::h5read(rna_files[i], "gene_sum_sq")[liger_genes[[i]] %in% shared_genes]
+      root_mean_sum_sq = sqrt(gene_sum_sq/(ncol(norm.data[[i]])-1))
+      norm.data[[i]]= sweep(norm.data[[i]][liger_genes[[i]] %in% shared_genes, liger_cells[[i]] %in% sample.cells], 1, root_mean_sum_sq, "/") #liger_cells[[i]] %in% sample.cells
+      norm.data[[i]][is.na( norm.data[[i]])] = 0
+      norm.data[[i]][ norm.data[[i]] == Inf] = 0
+      return(norm.data[[i]])
+    })
+    norm.data = norm.data[!sapply(norm.data, function(x){length(x) == 0})]
+    
+    message("Selecting genes with the KW test")
+    chisq_list = list()
+    for(i in 1:length(norm.data)){
+      chisq_list[[i]] = matrixTests::row_kruskalwallis(as.matrix(norm.data[[i]]),as.vector(clusters[names(clusters) %in%colnames(norm.data[[i]])]))$statistic
+      names(chisq_list[[i]]) = rownames(norm.data[[i]])
+    }
+    
+    
+    var_thresh_start = 0.5
+    var_thresh_old = var_thresh_start
+    high = 1
+    low = 0
+    
+    gene_vec = shared_genes
+    for(i in 1:length(chisq_list)){
+      chisq_list[[i]][is.na(chisq_list[[i]])] = 0
+      gene_vec = intersect(gene_vec, names(chisq_list[[i]][chisq_list[[i]] > quantile(chisq_list[[i]], var_thresh_start)]))
+    }
+    
+    while(abs(length(gene_vec)-deconv.gene.num) > gene.num.tol){
+      if(length(gene_vec)>deconv.gene.num){
+        var_thresh_new = (var_thresh_old+high)/2
+        low = var_thresh_old
+      } else {
+        var_thresh_new = (var_thresh_old+low)/2
+        high = var_thresh_old
+      }
+      gene_vec = shared_genes
+      for(i in 1:length(chisq_list)){
+        gene_vec = intersect(gene_vec, names(chisq_list[[i]][chisq_list[[i]] > quantile(chisq_list[[i]], var_thresh_new, na.rm = TRUE)]))
+      }
+      var_thresh_old = var_thresh_new
+    }
+    
+    message(paste0(length(gene_vec), " genes found with p = ",var_thresh_old))
+    
+    saveRDS(list(chisq_vals = chisq_list, genes_used = gene_vec), paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/gene_selection_output.RDS"))
+
+    message("Learning gene signatures")
+    E = lapply(norm.data, function(x){as.matrix(t(x)[,gene_vec])})
+    
+    if (!all(sapply(X = E, FUN = is.matrix))) {
+      stop("All values in 'object' must be a matrix")
+    }
+    N <- length(x = E)
+    ns <- sapply(X = E, FUN = nrow)
+    #if (k >= min(ns)) {
+    #  stop('Select k lower than the number of cells in smallest dataset: ', min(ns))
+    #}
+    tmp <- gc()
+    
+    clust_levels = levels(clusters)
+    numeric_clust = as.numeric(clusters)
+    names(numeric_clust) = names(clusters)
+    H_cells = lapply(norm.data, colnames)
+    clust_vec = rep(0, length(clust_levels))
+    N = length(E)
+    
+    H_indic <- lapply(
+      X = H_cells,
+      FUN = function(n) {
+        numeric_clust_sub = numeric_clust[n]
+        mat = do.call(rbind, lapply(X = 1:length(n),
+                                    FUN = function(cell){
+                                      return(replace(clust_vec,numeric_clust[n[cell]],1))
+                                    }))
+        rownames(mat) = n
+        colnames(mat) = as.character(clust_levels)
+        return(mat)
+      }
+    )
+    g <- ncol(x = E[[1]])
+    k = length(clust_levels)
+    W <- matrix(
+      data = abs(x = runif(n = g * k, min = 0, max = 2)),
+      nrow = k,
+      ncol = g
+    )
+    
+    V <- lapply(
+      X = 1:N,
+      FUN = function(i) {
+        return(matrix(
+          data = abs(x = runif(n = g * k, min = 0, max = 2)),
+          nrow = k,
+          ncol = g
+        ))
+      }
+    )
+    tmp <- gc()
+    best_obj <- Inf
+    V_m = V
+    W_m = W
+    H_m = H_indic
+
+    #E = lapply(E, t)
+    for (rep_num in 1:nrep) {
+      set.seed(seed = rand.seed + i - 1)
+      start_time <- Sys.time()
+      delta <- 1
+      iters <- 0
+      pb <- txtProgressBar(min = 0, max = max.iters, style = 3)
+      sqrt_lambda <- sqrt(x = lambda)
+      obj0 <- sum(sapply(
+        X = 1:N,
+        FUN = function(i) {
+          return(norm(x = E[[i]] - H_indic[[i]] %*% (W + V[[i]]), type = "F") ^ 2)
+        }
+      )) +
+        sum(sapply(
+          X = 1:N,
+          FUN = function(i) {
+            return(lambda * norm(x = H_indic[[i]] %*% V[[i]], type = "F") ^ 2)
+          }
+        ))
+      tmp <- gc()
+
+      while (delta > thresh & iters < max.iters) {
+        W <- rliger:::solveNNLS(
+          C = do.call(rbind, H_indic),
+          B = do.call(rbind, lapply(X = 1:N,
+                                    FUN = function(i){
+                                      return(E[[i]] - H_indic[[i]] %*% (W + V[[i]]))})
+          )
+        )
+        
+        tmp <- gc()
+        V <- lapply(
+          X = 1:N,
+          FUN = function(i) {
+            return(rliger:::solveNNLS(
+              C = rbind(H_indic[[i]], sqrt_lambda * H_indic[[i]]),
+              B = rbind(E[[i]] - H_indic[[i]] %*% W, matrix(data = 0, nrow = ns[[i]], ncol = g))
+            ))
+          }
+        )
+        tmp <- gc()
+        obj <- sum(sapply(
+          X = 1:N,
+          FUN = function(i) {
+            return(norm(x = E[[i]] - H_indic[[i]] %*% (W + V[[i]]), type = "F") ^ 2)
+          }
+        )) +
+          sum(sapply(
+            X = 1:N,
+            FUN = function(i) {
+              return(lambda * norm(x = H_indic[[i]] %*% V[[i]], type = "F") ^ 2)
+            }
+          ))
+        tmp <- gc()
+        delta <- abs(x = obj0 - obj) / (mean(obj0, obj))
+        obj0 <- obj
+        iters <- iters + 1
+        setTxtProgressBar(pb = pb, value = iters)
+      }
+      setTxtProgressBar(pb = pb, value = max.iters)
+      # if (iters == max.iters) {
+      #   print("Warning: failed to converge within the allowed number of iterations.
+      #         Re-running with a higher max.iters is recommended.")
+      # }
+      if (obj < best_obj) {
+        W_m <- W
+        V_m <- V
+        best_obj <- obj
+        best_seed <- rand.seed + i - 1
+      }
+
+
+      
+      if (verbose) {
+        if (print.obj) {
+          cat("Objective:", obj, "\n")
+        }
+        cat("Best results with seed ", best_seed, ".\n", sep = "")
+      }
+    }
+    out <- list()
+    out$H <- H_m
+    for (i in 1:length(E)) {
+      rownames(x = out$H[[i]]) <- rownames(x = E[[i]])
+    }
+
+    out$V <- V_m
+    out$W <- W_m
+
+    out$H_refined <- lapply(X = 1:length(E),
+                FUN = function(i){
+                  mat = t(x = rliger:::solveNNLS(
+                    C = rbind(t(x = W) + t(x = V[[i]]), sqrt_lambda * t(x = V[[i]])),
+                    B = rbind(t(x = E[[i]]), matrix(data = 0, nrow = g, ncol = ns[[i]]))
+                  )
+                  )
+                  rownames(mat) = rownames(E[[i]])
+                  return(mat)
+                })
+
+    names(x = out$V) <- names(x = out$H) <- names(x = out$H_refined) <- names(x = E)
+
+    saveRDS(out, paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/gene_signature_output.RDS"))
+    
+    message("Deconvolving spatial data")
+    spatial.data = t(scale(t(spatial.data[gene_vec,]), center = FALSE))
+    spatial.data[spatial.data < 0 ] = 0
+    deconv_h = t(rliger:::solveNNLS(t(W),spatial.data))
+    colnames(deconv_h) = clust_levels
+    deconv_frac = t(apply(deconv_h, MARGIN = 1, function(x){x/sum(x)}))
+    rownames(deconv_frac) = rownames(deconv_h) = colnames(spatial.data)
+    saveRDS(list(raw = deconv_h, proportions = deconv_frac), paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/deconvolution_output.RDS"))
+  }
+
+generate_loading_gifs = function(
+  filepath,
+  region,
+  coords,
+  mat.use = "proportions",
+  cell.types.plot = NULL,
+  dims = c(500, 500)
+){
+  library(rgl)
+  loadings = readRDS(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/deconvolution_output.RDS"))
+  if(!dir.exists(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/gifs"))){
+    dir.create(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/gifs"))
+  }
+  grDevices::palette(viridis::viridis(option="A",n=50,direction = -1))
+  if(is.null(cell.types.plot)){
+    cell.types.plot = colnames(loadings[[mat.use]])
+  } else {
+    cell.types.plot = intersect(cell.types.plot, colnames(loadings[[mat.use]]))
+  }
+  if(is.character(coords)){
+    coords = readRDS(coords)
+  }
+  for(cell_type in cell.types.plot){
+    colors_view = as.numeric(cut(loadings[[mat.use]][,cell_type],breaks=50))
+    try(rgl.close(), silent = TRUE)
+    open3d(windowRect = c(0,0, dims[1], dims[2]));
+    plot3d(coords[,1],coords[,2],coords[,3],col = colors_view,aspect=c(67,41,58),xlab="Anterior-Posterior",ylab="Inferior-Superior",zlab="Left-Right",size=5, add = TRUE)
+    decorate3d(xlab = colnames(coords)[1], ylab = colnames(coords)[2],zlab = colnames(coords)[3], box = FALSE, axes = FALSE)
+    axes3d(c("x--","y--","z--"))#axes3d(c("x--","y--","z--"))
+    movie3d(spin3d(axis = c(0, 0, 1)), duration = 20, movie = paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/gifs/", region, "_",sub("/", "-",sub(" ", "_",cell_type)),"_spatial_summary"))
+  }
+}
+
+summarize_by_layer = function(
+  filepath,
+  region,
+  layer.list,
+  plot = FALSE,
+  type = "mean",
+  mat.use = "proportions",
+  use.cell.types = TRUE,
+  cell.types.use = NULL,
+  genes.use = NULL,
+  spatial.data.file
+){
+  loadings = readRDS(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/deconvolution_output.RDS"))
+  if(use.cell.types){
+    if(!is.null(cell.types.use)){
+      cell.types.use = intersect(cell.types.use, colnames(loadings[[mat.use]]))
+    } else {
+      cell.types.use = colnames(loadings[[mat.use]])
+    }
+    cell.types.use = cell.types.use[cell.types.use != ""]
+    cell.type.matrix = matrix(0L, nrow = length(layer.list), ncol = length(cell.types.use))
+    rownames(cell.type.matrix) = names(layer.list)
+    colnames(cell.type.matrix) = cell.types.use
+    for(i in 1:length(layer.list)){
+      sub_loadings = loadings[[mat.use]][rownames(loadings[[mat.use]]) %in% as.character(layer.list[[i]]), ]
+      for(j in 1:length(cell.types.use)){
+        if(type == "mean"){
+          cell.type.matrix[i,j] = mean(sub_loadings[ ,cell.types.use[j]])
+        } else if(type == "sum"){
+          cell.type.matrix[i,j] = sum(sub_loadings[ ,cell.types.use[j]])
+        }
+      }
+    }
+    saveRDS(cell.type.matrix, paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/cell_type_layer_summary.RDS"))
+  }
+  if(!is.null(genes.use)){
+    spatial.data = readRDS(spatial.data.file)
+    genes.use = intersect(genes.use, rownames(spatial.data))
+    spatial.data[is.na(spatial.data)] = 0
+    spatial.data = t(scale(t(spatial.data[genes.use,]), center = FALSE))
+    spatial.data[spatial.data < 0 ] = 0
+    gene.matrix = matrix(0L, nrow = length(layer.list), ncol = length(genes.use))
+    rownames(gene.matrix) = names(layer.list)
+    colnames(gene.matrix) = genes.use
+    for(i in 1:length(layer.list)){
+      sub_loadings = spatial.data[ ,colnames(spatial.data) %in% as.character(layer.list[[i]])]
+      for(j in 1:length(genes.use)){
+        if(type == "mean"){
+          gene.matrix[i,j] = mean(sub_loadings[genes.use[j],])
+        } else if(type == "sum"){
+          gene.matrix[i,j] = sum(sub_loadings[genes.use[j],])
+        }
+      }
+    }
+    saveRDS(cell.type.matrix, paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/gene_layer_summary.RDS"))
+  }
+  if(plot){
+    if(!dir.exists(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/plots"))){
+      dir.create(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/plots"))
+    }
+    ggplot2::theme_set(theme_cowplot())
+    labels.cell.type = expand.grid(rownames(cell.type.matrix), colnames(cell.type.matrix))
+    cell.type.df = data.frame(Layers = as.character(labels.cell.type[,1]), 
+                              Cell_Types = as.character(labels.cell.type[,2]), 
+                              Values = rep(0, nrow(labels.cell.type)))
+    for(i in 1:nrow(cell.type.df)){
+      cell.type.df[i, 3] = cell.type.matrix[cell.type.df[i, 1],  cell.type.df[i, 2]]
+    }
+    if(ncol(cell.type.matrix) > 1){
+      overall.cell.type.plot = ggplot2::ggplot(cell.type.df, ggplot2::aes(fill = Cell_Types, y = Values, x = Layers)) + 
+          ggplot2::theme(text = ggplot2::element_text(size = 10), 
+                         axis.text = ggplot2::element_text(size = 5),
+                         legend.title = ggplot2::element_blank(),
+                         legend.text = ggplot2::element_text(size = 3),
+                         legend.key.height = ggplot2::unit(3, 'mm'), 
+                         legend.key.width = ggplot2::unit(1, 'mm')) +  
+          ggplot2::geom_bar(position = "dodge", stat = "identity") +
+          ggplot2::xlab("Layer") +
+          ggplot2::ylab("Value") +
+          ggplot2::ggtitle(paste0("Distribution of cell types by layer"))
+        
+      ggplot2::ggsave(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/plots/cell_type_layer_distribution.PNG"),
+                      overall.cell.type.plot,
+                      width = 1000,
+                      height = 800,
+                      units = "px")
+    }
+    
+    by.cell.type.plot = list()
+    for(i in colnames(cell.type.matrix)){
+      cell.type.df.sub = cell.type.df[cell.type.df$Cell_Types == i,]
+      by.cell.type.plot[[i]] = ggplot2::ggplot(cell.type.df.sub, ggplot2::aes(fill = Layers, x = Layers, y = Values)) + 
+          ggplot2::theme(text = ggplot2::element_text(size = 3), 
+                         axis.text = ggplot2::element_text(size = 2),
+                         legend.position="none") +  
+          ggplot2::geom_bar(position = "dodge", stat = "identity") +
+          ggplot2::xlab("Layer") +
+          ggplot2::ylab("Value") +
+          ggplot2::ggtitle(paste0("Distribution of ",i, " cells by layer"))
+       ggplot2::ggsave(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/plots/",sub("/", "-",sub(" ", "_",i)),"_layer_distribution.PNG"),
+                    by.cell.type.plot[[i]],
+                    width = 500,
+                    height = 400,
+                    units = "px")
+
+    }
+    if(!is.null(genes.use)){
+      labels.genes = expand.grid(rownames(gene.matrix), colnames(gene.matrix))
+      gene.df = data.frame(Layers = as.character(labels.genes[,1]), 
+                                Genes = as.character(labels.genes[,2]), 
+                                Values = rep(0, nrow(labels.genes)))
+      for(i in 1:nrow(gene.df)){
+        gene.df[i, 3] = gene.matrix[gene.df[i, 1],  gene.df[i, 2]]
+      }
+      if(length(genes.use) > 1){
+        overall.gene.plot = ggplot2::ggplot(gene.df, ggplot2::aes(fill = Genes, y = Values, x = Layers)) + 
+          ggplot2::theme(text = ggplot2::element_text(size = 8), 
+                         axis.text = ggplot2::element_text(size = 5),
+                         legend.title = ggplot2::element_blank(),
+                         legend.text = ggplot2::element_text(size = 3),
+                         legend.key.height = ggplot2::unit(3, 'mm'), 
+                         legend.key.width = ggplot2::unit(1, 'mm')) +  
+          ggplot2::geom_bar(position = "dodge", stat = "identity") +
+          ggplot2::xlab("Layer") +
+          ggplot2::ylab("Value") +
+          ggplot2::ggtitle(paste0("Distribution of gene expression by layer"))
+          
+        ggplot2::ggsave(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/plots/gene_layer_distribution.PNG"),
+                        overall.gene.plot,
+                        width = 1000,
+                        height = 800,
+                        units = "px")
+      }
+       
+      by.gene.plot = list()
+      for(i in colnames(gene.matrix)){
+        gene.df.sub = gene.df[gene.df$Genes == i,]
+        by.gene.plot[[i]] = ggplot2::ggplot(gene.df.sub, ggplot2::aes(fill = Layers, x = Layers, y = Values)) + 
+          ggplot2::theme(text = ggplot2::element_text(size = 3), 
+                         axis.text = ggplot2::element_text(size = 2),
+                         legend.position="none") +  
+          ggplot2::geom_bar(position = "dodge", stat = "identity") +
+          ggplot2::xlab("Layer") +
+          ggplot2::ylab("Value") +
+          ggplot2::ggtitle(paste0("Distribution of ",i, " expression by layer"))
+         ggplot2::ggsave(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/plots/",sub("/", "-",sub(" ", "_",i)),"_gene_layer_distribution.PNG"),
+                      by.gene.plot[[i]],
+                      width = 500,
+                      height = 400,
+                      units = "px")
+  
+      }
+    }
+  }
+}
 
 
 
