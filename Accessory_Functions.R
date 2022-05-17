@@ -1274,7 +1274,7 @@ deconvolve_spatial = function(filepath,
       ))
     })
 
-    spatial.data = readRDS(spatial.data.file)[,1:927]
+    spatial.data = readRDS(spatial.data.file)
 
     spatial.data[spatial.data == -1] = NA
     genes_NA = apply(spatial.data, MARGIN = 1, function(x){sum(is.na(x))})
