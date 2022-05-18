@@ -718,6 +718,15 @@ preprocess_and_run = function(filepath, region, analysis_num, chunk_size, num_ge
     max_assignments = max_assignments %>% group_by(highRcluster, OG_Annotations)  %>% tally() %>% filter(n == max(n))
     max_assignments =max_assignments[,c("highRcluster", "OG_Annotations")]
     colnames(max_assignments) = c("highRcluster", "highRAnnotations")
+    #this is to accomodate for ties in max factor assignment
+    if(length(unique(max_assignments$highRcluster)) != length(max_assignments$highRcluster)){
+      warning("Clusters with tied OG annotations. Please manually annotate these clusters before proceeding with further analyses")
+      duplicated_clusters = max_assignments$highRcluster[duplicated(max_assignments$highRcluster)]
+      for (dups in duplicated_clusters){
+        max_assignments$highRAnnotations[max_assignments$highRcluster == dups] <- "NA"
+      }
+    }
+    max_assignments = unique(max_assignments)
     max_assign = length(unique(max_assignments$highRcluster))
     result = left_join(result, max_assignments)
     if(max_assign != num_clusts){
