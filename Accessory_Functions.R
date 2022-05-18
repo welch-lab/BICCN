@@ -1633,10 +1633,8 @@ summarize_by_layer = function(
     labels.cell.type = expand.grid(rownames(cell.type.matrix), colnames(cell.type.matrix))
     cell.type.df = data.frame(Layers = as.character(labels.cell.type[,1]), 
                               Cell_Types = as.character(labels.cell.type[,2]), 
-                              Values = rep(0, nrow(labels.cell.type)))
-    for(i in 1:nrow(cell.type.df)){
-      cell.type.df[i, 3] = cell.type.matrix[cell.type.df[i, 1],  cell.type.df[i, 2]]
-    }
+                              Values = as.vector(cell.type.matrix))
+
     if(ncol(cell.type.matrix) > 1){
       overall.cell.type.plot = ggplot2::ggplot(cell.type.df, ggplot2::aes(fill = Cell_Types, y = Values, x = Layers)) + 
           ggplot2::theme(text = ggplot2::element_text(size = 10), 
@@ -1649,6 +1647,8 @@ summarize_by_layer = function(
           ggplot2::xlab("Layer") +
           ggplot2::ylab("Value") +
           ggplot2::ggtitle(paste0("Distribution of cell types by layer"))
+      
+      print(overall.cell.type.plot)
         
       ggplot2::ggsave(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/plots/cell_type_layer_distribution.PNG"),
                       overall.cell.type.plot,
@@ -1679,10 +1679,8 @@ summarize_by_layer = function(
       labels.genes = expand.grid(rownames(gene.matrix), colnames(gene.matrix))
       gene.df = data.frame(Layers = as.character(labels.genes[,1]), 
                                 Genes = as.character(labels.genes[,2]), 
-                                Values = rep(0, nrow(labels.genes)))
-      for(i in 1:nrow(gene.df)){
-        gene.df[i, 3] = gene.matrix[gene.df[i, 1],  gene.df[i, 2]]
-      }
+                                Values = as.vector(gene.matrix))
+
       if(length(genes.use) > 1){
         overall.gene.plot = ggplot2::ggplot(gene.df, ggplot2::aes(fill = Genes, y = Values, x = Layers)) + 
           ggplot2::theme(text = ggplot2::element_text(size = 8), 
@@ -1696,6 +1694,8 @@ summarize_by_layer = function(
           ggplot2::ylab("Value") +
           ggplot2::ggtitle(paste0("Distribution of gene expression by layer"))
           
+        print(overall.gene.plot)
+        
         ggplot2::ggsave(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/plots/gene_layer_distribution.PNG"),
                         overall.gene.plot,
                         width = 1000,
@@ -1723,6 +1723,110 @@ summarize_by_layer = function(
       }
     }
   }
+}
+
+
+analyze_gene_signatures = function(filepath,
+  region,
+  plot = FALSE,
+  mat.use = "proportions"){
+  
+  gene_sigs = readRDS(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/gene_signature_output.RDS"))
+  signatures = gene_sigs$W
+  rownames(signatures) = colnames(gene_sigs$H[[1]])
+  colnames(signatures) = readRDS(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/gene_selection_output.RDS"))[[2]]
+  signatures = signatures[rownames(signatures) != "",]
+
+  cos_sim = lsa::cosine(t(signatures))
+  
+  heatmap_df = data.frame(expand.grid(Cell_Type_1 = rownames(cos_sim),
+                                    Cell_Type_2 = colnames(cos_sim)),
+                                    cos_sim = as.vector(cos_sim))
+  heatmap_plot = ggplot2::ggplot(heatmap_df, ggplot2::aes(x = Cell_Type_1, y = Cell_Type_2, fill = cos_sim)) +
+    ggplot2::labs(y = "Cell Types", fill = "", title = "Cosine Similarity for Cell Type Signatures") +
+    ggplot2::theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+                   axis.title.x = ggplot2::element_blank(),
+                   text = ggplot2::element_text(size = 8), 
+                   axis.text = ggplot2::element_text(size = 5),
+                   legend.title = ggplot2::element_blank(),
+                   legend.text = ggplot2::element_text(size = 3),
+                   legend.key.height = ggplot2::unit(3, 'mm'), 
+                   legend.key.width = ggplot2::unit(1, 'mm')) +
+    ggplot2::geom_tile() +
+    viridis::scale_fill_viridis()
+  
+  cos_dist= as.dist(1- cos_sim)
+  hierarchical_clust <- hclust(cos_dist, method = "ward.D2")
+  
+  dendro_plot = ggdendro::ggdendrogram(hierarchical_clust, rotate = FALSE, size = 2) +
+    ggplot2::theme(axis.ticks.y = ggplot2::element_blank(), 
+                   axis.text.y = ggplot2::element_blank(),
+                   text = ggplot2::element_text(size = 4), 
+                   axis.text = ggplot2::element_text(size = 4)) +
+    ggplot2::ggtitle("Hierarchical Clustering", subtitle = "By Cell Type Signature")
+  
+  deconv_out = readRDS(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/deconvolution_output.RDS"))
+  loadings = deconv_out[[mat.use]]
+  loadings = loadings[, colnames(loadings)!=""]
+  
+  corr_sim_dist = cor(loadings)
+  
+  heatmap_dist_df = data.frame(expand.grid(Cell_Type_1 = rownames(corr_sim_dist),
+                                    Cell_Type_2 = colnames(corr_sim_dist)),
+                                    cos_sim = as.vector(corr_sim_dist))
+  heatmap_dist_plot = ggplot2::ggplot(heatmap_dist_df, ggplot2::aes(x = Cell_Type_1, y = Cell_Type_2, fill = cos_sim)) +
+    ggplot2::labs(y = "Cell Types", fill = "", title = "Correlation for Cell Type Distribution") +
+    ggplot2::theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+                   axis.title.x = ggplot2::element_blank(),
+                   text = ggplot2::element_text(size = 8), 
+                   axis.text = ggplot2::element_text(size = 5),
+                   legend.title = ggplot2::element_blank(),
+                   legend.text = ggplot2::element_text(size = 3),
+                   legend.key.height = ggplot2::unit(3, 'mm'), 
+                   legend.key.width = ggplot2::unit(1, 'mm')) +
+    ggplot2::geom_tile() +
+    viridis::scale_fill_viridis()
+  
+  cor_dist= as.dist(1- corr_sim_dist)
+  hierarchical_clust_dist <- hclust(cor_dist, method = "ward.D2")
+  
+  dendro_dist_plot = ggdendro::ggdendrogram(hierarchical_clust_dist, rotate = FALSE, size = 2) +
+    ggplot2::theme(axis.ticks.y = ggplot2::element_blank(), 
+                   axis.text.y = ggplot2::element_blank(),
+                   text = ggplot2::element_text(size = 4), 
+                   axis.text = ggplot2::element_text(size = 4)) +
+    ggplot2::ggtitle("Hierarchical Clustering", subtitle = "By Cell Type Distribution")
+  if(plot){
+    print(heatmap_plot)
+    print(dendro_plot)
+    print(heatmap_dist_plot)
+    print(dendro_dist_plot)
+    if(!dir.exists(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/plots"))){
+      dir.create(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/plots"))
+    }
+    ggplot2::ggsave(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/plots/cell_type_signature_heatmap.PNG"),
+                    heatmap_plot,
+                    width = 1000,
+                    height = 800,
+                    units = "px")
+    ggplot2::ggsave(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/plots/cell_type_signature_dendrogram.PNG"),
+                    dendro_plot,
+                    width = 500,
+                    height = 400,
+                    units = "px")
+    ggplot2::ggsave(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/plots/cell_type_distribution_heatmap.PNG"),
+                    heatmap_dist_plot,
+                    width = 1000,
+                    height = 800,
+                    units = "px")
+    ggplot2::ggsave(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/plots/cell_type_distribution_dendrogram.PNG"),
+                    dendro_dist_plot,
+                    width = 500,
+                    height = 400,
+                    units = "px")
+  }
+  saveRDS(list(cos_sim_signature = cos_sim, cor_sim_distribution = corr_sim_dist, dendro_sig = hierarchical_clust, dendro_dist = hierarchical_clust_dist),
+          paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/gene_signature_analysis_summary.RDS"))
 }
 
 
