@@ -1565,7 +1565,7 @@ generate_loading_gifs = function(
     plot3d(coords[,1],coords[,2],coords[,3],col = colors_view,aspect=c(67,41,58),xlab="Anterior-Posterior",ylab="Inferior-Superior",zlab="Left-Right",size=5, add = TRUE)
     decorate3d(xlab = colnames(coords)[1], ylab = colnames(coords)[2],zlab = colnames(coords)[3], box = FALSE, axes = FALSE)
     axes3d(c("x--","y--","z--"))#axes3d(c("x--","y--","z--"))
-    movie3d(spin3d(axis = c(0, 0, 1)), duration = 20, movie = paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/gifs/", region, "_",sub("/", "-",sub(" ", "_",cell_type)),"_spatial_summary"))
+    movie3d(spin3d(axis = c(0, 0, 1)), duration = 20, movie = paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/gifs/", region, "_",sub("/", ".",sub(" ", "_",cell_type)),"_spatial_summary"))
   }
 }
 
@@ -1634,7 +1634,9 @@ summarize_by_layer = function(
     cell.type.df = data.frame(Layers = as.character(labels.cell.type[,1]), 
                               Cell_Types = as.character(labels.cell.type[,2]), 
                               Values = as.vector(cell.type.matrix))
-
+    #for(i in 1:nrow(cell.type.df)){
+    #  cell.type.df[i, 3] = cell.type.matrix[cell.type.df[i, 1],  cell.type.df[i, 2]]
+    #}
     if(ncol(cell.type.matrix) > 1){
       overall.cell.type.plot = ggplot2::ggplot(cell.type.df, ggplot2::aes(fill = Cell_Types, y = Values, x = Layers)) + 
           ggplot2::theme(text = ggplot2::element_text(size = 10), 
@@ -1668,7 +1670,7 @@ summarize_by_layer = function(
           ggplot2::xlab("Layer") +
           ggplot2::ylab("Value") +
           ggplot2::ggtitle(paste0("Distribution of ",i, " cells by layer"))
-       ggplot2::ggsave(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/plots/",sub("/", "-",sub(" ", "_",i)),"_layer_distribution.PNG"),
+       ggplot2::ggsave(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/plots/",sub("/", ".",sub(" ", "_",i)),"_layer_distribution.PNG"),
                     by.cell.type.plot[[i]],
                     width = 500,
                     height = 400,
@@ -1680,7 +1682,9 @@ summarize_by_layer = function(
       gene.df = data.frame(Layers = as.character(labels.genes[,1]), 
                                 Genes = as.character(labels.genes[,2]), 
                                 Values = as.vector(gene.matrix))
-
+      #for(i in 1:nrow(gene.df)){
+      #  gene.df[i, 3] = gene.matrix[gene.df[i, 1],  gene.df[i, 2]]
+      #}
       if(length(genes.use) > 1){
         overall.gene.plot = ggplot2::ggplot(gene.df, ggplot2::aes(fill = Genes, y = Values, x = Layers)) + 
           ggplot2::theme(text = ggplot2::element_text(size = 8), 
@@ -1714,7 +1718,7 @@ summarize_by_layer = function(
           ggplot2::xlab("Layer") +
           ggplot2::ylab("Value") +
           ggplot2::ggtitle(paste0("Distribution of ",i, " expression by layer"))
-         ggplot2::ggsave(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/plots/",sub("/", "-",sub(" ", "_",i)),"_gene_layer_distribution.PNG"),
+         ggplot2::ggsave(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/plots/",sub("/", ".",sub(" ", "_",i)),"_gene_layer_distribution.PNG"),
                       by.gene.plot[[i]],
                       width = 500,
                       height = 400,
