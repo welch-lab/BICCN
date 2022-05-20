@@ -1833,6 +1833,98 @@ analyze_gene_signatures = function(filepath,
           paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/gene_signature_analysis_summary.RDS"))
 }
 
+plot_layer = function(
+  filepath,
+  region,
+  coords,
+  spatial.data.file,
+  axis,
+  idx,
+  mat.use = "proportions",
+  use.cell.types = TRUE,
+  cell.types.use = NULL,
+  genes.use = NULL,
+  display.plots = FALSE
+){
+  
+  if(!dir.exists(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/plots"))){
+      dir.create(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/plots"))
+  }
+  theme_set(theme_cowplot())
+
+  if(is.character(coords)){
+    coords = readRDS(coords)
+  }
+  coords = coords[coords[,axis] == idx, setdiff(colnames(coords),axis)]
+  if(use.cell.types){
+    loadings = readRDS(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/deconvolution_output.RDS"))
+    if(!is.null(cell.types.use)){
+      cell.types.use = intersect(cell.types.use, colnames(loadings[[mat.use]]))
+    } else {
+      cell.types.use = colnames(loadings[[mat.use]])
+    }
+    cell.types.use = cell.types.use[cell.types.use != ""]
+    loadings = loadings[[mat.use]][rownames(loadings[[mat.use]]) %in% rownames(coords), cell.types.use]
+    
+    colnames(loadings) = sub("/",".",sub(" ", "_", cell.types.use))
+    
+    coords = coords[rownames(loadings),]
+    plotting_df = as.data.frame(cbind(coords, loadings))
+    for(i in 1:ncol(loadings)){
+      slice_plot = ggplot(plotting_df, aes_string(x = colnames(plotting_df)[1],
+                        y = colnames(plotting_df)[2],
+                        fill = colnames(loadings)[i])) + 
+          geom_tile() +
+          coord_fixed(ratio = 1) +      
+          viridis::scale_fill_viridis() +
+          ggtitle(paste0("Distribution of ",cell.types.use[i]),
+                  subtitle = paste0("In ", axis, " slice ", idx)) + 
+          theme(legend.title = ggplot2::element_blank(),
+                text = ggplot2::element_text(size = 8), 
+                axis.text = ggplot2::element_text(size = 5))
+      if(display.plots){
+        print(slice_plot)
+      }
+      ggplot2::ggsave(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/plots/",
+                    colnames(loadings)[i],"_",axis,"_",idx,".PNG"),
+                    slice_plot,
+                    width = 1000,
+                    height = 800,
+                    units = "px")
+    }
+  }
+  if(!is.null(genes.use)){
+    spatial.data = readRDS(spatial.data.file)
+    genes.use = intersect(genes.use, rownames(spatial.data))
+    spatial.data[is.na(spatial.data)] = 0
+    spatial.data = scale(t(spatial.data[genes.use,colnames(spatial.data) %in% rownames(coords)]), center = FALSE)
+    spatial.data[spatial.data < 0 ] = 0
+    plotting_df = as.data.frame(cbind(coords, spatial.data))
+    for(i in 1:ncol(spatial.data)){
+      slice_plot = ggplot(plotting_df, aes_string(x = colnames(plotting_df)[1],
+                        y = colnames(plotting_df)[2],
+                        fill = colnames(spatial.data)[i])) + 
+          geom_tile() +
+          coord_fixed(ratio = 1) +      
+          viridis::scale_fill_viridis() +
+          ggtitle(paste0("Distribution of ",genes.use[i]),
+                  subtitle = paste0("In ", axis, " slice ", idx)) + 
+          theme(legend.title = ggplot2::element_blank(),
+                text = ggplot2::element_text(size = 8), 
+                axis.text = ggplot2::element_text(size = 5))
+      if(display.plots){
+        print(slice_plot)
+      }
+      ggplot2::ggsave(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/plots/",
+                    genes.use[i],"_",axis,"_",idx,".PNG"),
+                    slice_plot,
+                    width = 1000,
+                    height = 800,
+                    units = "px")
+    }
+  }
+}
+
 
 
 
