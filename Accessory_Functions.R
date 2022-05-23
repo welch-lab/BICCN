@@ -1536,6 +1536,17 @@ deconvolve_spatial = function(filepath,
     saveRDS(list(raw = deconv_h, proportions = deconv_frac), paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/deconvolution_output.RDS"))
   }
 
+assign_single_cells = function(
+  filepath,
+  region
+){
+  proportions = readRDS(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/deconvolution_output.RDS"))[[2]]
+  cell_types = colnames(proportions)
+  max = as.factor(apply(proportions, MARGIN = 1, function(x){cell_types[which.max(x)]}))
+  names(max) = rownames(proportions)
+  saveRDS(max, paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/deconvolution_max_factor_assignment.RDS"))
+}
+
 generate_loading_gifs = function(
   filepath,
   region,
