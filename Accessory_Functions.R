@@ -160,13 +160,17 @@ apply_qc = function(filenames, region, analysis_num , qc_table_path, filepath_cy
     
     if (data.type == "sc10Xv3" | data.type == "sc10Xv2"){  #i.e. originally called tenx
       qc_table = readRDS(qc_table_path)
-      #Find the appropriate cutoff to apply
-      qc_stats = filter(qc_table, qc_table$DataType == "sc10Xv3")
+      #Find the appropriate cutoff to apply qc_stats = filter(qc_table, qc_table$DataType == "sc10Xv3")
       qc_stats = filter(qc_stats, qc_stats$Analysis == analysis_num)
-      if (region != "OLF" & region != "CB"){
+      if (analysis_num == 1 | analysis_num == 2 | analysis_num == 3){
         qc_stats = filter(qc_stats, qc_stats$Region == "ALL")
-      } else {
-        qc_stats = filter(qc_stats, qc_stats$Region == region)
+      }
+      if (analysis_num == 4 | analysis_num == 5){
+        if (region != "OLF" & region != "CB"){
+          qc_stats = filter(qc_stats, qc_stats$Region == "ALL")
+        } else {
+          qc_stats = filter(qc_stats, qc_stats$Region == region)
+        }
       }
       
       GeneCount_cutoff = qc_stats$GeneCounts
