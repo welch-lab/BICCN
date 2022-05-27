@@ -1585,25 +1585,55 @@ generate_loading_gifs = function(
   }
 }
 
+#' Convert proportions generated during the deconvolution into cell-type
+#' assignments, for use with single cell spatial modalities (i.e. slideseq)
+#'
+#' @param filepath Path to directory within which the atlas structure was generated
+#' @param region A string corresponding to the name of an anatomical region
+#' @param layer.list A named list of spatial sample names, corresponding to
+#'    groupings to be summarized by the function
+#' @param spatial.data.file The location of a file containing spatial expression data
+#' @param plot A logical, corresponding with if to make bar plots corresponding
+#'    to provided cell type and gene loading
+#' @param type A string, either "mean" or "sum" corresponding with how to
+#'    summarize across samples
+#' @param mat.use A string, either "raw", "proportions", or "assignment",
+#'    corresponding to the raw cell type loadings, the normalized loadings, or
+#'    cell type assignments for single cell spatial modalities
+#' @param use.cell.types A logical, if only the cell types provided to
+#'    cell.types.use should be summarized, as opposed to all deconvolved.
+#' @param cell.types.use A character vector of cell types to summarize
+#' @param genes.use A character vector of genes to summarize
+#'
+#'
+#' @return nothing
+#'
+#' @import
+#'
+#' @export
+#' @examples
+#' \dontrun{
+#'
+#' }
 summarize_by_layer = function(
   filepath,
   region,
   layer.list,
+  spatial.data.file,
   plot = FALSE,
   type = "mean",
   mat.use = "proportions",#"assignment
   use.cell.types = TRUE,
   cell.types.use = NULL,
-  genes.use = NULL,
-  spatial.data.file
-){
-  if(mat.use != "assignment"){
+  genes.use = NULL){
+  if(mat.use == "assignment"){
     assignments = readRDS("/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Subset/MOp/MOp_Deconvolution_Output/deconvolution_max_factor_assignment.RDS")
     sub_vec = rep(0,nlevels(assignments))
     loadings = Reduce(rbind, lapply(assignments, function(x){subbed_vec = sub_vec; subbed_vec[as.numeric(x)] = 1; return(subbed_vec)}))
     colnames(loadings) = levels(assignments)
+  } else {
+    loadings = readRDS(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/deconvolution_output.RDS"))[[mat.use]]
   }
-  loadings = readRDS(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/deconvolution_output.RDS"))[[mat.use]]
   if(use.cell.types){
     if(!is.null(cell.types.use)){
       cell.types.use = intersect(cell.types.use, colnames(loadings))
@@ -1653,101 +1683,102 @@ summarize_by_layer = function(
     }
     ggplot2::theme_set(theme_cowplot())
     labels.cell.type = expand.grid(rownames(cell.type.matrix), colnames(cell.type.matrix))
-    cell.type.df = data.frame(Layers = as.character(labels.cell.type[,1]), 
-                              Cell_Types = as.character(labels.cell.type[,2]), 
+    cell.type.df = data.frame(Layers = as.character(labels.cell.type[,1]),
+                              Cell_Types = as.character(labels.cell.type[,2]),
                               Values = as.vector(cell.type.matrix))
     #for(i in 1:nrow(cell.type.df)){
     #  cell.type.df[i, 3] = cell.type.matrix[cell.type.df[i, 1],  cell.type.df[i, 2]]
     #}
     if(ncol(cell.type.matrix) > 1){
-      overall.cell.type.plot = ggplot2::ggplot(cell.type.df, ggplot2::aes(fill = Cell_Types, y = Values, x = Layers)) + 
-          ggplot2::theme(text = ggplot2::element_text(size = 10), 
-                         axis.text = ggplot2::element_text(size = 5),
-                         legend.title = ggplot2::element_blank(),
-                         legend.text = ggplot2::element_text(size = 3),
-                         legend.key.height = ggplot2::unit(3, 'mm'), 
-                         legend.key.width = ggplot2::unit(1, 'mm')) +  
-          ggplot2::geom_bar(position = "dodge", stat = "identity") +
-          ggplot2::xlab("Layer") +
-          ggplot2::ylab("Value") +
-          ggplot2::ggtitle(paste0("Distribution of cell types by layer"))
-      
+      overall.cell.type.plot = ggplot2::ggplot(cell.type.df, ggplot2::aes(fill = Cell_Types, y = Values, x = Layers)) +
+        ggplot2::theme(text = ggplot2::element_text(size = 10),
+                       axis.text = ggplot2::element_text(size = 5),
+                       legend.title = ggplot2::element_blank(),
+                       legend.text = ggplot2::element_text(size = 3),
+                       legend.key.height = ggplot2::unit(3, 'mm'),
+                       legend.key.width = ggplot2::unit(1, 'mm')) +
+        ggplot2::geom_bar(position = "dodge", stat = "identity") +
+        ggplot2::xlab("Layer") +
+        ggplot2::ylab("Value") +
+        ggplot2::ggtitle(paste0("Distribution of cell types by layer"))
+
       print(overall.cell.type.plot)
-        
+
       ggplot2::ggsave(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/plots/cell_type_layer_distribution.PNG"),
                       overall.cell.type.plot,
                       width = 1000,
                       height = 800,
                       units = "px")
     }
-    
+
     for(i in colnames(cell.type.matrix)){
       cell.type.df.sub = cell.type.df[cell.type.df$Cell_Types == i,]
-      by.cell.type.plot = ggplot2::ggplot(cell.type.df.sub, ggplot2::aes(fill = Layers, x = Layers, y = Values)) + 
-          ggplot2::theme(text = ggplot2::element_text(size = 3), 
-                         axis.text = ggplot2::element_text(size = 2),
-                         legend.position="none") +  
-          ggplot2::geom_bar(position = "dodge", stat = "identity") +
-          ggplot2::xlab("Layer") +
-          ggplot2::ylab("Value") +
-          ggplot2::ggtitle(paste0("Distribution of ",i, " cells by layer"))
-       ggplot2::ggsave(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/plots/",sub("/", ".",sub(" ", "_",i)),"_layer_distribution.PNG"),
-                    by.cell.type.plot,
-                    width = 500,
-                    height = 400,
-                    units = "px")
+      by.cell.type.plot = ggplot2::ggplot(cell.type.df.sub, ggplot2::aes(fill = Layers, x = Layers, y = Values)) +
+        ggplot2::theme(text = ggplot2::element_text(size = 3),
+                       axis.text = ggplot2::element_text(size = 2),
+                       legend.position="none") +
+        ggplot2::geom_bar(position = "dodge", stat = "identity") +
+        ggplot2::xlab("Layer") +
+        ggplot2::ylab("Value") +
+        ggplot2::ggtitle(paste0("Distribution of ",i, " cells by layer"))
+      ggplot2::ggsave(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/plots/",sub("/", ".",sub(" ", "_",i)),"_layer_distribution.PNG"),
+                      by.cell.type.plot,
+                      width = 500,
+                      height = 400,
+                      units = "px")
 
     }
     if(!is.null(genes.use)){
       labels.genes = expand.grid(rownames(gene.matrix), colnames(gene.matrix))
-      gene.df = data.frame(Layers = as.character(labels.genes[,1]), 
-                                Genes = as.character(labels.genes[,2]), 
-                                Values = as.vector(gene.matrix))
+      gene.df = data.frame(Layers = as.character(labels.genes[,1]),
+                           Genes = as.character(labels.genes[,2]),
+                           Values = as.vector(gene.matrix))
       #for(i in 1:nrow(gene.df)){
       #  gene.df[i, 3] = gene.matrix[gene.df[i, 1],  gene.df[i, 2]]
       #}
       if(length(genes.use) > 1){
-        overall.gene.plot = ggplot2::ggplot(gene.df, ggplot2::aes(fill = Genes, y = Values, x = Layers)) + 
-          ggplot2::theme(text = ggplot2::element_text(size = 8), 
+        overall.gene.plot = ggplot2::ggplot(gene.df, ggplot2::aes(fill = Genes, y = Values, x = Layers)) +
+          ggplot2::theme(text = ggplot2::element_text(size = 8),
                          axis.text = ggplot2::element_text(size = 5),
                          legend.title = ggplot2::element_blank(),
                          legend.text = ggplot2::element_text(size = 3),
-                         legend.key.height = ggplot2::unit(3, 'mm'), 
-                         legend.key.width = ggplot2::unit(1, 'mm')) +  
+                         legend.key.height = ggplot2::unit(3, 'mm'),
+                         legend.key.width = ggplot2::unit(1, 'mm')) +
           ggplot2::geom_bar(position = "dodge", stat = "identity") +
           ggplot2::xlab("Layer") +
           ggplot2::ylab("Value") +
           ggplot2::ggtitle(paste0("Distribution of gene expression by layer"))
-          
+
         print(overall.gene.plot)
-        
+
         ggplot2::ggsave(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/plots/gene_layer_distribution.PNG"),
                         overall.gene.plot,
                         width = 1000,
                         height = 800,
                         units = "px")
       }
-       
+
       for(i in colnames(gene.matrix)){
         gene.df.sub = gene.df[gene.df$Genes == i,]
-        by.gene.plot = ggplot2::ggplot(gene.df.sub, ggplot2::aes(fill = Layers, x = Layers, y = Values)) + 
-          ggplot2::theme(text = ggplot2::element_text(size = 3), 
+        by.gene.plot = ggplot2::ggplot(gene.df.sub, ggplot2::aes(fill = Layers, x = Layers, y = Values)) +
+          ggplot2::theme(text = ggplot2::element_text(size = 3),
                          axis.text = ggplot2::element_text(size = 2),
-                         legend.position="none") +  
+                         legend.position="none") +
           ggplot2::geom_bar(position = "dodge", stat = "identity") +
           ggplot2::xlab("Layer") +
           ggplot2::ylab("Value") +
           ggplot2::ggtitle(paste0("Distribution of ",i, " expression by layer"))
-         ggplot2::ggsave(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/plots/",sub("/", ".",sub(" ", "_",i)),"_gene_layer_distribution.PNG"),
-                      by.gene.plot,
-                      width = 500,
-                      height = 400,
-                      units = "px")
-  
+        ggplot2::ggsave(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/plots/",sub("/", ".",sub(" ", "_",i)),"_gene_layer_distribution.PNG"),
+                        by.gene.plot,
+                        width = 500,
+                        height = 400,
+                        units = "px")
+
       }
     }
   }
 }
+
 
 analyze_gene_signatures = function(filepath,
   region,
