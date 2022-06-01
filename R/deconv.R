@@ -1,12 +1,32 @@
 # Functions required for utilization of the DUMfound deconvolution pipeline on
 # fully annotated region atlases
 
+### TODO document
+save_spatial_data = function(filepath,
+                        region,
+                        spatial.data.file,
+                        coords,
+                        spatial.data.name,
+                        ){
+  dir_new = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
+  if(!dir.exists(dir_new)){
+    dir.create(dir_new)
+  }
+  file.copy(spatial.data.file, paste0(dir_new,"/",spatial.data.name,"_exp.RDS"))
+  if(is.character(coords)){
+    file.copy(coords, paste0(dir_new,"/",spatial.data.name,"_coords.RDS"))
+  } else {
+    saveRDS(coords, paste0(dir_new,"/",spatial.data.name,"_coords.RDS"))
+  }
+
+}
+
 #' Complete the deconvolution, from data preprocessing through feature selection,
 #' gene signature calculation, NNLS, and post-processing of loadings
 #'
 #' @param filepath Path to directory within which the atlas structure was generated
 #' @param region The anatomical region with which the analysis is associated
-#' @param spatial.data.file The filepath of a file containing spatial expression data
+#' @param spatial.data.name A string, the name of the spatial dataset
 #' @param slide.seq A logical, if the spatial data was collected with slide-seq
 #'  overriding removal of genes from the spatial data
 #' @param z The number of standard deviations above the mean number of missing
@@ -45,7 +65,7 @@
 #' }
 deconvolve_spatial = function(filepath,
                               region,
-                              spatial.data.file,
+                              spatial.data.name,
                               slide.seq = FALSE,
                               z = 1,
                               n.umi.thresh = 150,
@@ -119,7 +139,7 @@ deconvolve_spatial = function(filepath,
     ))
   })
 
-  spatial.data = readRDS(spatial.data.file)
+  spatial.data = readRDS(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name"/",spatial.data.name,"_coords.RDS"))
 
   if(!slide.seq){
     spatial.data[spatial.data == -1] = NA
@@ -369,6 +389,11 @@ deconvolve_spatial = function(filepath,
 
   saveRDS(out, paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/gene_signature_output.RDS"))
 
+  dir_new = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
+  if(!dir.exists(dir_new)){
+    dir.create(dir_new)
+  }
+
   message("Deconvolving spatial data")
   spatial.data = t(scale(t(as.matrix(spatial.data[gene_vec,])), center = FALSE))
   spatial.data[spatial.data < 0 ] = 0
@@ -378,7 +403,7 @@ deconvolve_spatial = function(filepath,
   deconv_frac = t(apply(deconv_h, MARGIN = 1, function(x){x/sum(x)}))
   rownames(deconv_frac) = rownames(deconv_h) = colnames(spatial.data)
   deconv_frac[is.nan(deconv_frac)] = 0
-  saveRDS(list(raw = deconv_h, proportions = deconv_frac), paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/deconvolution_output.RDS"))
+  saveRDS(list(raw = deconv_h, proportions = deconv_frac), paste0(dir_new, "/deconvolution_output.RDS"))
 }
 
 
@@ -386,8 +411,7 @@ deconvolve_spatial = function(filepath,
 #'
 #' @param filepath Path to directory within which the atlas structure was generated
 #' @param region The anatomical region with which the analysis is associated
-#' @param spatial.data.file The filepath of a file containing spatial expression data
-#' @param output.filepath A filepath for a directory to which to save results
+#' @param spatial.data.name A string, the name of the spatial dataset
 #' @param slide.seq A logical, if the spatial data was collected with slide-seq
 #'  overriding removal of genes from the spatial data
 #' @param z The number of standard deviations above the mean number of missing
@@ -407,12 +431,11 @@ deconvolve_spatial = function(filepath,
 
 deconvolve_new_data(filepath,
                     region,
-                    spatial.data.file,
-                    output.filepath,
+                    spatial.data.name,
                     slide.seq = FALSE,
                     z = 1,
                     n.umi.thresh = 150){
-  spatial.data = readRDS(spatial.data.file)
+  spatial.data = readRDS(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name,"/",spatial.data.name,"_exp.RDS"))
 
   deconv_out= readRDS(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/gene_signature_output.RDS"))
   W = deconv_out$W
@@ -438,7 +461,10 @@ deconvolve_new_data(filepath,
   }
 
   W = W[,gene_vec %in% shared_genes]
-
+  dir_new = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
+  if(!dir.exists(dir_new)){
+    dir.create(dir_new)
+  }
 
   spatial.data = t(scale(t(as.matrix(spatial.data[shared_genes,])), center = FALSE))
   spatial.data[spatial.data < 0 ] = 0
@@ -447,8 +473,7 @@ deconvolve_new_data(filepath,
   deconv_frac = t(apply(deconv_h, MARGIN = 1, function(x){x/sum(x)}))
   rownames(deconv_frac) = rownames(deconv_h) = colnames(spatial.data)
   deconv_frac[is.nan(deconv_frac)] = 0
-  saveRDS(list(raw = deconv_h, proportions = deconv_frac), output.filepath)
-
+  saveRDS(list(raw = deconv_h, proportions = deconv_frac), paste0(dir_new, "/deconvolution_output.RDS"))
 }
 
 #' Convert proportions generated during the deconvolution into cell-type
@@ -456,6 +481,7 @@ deconvolve_new_data(filepath,
 #'
 #' @param filepath Path to directory within which the atlas structure was generated
 #' @param region A string corresponding to the name of an anatomical region
+#' @param spatial.data.name A string, the name of the spatial dataset
 #'
 #' @return nothing
 #'
@@ -468,12 +494,13 @@ deconvolve_new_data(filepath,
 #' }
 assign_single_cells = function(
   filepath,
-  region){
-  proportions = readRDS(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/deconvolution_output.RDS"))[[2]]
+  region,
+  spatial.data.name){
+  proportions = readRDS(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name,"/deconvolution_output.RDS"))[[2]]
   cell_types = colnames(proportions)
   max = as.factor(apply(proportions, MARGIN = 1, function(x){cell_types[which.max(x)]}))
   names(max) = rownames(proportions)
-  saveRDS(max, paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/deconvolution_max_factor_assignment.RDS"))
+  saveRDS(max, paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name,"/deconvolution_max_factor_assignment.RDS"))
 }
 
 
@@ -481,8 +508,7 @@ assign_single_cells = function(
 #' a preselected resolution
 #'
 #' @param region A string corresponding to the name of an anatomical region
-#' @param spatial.data.file The filepath of a file containing spatial expression data
-#' @param out.filepath A filepath for a directory to which to save results
+#' @param spatial.data.name A string, the name of the spatial dataset
 #' @param coords A filepath or object corresponding to an RDS object with a 3D
 #'    coordinate corresponding to each spatial sample
 #' @param  voxel.size A numeric, corresponding to the side-length of desired voxels
@@ -498,15 +524,14 @@ assign_single_cells = function(
 
 voxelize_single_cells = function(
   region,
-  spatial.data.file,
-  out.filepath,
+  spatial.data.name,
   coords,
   voxel.size,
 ){
-  spatial.data = readRDS(spatial.data.file)
-  if(is.character(coords)){
-    coords = readRDS(coords)
-  }
+  spatial.data = readRDS(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name,"/",spatial.data.name,"_exp.RDS"))
+  coords = readRDS(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name,"/",spatial.data.name,"_coords.RDS"))
+
+
   minmax = apply(coords, MARGIN = 2, function(x){round(range(x),-1)})
   ranges = apply(minmax, MARGIN = 2, function(y){return(y[2]-y[1])})
 
@@ -547,8 +572,7 @@ voxelize_single_cells = function(
 #'
 #' @param filepath Path to directory within which the atlas structure was generated
 #' @param region A string corresponding to the name of an anatomical region
-#' @param coords A filepath or object corresponding to an RDS object with a 3D
-#'    coordinate corresponding to each spatial sample
+#' @param spatial.data.name A string, the name of the spatial dataset
 #' @param mat.use A string, either "raw", "proportions", or "assignment",
 #'    corresponding to the raw cell type loadings, the normalized loadings, or
 #'    cell type assignments for single cell spatial modalities
@@ -569,21 +593,21 @@ voxelize_single_cells = function(
 generate_loading_gifs = function(
   filepath,
   region,
-  coords,
+  spatial.data.name,
   mat.use = "proportions",#raw, proportions, or assignment
   cell.types.plot = NULL,
   dims = c(500, 500)
 ){
   library(rgl)
   if(mat.use != "assignment"){
-    loadings = readRDS(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/deconvolution_output.RDS"))
+    loadings = readRDS(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/",spatial.data.name,"/deconvolution_output.RDS"))
     cell_types = colnames(loadings[[1]])
   } else {
-    assignments = readRDS(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/deconvolution_max_factor_assignment.RDS"))
+    assignments = readRDS(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/",spatial.data.name,"/deconvolution_max_factor_assignment.RDS"))
     cell_types = levels(assignments)
   }
-  if(!dir.exists(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/gifs"))){
-    dir.create(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/gifs"))
+  if(!dir.exists(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/",spatial.data.name,"/gifs"))){
+    dir.create(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/",spatial.data.name,"/gifs"))
   }
   grDevices::palette(viridis::viridis(option="A",n=50,direction = -1))
   if(is.null(cell.types.plot)){
@@ -591,9 +615,8 @@ generate_loading_gifs = function(
   } else {
     cell.types.plot = intersect(cell.types.plot, cell_types)
   }
-  if(is.character(coords)){
-    coords = readRDS(coords)
-  }
+  coords = readRDS(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name,"/",spatial.data.name,"_coords.RDS"))
+
 
   for(cell_type in cell.types.plot){
     if(mat.use != "assignment"){
@@ -603,7 +626,7 @@ generate_loading_gifs = function(
       plot3d(coords[,1],coords[,2],coords[,3],col = colors_view,aspect=c(67,41,58),xlab="Anterior-Posterior",ylab="Inferior-Superior",zlab="Left-Right",size=5, add = TRUE)
       decorate3d(xlab = colnames(coords)[1], ylab = colnames(coords)[2],zlab = colnames(coords)[3], box = FALSE, axes = FALSE)
       axes3d(c("x--","y--","z--"))#axes3d(c("x--","y--","z--"))
-      movie3d(spin3d(axis = c(0, 0, 1)), duration = 20, movie = paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/gifs/", region, "_",sub("/", ".",sub(" ", "_",cell_type)),"_spatial_summary"))
+      movie3d(spin3d(axis = c(0, 0, 1)), duration = 20, movie = paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/",spatial.data.name,"/gifs/", region, "_",sub("/", ".",sub(" ", "_",cell_type)),"_spatial_summary"))
     } else {
       colors_view = (assignments == cell_type)*20 + 1
       try(rgl.close(), silent = TRUE)
@@ -611,7 +634,7 @@ generate_loading_gifs = function(
       plot3d(coords[,1],coords[,2],coords[,3],col = colors_view,aspect=c(67,41,58),xlab="Anterior-Posterior",ylab="Inferior-Superior",zlab="Left-Right",size=1, type = "p", add = TRUE)
       decorate3d(xlab = colnames(coords)[1], ylab = colnames(coords)[2],zlab = colnames(coords)[3], box = FALSE, axes = FALSE)
       axes3d(c("x--","y--","z--"))#axes3d(c("x--","y--","z--"))
-      movie3d(spin3d(axis = c(0, 0, 1)), duration = 20, movie = paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/gifs/", region, "_",sub("/", ".",sub(" ", "_",cell_type)),"_spatial_summary"))
+      movie3d(spin3d(axis = c(0, 0, 1)), duration = 20, movie = paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/",spatial.data.name,"/gifs/", region, "_",sub("/", ".",sub(" ", "_",cell_type)),"_spatial_summary"))
     }
 
   }
@@ -625,7 +648,7 @@ generate_loading_gifs = function(
 #' @param region A string corresponding to the name of an anatomical region
 #' @param layer.list A named list of spatial sample names, corresponding to
 #'    groupings to be summarized by the function
-#' @param spatial.data.file The location of a file containing spatial expression data
+#' @param spatial.data.name A string, the name of the spatial dataset
 #' @param plot A logical, corresponding with if to make bar plots corresponding
 #'    to provided cell type and gene loading
 #' @param type A string, either "mean" or "sum" corresponding with how to
@@ -652,7 +675,7 @@ summarize_by_layer = function(
   filepath,
   region,
   layer.list,
-  spatial.data.file,
+  spatial.data.name,
   plot = FALSE,
   type = "mean",
   mat.use = "proportions",#"assignment
@@ -660,12 +683,11 @@ summarize_by_layer = function(
   cell.types.use = NULL,
   genes.use = NULL){
   if(mat.use == "assignment"){
-    assignments = readRDS("/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Subset/MOp/MOp_Deconvolution_Output/deconvolution_max_factor_assignment.RDS")
-    sub_vec = rep(0,nlevels(assignments))
+    paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name,"/deconvolution_max_factor_assignment.RDS")    sub_vec = rep(0,nlevels(assignments))
     loadings = Reduce(rbind, lapply(assignments, function(x){subbed_vec = sub_vec; subbed_vec[as.numeric(x)] = 1; return(subbed_vec)}))
     colnames(loadings) = levels(assignments)
   } else {
-    loadings = readRDS(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/deconvolution_output.RDS"))[[mat.use]]
+    loadings = readRDS(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name,"/deconvolution_output.RDS"))[[mat.use]]
   }
   if(use.cell.types){
     if(!is.null(cell.types.use)){
@@ -687,7 +709,7 @@ summarize_by_layer = function(
         }
       }
     }
-    saveRDS(cell.type.matrix, paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/cell_type_layer_summary.RDS"))
+    saveRDS(cell.type.matrix, paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/",spatial.data.name,"/cell_type_layer_summary.RDS"))
   }
   if(!is.null(genes.use)){
     spatial.data = readRDS(spatial.data.file)
@@ -708,11 +730,11 @@ summarize_by_layer = function(
         }
       }
     }
-    saveRDS(cell.type.matrix, paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/gene_layer_summary.RDS"))
+    saveRDS(cell.type.matrix, paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/",spatiaal.data.name,"gene_layer_summary.RDS"))
   }
   if(plot){
-    if(!dir.exists(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/plots"))){
-      dir.create(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/plots"))
+    if(!dir.exists(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/",spatial.data.name,"/plots"))){
+      dir.create(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/",spatial.data.name,"/plots"))
     }
     ggplot2::theme_set(theme_cowplot())
     labels.cell.type = expand.grid(rownames(cell.type.matrix), colnames(cell.type.matrix))
@@ -737,7 +759,7 @@ summarize_by_layer = function(
 
       print(overall.cell.type.plot)
 
-      ggplot2::ggsave(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/plots/cell_type_layer_distribution.PNG"),
+      ggplot2::ggsave(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/",spatial.data.name,"/plots/cell_type_layer_distribution.PNG"),
                       overall.cell.type.plot,
                       width = 1000,
                       height = 800,
@@ -754,7 +776,7 @@ summarize_by_layer = function(
         ggplot2::xlab("Layer") +
         ggplot2::ylab("Value") +
         ggplot2::ggtitle(paste0("Distribution of ",i, " cells by layer"))
-      ggplot2::ggsave(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/plots/",sub("/", ".",sub(" ", "_",i)),"_layer_distribution.PNG"),
+      ggplot2::ggsave(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/",spatial.data.name,"/plots/",sub("/", ".",sub(" ", "_",i)),"_layer_distribution.PNG"),
                       by.cell.type.plot,
                       width = 500,
                       height = 400,
@@ -784,7 +806,7 @@ summarize_by_layer = function(
 
         print(overall.gene.plot)
 
-        ggplot2::ggsave(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/plots/gene_layer_distribution.PNG"),
+        ggplot2::ggsave(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/",spatial.data.name,"/plots/gene_layer_distribution.PNG"),
                         overall.gene.plot,
                         width = 1000,
                         height = 800,
@@ -801,7 +823,7 @@ summarize_by_layer = function(
           ggplot2::xlab("Layer") +
           ggplot2::ylab("Value") +
           ggplot2::ggtitle(paste0("Distribution of ",i, " expression by layer"))
-        ggplot2::ggsave(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/plots/",sub("/", ".",sub(" ", "_",i)),"_gene_layer_distribution.PNG"),
+        ggplot2::ggsave(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/",spatial.data.name,"/plots/",sub("/", ".",sub(" ", "_",i)),"_gene_layer_distribution.PNG"),
                         by.gene.plot,
                         width = 500,
                         height = 400,
@@ -938,12 +960,12 @@ analyze_gene_signatures = function(filepath,
   detach("package:ggplot2", unload = TRUE)
 }
 
+### TODO revise to match
 #' Generate 2D plots of cell type and gene distribution, given a plane.
 #'
 #' @param filepath Path to directory within which the atlas structure was generated
 #' @param region A string corresponding to the name of an anatomical region
-#' @param coords A filepath or object corresponding to an RDS object with a 3D
-#'    coordinate corresponding to each spatial sample
+#' @param spatial.data.name A string, the name of the spatial dataset
 #' @param display.plots A logical, corresponding with if to display requested plots upon
 #'    generation
 #'
@@ -960,14 +982,12 @@ analyze_gene_signatures = function(filepath,
 
 reference_3d_coordinates = function(filepath,
                                     region,
-                                    coords,
+                                    spatial.data.name,
                                     save.plots = FALSE){
 
   library(ggplot2)
   library(cowplot)
-  if(is.character(coords)){
-    coords = readRDS(coords)
-  }
+  coords = readRDS(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name,"/",spatial.data.name,"_coords.RDS"))
 
   minmax = apply(coords, MARGIN = 2, function(x){range(x)})
   ranges = apply(minmax, MARGIN = 2, function(y){return(y[2]-y[1])})
@@ -1021,20 +1041,20 @@ reference_3d_coordinates = function(filepath,
   print(p2)
   print(p3)
   if(save.plots){
-    if(!dir.exists(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/plots"))){
+    if(!dir.exists(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/",spatial.data.name,"/plots"))){
       dir.create(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/plots"))
     }
-    ggplot2::ggsave(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/plots/x_y_coord_reference.PNG"),
+    ggplot2::ggsave(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/",spatial.data.name,"/plots/x_y_coord_reference.PNG"),
                     p1,
                     width = 500,
                     height = 500,
                     units = "px")
-    ggplot2::ggsave(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/plots/x_z_coord_reference.PNG"),
+    ggplot2::ggsave(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/",spatial.data.name,"/plots/x_z_coord_reference.PNG"),
                     p2,
                     width = 500,
                     height = 500,
                     units = "px")
-    ggplot2::ggsave(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/plots/y_z_coord_reference.PNG"),
+    ggplot2::ggsave(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/",spatial.data.name,"/plots/y_z_coord_reference.PNG"),
                     p3,
                     width = 500,
                     height = 500,
@@ -1046,9 +1066,7 @@ reference_3d_coordinates = function(filepath,
 #'
 #' @param filepath Path to directory within which the atlas structure was generated
 #' @param region A string corresponding to the name of an anatomical region
-#' @param coords A filepath or object corresponding to an RDS object with a 3D
-#'    coordinate corresponding to each spatial sample
-#' @param spatial.data.file The filepath of a file containing spatial expression data
+#' @param spatial.data.name A string, the name of the spatial dataset
 #' @param axis A string corresponding to a column name of the coord object, the
 #'    axis along which to plot the slice
 #' @param idx An integer or vector of integers, corresponding to either what
@@ -1076,8 +1094,7 @@ reference_3d_coordinates = function(filepath,
 plot_layer = function(
   filepath,
   region,
-  coords,
-  spatial.data.file,
+  spatial.data.name,
   axis,
   idx,
   mat.use = "proportions",
@@ -1087,25 +1104,24 @@ plot_layer = function(
   display.plots = FALSE){
 
   library(ggplot2)
-  if(!dir.exists(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/plots"))){
-    dir.create(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/plots"))
+  if(!dir.exists(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/",spatial.data.name,"/plots"))){
+    dir.create(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/",spatial.data.name,"/plots"))
   }
 
   if(mat.use == "assignment"){
-    assignments = readRDS(paste0(filepath, "/", region, "/",region, "_Deconvolution_Output/deconvolution_max_factor_assignment.RDS"))
+    assignments = readRDS(paste0(filepath, "/", region, "/",region, "_Deconvolution_Output/",spatial.data.name,"/deconvolution_max_factor_assignment.RDS"))
     sub_vec = rep(0,nlevels(assignments))
     loadings = Reduce(rbind, lapply(assignments, function(x){subbed_vec = sub_vec; subbed_vec[as.numeric(x)] = 1; return(subbed_vec)}))
     colnames(loadings) = levels(assignments)
     rownames(loadings) = names(assignments)
   } else {
-    loadings = readRDS(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/deconvolution_output.RDS"))[[mat.use]]
+    loadings = readRDS(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/",spatial.data.name,"/deconvolution_output.RDS"))[[mat.use]]
   }
 
   theme_set(cowplot::theme_cowplot())
 
-  if(is.character(coords)){
-    coords = readRDS(coords)
-  }
+  coords = readRDS(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name,"/",spatial.data.name,"_coords.RDS"))
+
   if(length(idx) > 1){
     coords = coords[coords[,axis] >= idx[1] & coords[,axis] <= idx[2],
                     setdiff(colnames(coords),axis)]
@@ -1141,14 +1157,14 @@ plot_layer = function(
         print(slice_plot)
       }
       if(length(idx)>1){
-        ggsave(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/plots/",
+        ggsave(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/",spatial.data.name,"/plots/",
                       colnames(loadings)[i],"_",axis,"_",idx[1],"_to_",idx[2],".PNG"),
                slice_plot,
                width = 1000,
                height = 800,
                units = "px")
       } else {
-        ggsave(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/plots/",
+        ggsave(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/",spatial.data.name,"/plots/",
                       colnames(loadings)[i],"_",axis,"_",idx,".PNG"),
                slice_plot,
                width = 1000,
@@ -1181,14 +1197,14 @@ plot_layer = function(
         print(slice_plot)
       }
       if(length(idx)>1){
-        ggsave(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/plots/",
+        ggsave(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/",spatial.data.name,"/plots/",
                       genes.use[i],"_",axis,"_",idx[1],"_to_",idx[2],".PNG"),
                slice_plot,
                width = 1000,
                height = 800,
                units = "px")
       } else {
-        ggsave(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/plots/",
+        ggsave(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/",spatial.data.name,"/plots/",
                       genes.use[i],"_",axis,"_",idx,".PNG"),
                slice_plot,
                width = 1000,
