@@ -139,7 +139,7 @@ deconvolve_spatial = function(filepath,
     ))
   })
 
-  spatial.data = readRDS(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name"/",spatial.data.name,"_coords.RDS"))
+  spatial.data = readRDS(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name,"/",spatial.data.name,"_exp.RDS"))
 
   if(!slide.seq){
     spatial.data[spatial.data == -1] = NA
@@ -507,10 +507,10 @@ assign_single_cells = function(
 #' Convert single cell spatial modalities into voxels by combining samples at
 #' a preselected resolution
 #'
+#' @param filepath Path to directory within which the atlas structure was generated
 #' @param region A string corresponding to the name of an anatomical region
 #' @param spatial.data.name A string, the name of the spatial dataset
-#' @param coords A filepath or object corresponding to an RDS object with a 3D
-#'    coordinate corresponding to each spatial sample
+
 #' @param  voxel.size A numeric, corresponding to the side-length of desired voxels
 #' @return nothing
 #'
@@ -523,9 +523,9 @@ assign_single_cells = function(
 #' }
 
 voxelize_single_cells = function(
+  filepath,
   region,
   spatial.data.name,
-  coords,
   voxel.size,
 ){
   spatial.data = readRDS(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name,"/",spatial.data.name,"_exp.RDS"))
