@@ -568,12 +568,13 @@ voxelize_single_cells = function(
   saveRDS(voxel_list,paste0(out.filepath,"/",region,"_generated_voxels_to_samples.RDS"))
   if(verbose){
     message(paste0("Generated ", nrow(coords_out), " voxels at ", voxel.size, " cubed resolution." ))
+    message(paste0("Mean samples per voxel: ", round(mean(sapply(voxel_list, length)))))
+    message(paste0("Mean nUMI per voxel: ", round(mean(colSums(voxel_exp)))))
   }
 }
 
 
-#' Convert proportions generated during the deconvolution into cell-type
-#' assignments, for use with single cell spatial modalities (i.e. slideseq)
+#' Generate gifs of cell type distributions derived from deconvolution in space
 #'
 #' @param filepath Path to directory within which the atlas structure was generated
 #' @param region A string corresponding to the name of an anatomical region
