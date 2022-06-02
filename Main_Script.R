@@ -30,3 +30,110 @@ annotate_by_modality(filepath,
 
 #Output QC results to main folder. Run this AFTER running all five analyses.
 master_csv("AUD")
+
+
+
+### Example deconvolution on the VIS
+
+save_spatial_data("/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Analyses_By_Region",
+                              "VIS",
+                              "/nfs/turbo/umms-welchjd/sodicoff/sub_mat_vis.RDS",
+                              "/nfs/turbo/umms-welchjd/sodicoff/sub_coords_vis.RDS",
+                              "ISH")
+
+save_spatial_data("/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Analyses_By_Region",
+                              "VIS",
+                              "/scratch/welchjd_root/welchjd/sodicoff/slide_seq_regions/region_mats/VIS_mat.RDS",
+                              "/scratch/welchjd_root/welchjd/sodicoff/slide_seq_regions/region_coords/VIS_coords.RDS",
+                              "slideseq")
+
+deconvolve_spatial("/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Analyses_By_Region",
+                              "VIS",
+                              "ISH",
+                              n.cells = 1000,
+                              deconv.gene.num = 2000,
+                              gene.num.tol = 10,
+                              known.annotations = NULL)
+
+deconvolve_new_data("/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Analyses_By_Region",
+                              "VIS",
+                              "slideseq",
+                              slide.seq = TRUE)
+
+analyze_gene_signatures("/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Analyses_By_Region",
+                              "VIS",
+                              "ISH",
+                              plot = TRUE)
+
+generate_loading_gifs ("/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Analyses_By_Region",
+                              "VIS",
+                              "ISH")
+
+assign_single_cells("/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Analyses_By_Region",
+                              "VIS",
+                              "slideseq")
+
+generate_loading_gifs ("/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Analyses_By_Region",
+                              "VIS",
+                              "slideseq",
+                              mat.use = "assignment")
+
+voxelize_single_cells("/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Analyses_By_Region",
+                              "VIS",
+                              "slideseq",
+                              10,
+                              "~")
+
+save_spatial_data("/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Analyses_By_Region",
+                  "VIS","VIS_generated_voxel_exp.RDS",
+                  "VIS_generated_voxel_coords.RDS",
+                  "slideseq_10")
+
+deconvolve_new_data("/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Analyses_By_Region",
+                              "VIS",
+                              "slideseq_10",
+                              slide.seq = TRUE)
+
+generate_loading_gifs ("/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Analyses_By_Region",
+                              "VIS",
+                              "slideseq_10")
+
+voxelize_single_cells("/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Analyses_By_Region",
+                              "VIS",
+                              "slideseq",
+                              20,
+                              "~")
+
+save_spatial_data("/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Analyses_By_Region",
+                  "VIS","VIS_generated_voxel_exp.RDS",
+                  "VIS_generated_voxel_coords.RDS",
+                  "slideseq_20")
+
+deconvolve_new_data("/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Analyses_By_Region",
+                              "VIS",
+                              "slideseq_20",
+                              slide.seq = TRUE)
+
+generate_loading_gifs ("/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Analyses_By_Region",
+                              "VIS",
+                              "slideseq_20")
+
+voxelize_single_cells("/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Analyses_By_Region",
+                              "VIS",
+                              "slideseq",
+                              5,
+                              "~")
+
+save_spatial_data("/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Analyses_By_Region",
+                  "VIS","VIS_generated_voxel_exp.RDS",
+                  "VIS_generated_voxel_coords.RDS",
+                  "slideseq_5")
+
+deconvolve_new_data("/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Analyses_By_Region",
+                              "VIS",
+                              "slideseq_5",
+                              slide.seq = TRUE)
+
+generate_loading_gifs ("/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Analyses_By_Region",
+                              "VIS",
+                              "slideseq_5")
