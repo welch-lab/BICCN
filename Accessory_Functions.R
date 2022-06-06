@@ -738,12 +738,12 @@ preprocess_and_run = function(filepath, region, analysis_num, chunk_size, num_ge
       warning("Completely unannotated clusters. Please annotate these clusters before proceeding with further analyses")
     }
   }
-  results_filename = paste0(filepath,"/",  region, "/Analysis", analysis_num, "_", region, "/Images/Analysis", analysis_num, "_", region,"_CellData.RDS")
+  results_filename = paste0(filepath,"/",  region, "/Analysis", analysis_num, "_", region, "/Analysis", analysis_num, "_", region,"_Results_Table.RDS")
   saveRDS(result, results_filename)
   #Also, save cell data information
   cell_data = liger_low@cell.data
-  cell_data_filename = paste0(filepath,"/",  region, "/Analysis", analysis_num, "_", region, "/Analysis", analysis_num, "_", region,"_Results_Table.RDS")
-  
+  cell_data_filename = paste0(filepath,"/",  region, "/Analysis", analysis_num, "_", region, "/Analysis", analysis_num, "_", region,"_CellData.RDS")
+  saveRDS(cell_data, cell_data_filename)
   
 }
 
