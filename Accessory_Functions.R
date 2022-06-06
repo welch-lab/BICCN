@@ -897,6 +897,15 @@ max_factor_assignment = function(object){
 # huh = readRDS("/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Base_Reference_Files/Reference_Annotations.RDS")
 # unique_cell_types = data.frame(unique(huh$Type))
 # write.csv(unique_cell_types, "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Base_Reference_Files/unique_celltypes.csv")
+# knownAnnotations = readRDS("/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Base_Reference_Files/Reference_Annotations.RDS")
+# macosko = read.csv("/scratch/welchjd_root/welchjd0/akriebel/Macosko_QC/fc-secure-1d9abad7-eef0-4161-92fa-4696b6131682/not-uniform/macosko-lab/20220531_draft_clustering_cells.tsv", sep = "\t", header = FALSE)
+# library(tidyr)
+# cell_annotations = macosko %>% separate("V3", into = c("C1", "C2", "C3", "C4", "C5","C6", "C7", "C8"), remove = FALSE) #3,578,959
+# cell_annotations = cell_annotations[,c("V1", "V3", "C1")]
+# colnames(cell_annotations) = c("Cell_Barcodes", "Type", "Class")
+# cell_annotations$Level1 = cell_annotations$Class
+# known = rbind(knownAnnotations, cell_annotations)
+# saveRDS(knownAnnotations, "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Base_Reference_Files/Reference_Annotations_updated_with_MacoskoLabels.RDS")
 
 ############################ Functions for Shiny App
 library(dplyr)
