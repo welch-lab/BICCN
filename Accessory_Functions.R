@@ -932,20 +932,34 @@ generate_markersobject = function(datasets, region, analysis_num, filepath){
     name = paste0(region, "_", datasets[[i]])
     dataset_names = c(dataset_names, name)
     matrix_filename = paste0(filepath, region, "/Analysis", analysis_num, "_", region, "/", region, "_", datasets[[i]], "_qc.RDS")
+    results_name = paste0(filepath, region, "/Analysis", analysis_num, "_", region, "/Analysis", analysis_num, "_", region, "_Results_Table.RDS")
+    results = readRDS(results_name)
     matrix = readRDS(matrix_filename)
-    ligs = createLiger(list(newdata = matrix))
-    ligs = normalize(ligs)
-    ligs = selectGenes(ligs, var.thresh = 0.0)
-    genes_needed = subset(ligs@var.genes, ligs@var.genes %in% genes_oi)
-    ligs@var.genes = genes_needed
-    ligs = scaleNotCenter(ligs)
-    dataset_matrices[[i]] = t(ligs@scale.data$newdata)
+    if (datasets[[i]] == "meth_1" | datasets[[i]] == "meth_2" ){
+      genes_needed = subset(rownames(matrix), rownames(matrix) %in% genes_oi)
+      current_matrix = matrix[genes_needed,]
+      current_matrix = as.matrix(max(current_matrix) - current_matrix)
+      cells_io = subset(colnames(current_matrix), colnames(current_matrix) %in% results$Barcode)
+      dataset_matrices[[i]] = current_matrix[,cells_io]
+    } 
+    if (datasets[[i]] != "meth_1" & datasets[[i]] != "meth_2" ){
+      ligs = createLiger(list(newdata = matrix))
+      ligs = normalize(ligs)
+      ligs = selectGenes(ligs, var.thresh = 0.0)
+      genes_needed = subset(ligs@var.genes, ligs@var.genes %in% genes_oi)
+      ligs@var.genes = genes_needed
+      ligs = scaleNotCenter(ligs)
+      current_matrix = t(ligs@scale.data$newdata)
+      cells_io = subset(colnames(current_matrix), colnames(current_matrix) %in% results$Barcode)
+      
+      
+      dataset_matrices[[i]] = current_matrix[,cells_io]
+    }
   }
   names(dataset_matrices) = dataset_names
   output_file = paste0(filepath, region, "/Analysis", analysis_num, "_", region, "/Images/GeneExpression_", region,"_Analysis", analysis_num, ".RDS")
-  saveRDS(dataset_matrices, output_file)
-}
-
+  saveRDS(dataset_matrices, output_file)}
+#
 
 #Functions used
 getMarkerGenes = function(object, verbose = TRUE, chunk = 1000, marker_genes, slot.use = "norm.data"){
