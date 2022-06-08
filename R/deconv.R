@@ -49,14 +49,14 @@ reference_3d_coordinates = function(filepath,
                                     region,
                                     spatial.data.name,
                                     save.plots = FALSE){
-  
+
   library(ggplot2)
   library(cowplot)
-  coords = readRDS(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name,"/",spatial.data.name,"_coords.RDS"))
-  
+  coords = as.data.frame(readRDS(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name,"/",spatial.data.name,"_coords.RDS")))
+
   minmax = apply(coords, MARGIN = 2, function(x){range(x)})
   ranges = apply(minmax, MARGIN = 2, function(y){return(y[2]-y[1])})
-  
+
   p1 = ggplot(coords, aes_string(x = colnames(coords)[1], y = colnames(coords)[2]))+
     geom_tile() +
     coord_fixed(ratio = 1)+
@@ -126,7 +126,6 @@ reference_3d_coordinates = function(filepath,
                     units = "px")
   }
 }
-
 
 #' Subset a spatial dataset by coordinates for analysis
 #'
