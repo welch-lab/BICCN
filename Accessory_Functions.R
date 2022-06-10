@@ -685,10 +685,22 @@ preprocess_and_run = function(filepath, region, analysis_num, chunk_size, num_ge
     names(annies) = master$Cell_Barcodes
     
   }
-  
+
   clusts = liger_low@clusters
+  if (MaxFactor == TRUE){
+    clusts2 = data.frame(clusts)
+    clusts2$Barcode = rownames(clusts2)
+    annies2 = data.frame(annies)
+    annies2$Barcode = rownames(annies2)
+    full = left_join(clusts2, annies2)
+    full2 = full$annies
+    names(full2) = full$Barcode
+    liger_low@clusters = full2
+  }
+  if(MaxFactor == FALSE){
   result$ann = annies[names(clusts)]
   liger_low@clusters = as.factor(annies[names(clusts)])
+  }
   
   # #Return UMAP with OG labels
   print("Plotting labeled UMAPS....")
