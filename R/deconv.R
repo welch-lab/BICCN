@@ -127,17 +127,18 @@ reference_3d_coordinates = function(filepath,
   }
 }
 
+
 #' Subset a spatial dataset by coordinates for analysis
 #'
 #' @param filepath Path to directory within which the atlas structure was generated
 #' @param region The anatomical region with which the analysis is associated
 #' @param spatial.data.name A string, the name of the spatial dataset
-#' @param subset.specs A list with length equal to the number of axises, with 
+#' @param subset.specs A list with length equal to the number of axises, with
 #'    each entry a vector of length two, with the first element being the
 #'    minimum value to include and the second being the maximum, or NaN to
 #'    indicate a missing value
-#' @param out.filepath Path to directory to save subset data to, if NULL the 
-#'    expression and coordinates in the atlas directory structure are 
+#' @param out.filepath Path to directory to save subset data to, if NULL the
+#'    expression and coordinates in the atlas directory structure are
 #'    overwritten
 subset_spatial_data = function(filepath,
                                region,
@@ -659,6 +660,7 @@ assign_single_cells = function(
 #' @param spatial.data.name A string, the name of the spatial dataset
 #' @param voxel.size A numeric, corresponding to the side-length of desired voxels
 #' @param out.filepath A string corresponding to the directory to which to save generated data
+#' @param verbose A logical, whether to print details on derived data
 #' @return nothing
 #'
 #' @import
@@ -674,7 +676,7 @@ voxelize_single_cells = function(
   region,
   spatial.data.name,
   voxel.size,
-  out.filepath,
+  out.filepath = "~",
   verbose = TRUE
 ){
   spatial.data = readRDS(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name,"/",spatial.data.name,"_exp.RDS"))
@@ -685,8 +687,7 @@ voxelize_single_cells = function(
   ranges = apply(minmax, MARGIN = 2, function(y){return(y[2]-y[1])})
 
   coords_adjusted = sapply(1:3, function(i){
-    coords[,i] = coords[,i] - minmax[1, i]
-    coords[,i] = round(coords[,i]/voxel.size)
+    coords[,i] = voxel.size*round(coords[,i]/voxel.size)
   })
   colnames(coords_adjusted) = colnames(coords)
 
@@ -836,7 +837,8 @@ summarize_by_layer = function(
   cell.types.use = NULL,
   genes.use = NULL){
   if(mat.use == "assignment"){
-    paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name,"/deconvolution_max_factor_assignment.RDS")    sub_vec = rep(0,nlevels(assignments))
+    paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name,"/deconvolution_max_factor_assignment.RDS")
+    sub_vec = rep(0,nlevels(assignments))
     loadings = Reduce(rbind, lapply(assignments, function(x){subbed_vec = sub_vec; subbed_vec[as.numeric(x)] = 1; return(subbed_vec)}))
     colnames(loadings) = levels(assignments)
   } else {
@@ -1191,6 +1193,13 @@ plot_layer = function(
     }
     cell.types.use = cell.types.use[cell.types.use != ""]
     loadings = loadings[rownames(loadings) %in% rownames(coords), cell.types.use]
+    if(is.vector(loadings)){
+      new_loadings = matrix(loadings)
+      rownames(new_loadings) = names(loadings)
+      colnames(new_loadings) = cell.types.use
+      loadings = new_loadings
+      rm(new_loadings)
+    }
 
     colnames(loadings) = sub("/",".",sub(" ", "_", cell.types.use))
 
@@ -1233,7 +1242,17 @@ plot_layer = function(
     spatial.data = readRDS(spatial.data.file)
     genes.use = intersect(genes.use, rownames(spatial.data))
     spatial.data[is.na(spatial.data)] = 0
-    spatial.data = scale(t(spatial.data[genes.use,colnames(spatial.data) %in% rownames(coords)]), center = FALSE)
+    spatial.data = spatial.data[genes.use,colnames(spatial.data) %in% rownames(coords)]
+    
+    if(is.vector(spatial.data)){
+      new_spatial_data = matrix(spatial.data)
+      rownames(new_spatial_data) = names(spatial.data)
+      colnames(new_spatial_data) = genes.use
+      spatial.data = new_spatial_data
+      rm(new_spatial_data)
+    }
+
+    spatial.data = scale(t(spatial.data), center = FALSE)
     spatial.data[spatial.data < 0 ] = 0
     plotting_df = as.data.frame(cbind(coords, spatial.data))
     for(i in 1:ncol(spatial.data)){
@@ -1269,4 +1288,79 @@ plot_layer = function(
     }
   }
   detach("package:ggplot2", unload = TRUE)
+}
+
+
+
+
+
+#' Convert direct analysis on single cell spatial modality data into voxelized data
+#'
+#' @param filepath Path to directory within which the atlas structure was generated
+#' @param region A string corresponding to the name of an anatomical region
+#' @param spatial.data.name A string, the name of the spatial dataset
+#' @param voxel.size A numeric, corresponding to the side-length of desired voxels
+#' @param new.spatial.data.name A string, the name of the spatial dataseta
+#' @param verbose A logical, whether to print details on derived data
+#' @return nothing
+#'
+#' @import
+#'
+#' @export
+#' @examples
+#' \dontrun{
+#'
+#' }
+
+voxelize_analysis = function(
+  filepath,
+  region,
+  spatial.data.name,
+  voxel.size,
+  new.spatial.data.name,
+  verbose = TRUE
+){
+
+  new_dir = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",new.spatial.data.name)
+
+  dir.create(new_dir)
+
+  voxelize_single_cells(filepath,
+                        region,
+                        spatial.data.name,
+                        voxel.size,
+                        paste0(new_dir),
+                        verbose)
+  
+  save_spatial_data(filepath,
+                    region,
+                    paste0(new_dir,"/",region,"_generated_voxel_exp.RDS"),
+                    paste0(new_dir,"/",region,"_generated_voxel_coords.RDS"),
+                    new.spatial.data.name
+  )
+
+  file.remove(paste0(new_dir,"/",region,"_generated_voxel_exp.RDS"))
+  file.remove(paste0(new_dir,"/",region,"_generated_voxel_coords.RDS"))
+
+  voxel_to_sample = readRDS(paste0(new_dir,"/",region,"_generated_voxels_to_samples.RDS"))
+
+
+  deconv_out = readRDS(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name,"/deconvolution_output.RDS"))[[1]]
+  deconv_out = deconv_out[,colnames(deconv_out) != ""]
+
+  voxel_out = matrix(0L, nrow = length(voxel_to_sample), ncol = ncol(deconv_out))
+  rownames(voxel_out) = names(voxel_to_sample)
+  colnames(voxel_out) = colnames(deconv_out)
+
+  for(i in names(voxel_to_sample)){
+    sub_deconv = deconv_out[rownames(deconv_out) %in% voxel_to_sample[[i]],]
+    if(is.vector(sub_deconv)){
+      voxel_out[i,] = sub_deconv
+    } else {
+      voxel_out[i,] = colMeans(deconv_out[rownames(deconv_out) %in% voxel_to_sample[[i]],])
+    }
+  }
+  voxel_prop = t(apply(voxel_out, MARGIN = 1, function(x){x/sum(x)}))
+
+  saveRDS(list(raw = voxel_out, proportions = voxel_prop), paste0(new_dir, "/deconvolution_output.RDS"))
 }
