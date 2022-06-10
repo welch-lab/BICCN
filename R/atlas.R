@@ -178,6 +178,26 @@ doubletFinder <- function(data, select.genes, proportion.artificial = 0.20,
 
 }
 
+#' Generate QCed expression matrices for downstream analysis and save related data
+#' @param filenames a named list of file paths to RDS objects containing eexpression matrices
+#' @param region A string corresponding to the name of an anatomical region
+#' @param analysis_num What level of the analysis to apply QC to.
+#' @param qc_table_path A string, the location of an object containing specific QC thresholds
+#' @param filepath_cytoplasmic A string, the location of a CSV containing a list of cytoplasmic genes
+#'    generation
+#' @param filepath Path to directory within which the atlas structure was generated
+#'
+#' @return nothing
+#'
+#' @import 
+#'
+#' @export
+#' @examples
+#' \dontrun{
+#'
+#' }
+#'
+
 apply_qc = function(filenames,
                     region,
                     analysis_num ,
