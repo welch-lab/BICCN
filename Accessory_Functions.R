@@ -612,6 +612,12 @@ preprocess_and_run = function(filepath, region, analysis_num, chunk_size, num_ge
   print("Saving LIGER object")
   object_new = runUMAP(object_new,  n_neighbors=30, min_dist=0.3, distance ="cosine")
   saveRDS(object_new, liger_name)
+  max_factor_assignment = function(object){
+    h_factors = object@H.norm
+    max_assignments = apply(h_factors, 1, which.max)
+    object@clusters = as.factor(max_assignments)
+    return(object)
+  }
   
   if(MaxFactor == TRUE){
     print("Performing Max Cell Type Assignment")
@@ -668,6 +674,7 @@ preprocess_and_run = function(filepath, region, analysis_num, chunk_size, num_ge
   result$highRcluster = liger_high@clusters
   #
   # #Here we add the old annotations, and also generate a UMAP labeled with these old annotations. Need to discuss with J.S. how to best incorporate nearest neighbors clustering/annotation function
+  knownAnnotations = "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Base_Reference_Files/Reference_Annotations_updated_with_MacoskoLabels.RDS"
   master = readRDS(knownAnnotations)
   if (analysis_num == 1){
     #Graph neuronal vs. non-neuronal
@@ -694,6 +701,7 @@ preprocess_and_run = function(filepath, region, analysis_num, chunk_size, num_ge
     annies2$Barcode = rownames(annies2)
     full = left_join(clusts2, annies2)
     full2 = full$annies
+    result$ann = full2
     names(full2) = full$Barcode
     full2 = as.factor(full2)
     liger_low@clusters = full2
