@@ -695,6 +695,7 @@ preprocess_and_run = function(filepath, region, analysis_num, chunk_size, num_ge
     full = left_join(clusts2, annies2)
     full2 = full$annies
     names(full2) = full$Barcode
+    full2 = as.factor(full2)
     liger_low@clusters = full2
   }
   if(MaxFactor == FALSE){
