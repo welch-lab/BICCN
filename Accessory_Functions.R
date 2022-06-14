@@ -946,6 +946,7 @@ library(reshape)
 #' sus = markergenes(region = "RSP", datasets = c("atac", "sc10Xv2", "sc10Xv3", "sn10Xv3", "smartseq"), analysis_num = 1, filepath = "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Analyses_By_Region/")
 # 'Function to generate the subset normalized/scaled data for each analysis for the viewer
 generate_markersobject = function(datasets, region, analysis_num, filepath){
+  '%notin%' = Negate('%in%')
   #Get relevent genes 
   genes = readRDS("/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Base_Reference_Files/Marker_genes.RDS")
   genes_oi = unique(c(genes$M1, genes$M2, genes$M3, genes$M4, genes$M5, genes$M6))
@@ -959,15 +960,27 @@ generate_markersobject = function(datasets, region, analysis_num, filepath){
     results_name = paste0(filepath, region, "/Analysis", analysis_num, "_", region, "/Analysis", analysis_num, "_", region, "_Results_Table.RDS")
     results = readRDS(results_name)
     matrix = readRDS(matrix_filename)
+    results_dataset = paste0(region, "_", datasets[[i]])
+    filtered_results = filter(results, results$dataset == results_dataset)
     if (datasets[[i]] == "meth_1" | datasets[[i]] == "meth_2" ){
       genes_needed = subset(rownames(matrix), rownames(matrix) %in% genes_oi)
       current_matrix = matrix[genes_needed,]
       current_matrix = as.matrix(max(current_matrix) - current_matrix)
       cells_io = subset(colnames(current_matrix), colnames(current_matrix) %in% results$Barcode)
       dataset_matrices[[i]] = current_matrix[,cells_io]
+      new_add =  current_matrix[,cells_io]
+      account = subset(filtered_results$Barcode, filtered_results$Barcode %notin% colnames(current_matrix))
+      if (length(account) >=1 ){
+        append_mat = matrix(0, nrow = dim(new_add)[[1]], ncol = length(account))
+        colnames(append_mat) = account
+        rownames(append_mat) = rownames(new_add)
+        new_add = cbind(new_add, append_mat)}
+      dataset_matrices[[i]] = new_add
+      
+      
     } 
     if (datasets[[i]] != "meth_1" & datasets[[i]] != "meth_2" ){
-      ligs = createLiger(list(newdata = matrix))
+      ligs = createLiger(list(newdata = matrix), remove.missing = FALSE)
       ligs = normalize(ligs)
       ligs = selectGenes(ligs, var.thresh = 0.0)
       genes_needed = subset(ligs@var.genes, ligs@var.genes %in% genes_oi)
@@ -975,9 +988,15 @@ generate_markersobject = function(datasets, region, analysis_num, filepath){
       ligs = scaleNotCenter(ligs)
       current_matrix = t(ligs@scale.data$newdata)
       cells_io = subset(colnames(current_matrix), colnames(current_matrix) %in% results$Barcode)
+      new_add =  current_matrix[,cells_io]
       
-      
-      dataset_matrices[[i]] = current_matrix[,cells_io]
+      account = subset(filtered_results$Barcode, filtered_results$Barcode %notin% colnames(current_matrix))
+      if (length(account) >=1 ){
+        append_mat = matrix(0, nrow = dim(new_add)[[1]], ncol = length(account))
+        colnames(append_mat) = account
+        rownames(append_mat) = rownames(new_add)
+        new_add = cbind(new_add, append_mat)}
+      dataset_matrices[[i]] = new_add
     }
   }
   names(dataset_matrices) = dataset_names
