@@ -674,7 +674,6 @@ preprocess_and_run = function(filepath, region, analysis_num, chunk_size, num_ge
   result$highRcluster = liger_high@clusters
   #
   # #Here we add the old annotations, and also generate a UMAP labeled with these old annotations. Need to discuss with J.S. how to best incorporate nearest neighbors clustering/annotation function
-  knownAnnotations = "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Base_Reference_Files/Reference_Annotations_updated_with_MacoskoLabels.RDS"
   master = readRDS(knownAnnotations)
   if (analysis_num == 1){
     #Graph neuronal vs. non-neuronal
@@ -706,8 +705,9 @@ preprocess_and_run = function(filepath, region, analysis_num, chunk_size, num_ge
     liger_low@clusters = full2
     result$Barcode = rownames(result)
     result = left_join(result, full)
-    result = select(result, -c(Barcode, clusts))
-    
+    result = select(result, -c(clusts))
+    rownames(result) = result$Barcode
+
   }
   if(MaxFactor == FALSE){
   result$ann = annies[names(clusts)]
@@ -929,7 +929,7 @@ max_factor_assignment = function(object){
 # colnames(cell_annotations) = c("Cell_Barcodes", "Type", "Class")
 # cell_annotations$Level1 = cell_annotations$Class
 # known = rbind(knownAnnotations, cell_annotations)
-# saveRDS(knownAnnotations, "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Base_Reference_Files/Reference_Annotations_updated_with_MacoskoLabels.RDS")
+# saveRDS(known, "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Base_Reference_Files/Reference_Annotations_updated_with_MacoskoLabels.RDS")
 
 ############################ Functions for Shiny App
 library(dplyr)
