@@ -707,7 +707,8 @@ preprocess_and_run = function(filepath, region, analysis_num, chunk_size, num_ge
     result = left_join(result, full)
     result = select(result, -c(clusts))
     rownames(result) = result$Barcode
-
+    result = select(result, -c(Barcode))
+    
   }
   if(MaxFactor == FALSE){
   result$ann = annies[names(clusts)]
