@@ -487,7 +487,7 @@ library(stringr)
 library(rliger)
 library(dplyr)
 library(edgeR)
-preprocess_and_run = function(filepath, region, analysis_num, chunk_size, num_genes = 2500, gene_num_tolerance = 100, var_thresh_start = 2, max_var_thresh = 4, customGeneList = NA, return.object = FALSE, qn_ref = NA, knownAnnotations = "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Base_Reference_Files/Reference_Annotations_updated_with_MacoskoLabels.RDS", MaxFactor = FALSE, labels = TRUE){
+preprocess_and_run = function(filepath, region, analysis_num, chunk_size, num_genes = 2500, gene_num_tolerance = 100, var_thresh_start = 2, max_var_thresh = 4, customGeneList = NA, return.object = FALSE, qn_ref = NA, knownAnnotations = "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Base_Reference_Files/Reference_Annotations_updated_with_MacoskoLabels.RDS", MaxFactor = FALSE, labels = TRUE, manualH5s = c()){
   qc_files = list.files(paste0(filepath, "/", region, "/Analysis", analysis_num , "_", region, "/"))
   qc_files = grep(paste0(region,"_(sc10Xv3_|smartseq_|atac_|meth_|sn10Xv3_|sc10Xv2_).*(qc.RDS)"), qc_files, value = TRUE)
   non_meth_files = grep("meth",qc_files, value = TRUE, invert = TRUE)
@@ -511,6 +511,16 @@ preprocess_and_run = function(filepath, region, analysis_num, chunk_size, num_ge
     rhdf5::h5closeAll()
   }
   data_names = gsub("(_qc.RDS)", "", non_meth_files)
+  # if (length(manualH5s) >= 1){
+  #   for(added in manualH5s){
+  #     print("Adding Manual Dataset")
+  #     data_names = c(data_names, nonmeth_add )
+  #     added_filename = paste0(filepath, "/", region, "/Analysis", analysis_num , "_", region, "/",added)
+  #     hdf5_files = c(hdf5_files, added_filename)
+  #     hdf5_files = sort(hdf5_files)
+  #   }
+  # }
+  
   names(hdf5_files) = data_names
   object = createLiger(raw.data = as.list(hdf5_files))
   print("Normalizing data")
@@ -593,6 +603,15 @@ preprocess_and_run = function(filepath, region, analysis_num, chunk_size, num_ge
   
   hdf5_files = paste0(filepath, "/", region, "/Analysis", analysis_num , "_", region, "/",gsub(".RDS", ".H5",qc_files))
   data_names = gsub("(_qc.RDS)", "",qc_files)
+  # if (length(manualH5s) >= 1){
+  #   for(added in manualH5s){
+  #     print("Adding Manual Dataset")
+  #     data_names = c(data_names, added )
+  #     added_filename = paste0(filepath, "/", region, "/Analysis", analysis_num , "_", region, "/",added)
+  #     hdf5_files = c(hdf5_files, added_filename)
+  #     hdf5_files = sort(hdf5_files)
+  #   }
+  # }
   names(hdf5_files) = data_names
   rhdf5::h5closeAll()
   
