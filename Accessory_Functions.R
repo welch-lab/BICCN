@@ -970,11 +970,14 @@ library(reshape)
 #' 
 #' sus = markergenes(region = "RSP", datasets = c("atac", "sc10Xv2", "sc10Xv3", "sn10Xv3", "smartseq"), analysis_num = 1, filepath = "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Analyses_By_Region/")
 # 'Function to generate the subset normalized/scaled data for each analysis for the viewer
-generate_markersobject = function(datasets, region, analysis_num, filepath){
+generate_markersobject = function(datasets, region, analysis_num, filepath, addedGenes  = c()){
   '%notin%' = Negate('%in%')
   #Get relevent genes 
   genes = readRDS("/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Base_Reference_Files/Marker_genes.RDS")
   genes_oi = unique(c(genes$M1, genes$M2, genes$M3, genes$M4, genes$M5, genes$M6))
+  if (length(addedGenes) >= 1){
+    genes_oi = c(genes_oi, addedGenes)
+  }
   #Build a list of your datasets
   dataset_names = c()
   dataset_matrices = c()
