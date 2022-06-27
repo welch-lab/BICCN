@@ -128,6 +128,7 @@ reference_3d_coordinates = function(filepath,
 }
 
 
+
 #' Subset a spatial dataset by coordinates for analysis
 #'
 #' @param filepath Path to directory within which the atlas structure was generated
@@ -150,8 +151,8 @@ subset_spatial_data = function(filepath,
   coords = readRDS(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name,"/",spatial.data.name,"_coords.RDS"))
   spatial.data = readRDS(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name,"/",spatial.data.name,"_exp.RDS"))
   for(i in 1:ncol(coords)){
-    subset.specs[[i]][is.nan(subset.specs[[i]])] = range(coords[i,])[is.nan(subset.specs[[i]])]
-    coords = coords[coords[i,] >= subset.specs[[i]][1] & coords[i,] <= subset.specs[[i]][2], ]
+    subset.specs[[i]][is.nan(subset.specs[[i]])] = range(coords[,i])[is.nan(subset.specs[[i]])]
+    coords = coords[coords[,i] >= subset.specs[[i]][1] & coords[,i] <= subset.specs[[i]][2], ]
   }
   if(nrow(coords) == 0){
     stop("No samples selected -- provide a new range of coordinates.")
@@ -256,7 +257,7 @@ deconvolve_spatial = function(filepath,
     clusters = c()
     for(analysis_num in c(2,4,5)){
       analysis_results = readRDS(paste0(filepath,"/",  region, "/Analysis", analysis_num, "_", region, "/Analysis", analysis_num, "_", region,"_Results_Table.RDS"))
-      analysis_clusters = as.character(analysis_results$lowRannotations)
+      analysis_clusters = as.character(analysis_results$highRAnnotations)
       names(analysis_clusters) = analysis_results$Barcode
       clusters = c(clusters, analysis_clusters)
     }
@@ -274,20 +275,8 @@ deconvolve_spatial = function(filepath,
     rhdf5::h5read(i, "/matrix/barcodes")#change, extract from H5
   })
 
-  message("Preprocessing for gene selection")
-
-  norm.data = lapply(1:length(rna_files), function(i){
-    n = rna_files[i]
-    rliger:::Matrix.column_norm(Matrix::sparseMatrix(
-      dims = c(length(liger_genes[[i]]), length(liger_cells[[i]])),
-      i = as.numeric(rhdf5::h5read(n, "/matrix/indices")+1),
-      p = as.numeric(rhdf5::h5read(n, "/matrix/indptr")),
-      x = as.numeric(rhdf5::h5read(n, "/matrix/data"))
-    ))
-  })
-
   spatial.data = readRDS(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name,"/",spatial.data.name,"_exp.RDS"))
-
+  
   if(!slide.seq){
     spatial.data[spatial.data == -1] = NA
     genes_NA = apply(spatial.data, MARGIN = 1, function(x){sum(is.na(x))})
@@ -297,6 +286,9 @@ deconvolve_spatial = function(filepath,
     #simplest way to handle this
     spatial.data[is.na(spatial.data)] = 0
   }
+  
+  
+  message("Preprocessing for gene selection")
 
   annotated_cells = intersect(names(clusters),Reduce(union, liger_cells))
 
@@ -309,7 +301,7 @@ deconvolve_spatial = function(filepath,
   freq_cells = freq_cells[names(freq_cells) != ""]
 
   sample.cells = Reduce(c, lapply(names(freq_cells), function(cell_type){
-    Reduce(c, lapply(1:length(norm.data), function(i){
+    Reduce(c, lapply(1:length(rna_files), function(i){
       cells = intersect(names(clusters[clusters == cell_type]), liger_cells[[i]])
       if(length(cells)> 0){
         return(sample(cells, min(length(cells), n.cells), replace =TRUE))
@@ -318,18 +310,30 @@ deconvolve_spatial = function(filepath,
       }
     }))
   }))
-  norm.data = lapply(1:length(norm.data), function(i){
-    rownames(norm.data[[i]]) = liger_genes[[i]]
-    colnames(norm.data[[i]]) = liger_cells[[i]]
+
+  norm.data = lapply(1:length(rna_files), function(i){
+    n = rna_files[i]
+    out_mat = rliger:::Matrix.column_norm(Matrix::sparseMatrix(
+      dims = c(length(liger_genes[[i]]), length(liger_cells[[i]])),
+      i = as.numeric(rhdf5::h5read(n, "/matrix/indices")+1),
+      p = as.numeric(rhdf5::h5read(n, "/matrix/indptr")),
+      x = as.numeric(rhdf5::h5read(n, "/matrix/data"))
+    ))
+    rownames(out_mat) = liger_genes[[i]]
+    colnames(out_mat) = liger_cells[[i]]
+    out_mat = out_mat[liger_genes[[i]] %in% shared_genes, liger_cells[[i]] %in% sample.cells]
     gene_means = rhdf5::h5read(rna_files[i], "gene_means")[liger_genes[[i]] %in% shared_genes]
     gene_sum_sq = rhdf5::h5read(rna_files[i], "gene_sum_sq")[liger_genes[[i]] %in% shared_genes]
-    root_mean_sum_sq = sqrt(gene_sum_sq/(ncol(norm.data[[i]])-1))
-    norm.data[[i]]= sweep(norm.data[[i]][liger_genes[[i]] %in% shared_genes, liger_cells[[i]] %in% sample.cells], 1, root_mean_sum_sq, "/") #liger_cells[[i]] %in% sample.cells
-    norm.data[[i]][is.na( norm.data[[i]])] = 0
-    norm.data[[i]][ norm.data[[i]] == Inf] = 0
-    return(norm.data[[i]])
+    root_mean_sum_sq = sqrt(gene_sum_sq/(ncol(out_mat)-1))
+    out_mat= sweep(out_mat, 1, root_mean_sum_sq, "/") #liger_cells[[i]] %in% sample.cells
+    out_mat[is.na(out_mat)] = 0
+    out_mat[out_mat == Inf] = 0
+    return(out_mat)
   })
+
   norm.data = norm.data[!sapply(norm.data, function(x){length(x) == 0})]
+
+
 
   message("Selecting genes with the KW test")
   chisq_list = list()
