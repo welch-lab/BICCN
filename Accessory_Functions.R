@@ -633,6 +633,7 @@ preprocess_and_run = function(filepath, region, analysis_num, chunk_size, num_ge
   liger_name = paste0(filepath, "/", region, "/Analysis", analysis_num, "_", region, "/onlineINMF_",region, "_object.RDS" )
   print("Saving LIGER object")
   object_new = runUMAP(object_new,  n_neighbors=30, min_dist=0.3, distance ="cosine")
+  object_new = readSubset(object_new)
   saveRDS(object_new, liger_name)
   max_factor_assignment = function(object){
     h_factors = object@H.norm
@@ -2109,4 +2110,67 @@ plot_layer = function(
 # names(cumulative) = c("rna", "atac", "meth")
 # saveRDS(cumulative, "C:/Users/april/OneDrive/Documents/Brain_Initative_v2_2022/Cumulative_marker_genes.RDS")
 ####################################################################################################################################
+
+# added_genes , a vector. Allows for additional genes to be added in and graphed
+# @baseMarkers , Boolean, Signifies whether to plot the base Marker Gene Profiles
+
+generate_markergenes = function(region, analysis, filepath  ="/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Analyses_By_Region/", added_genes = c(), baseMarkers = TRUE){
+  #Get a list of all relevant files
+  direc = paste0(filepath, region, "/", "Analysis", analysis_num, "_", region)
+  dirfiles = list.files(direc)
+  dirfiles = grep("qc.RDS", dirfiles, value = TRUE)
+  #Remove methylation matrices as they are typically uninformative
+  #dirfiles = grep("meth", dirfiles, value = TRUE, invert = TRUE)
+  methfiles = grep("meth", dirfiles, value = TRUE)
+  #Read in files
+  matrix_list = c()
+  for (rfile in 1:length(dirfiles)){
+    fn = paste0(direc, "/", dirfiles[[rfile]])
+    mm = readRDS(fn)
+    if(dirfiles[[rfile]] %in% methfiles){
+      mm = as(mm, "dgCMatrix")
+    }
+    matrix_list[[rfile]] = mm
+    mname = sub("_qc.RDS", "", dirfiles[[rfile]])
+    names(matrix_list)[[rfile]] = mname
+  }
+  #Read in the LIGER object
+  obj = readRDS(paste0(direc, "/onlineINMF_", region, "_object.RDS"))
+  #Create a useable LIGER object
+  ligs = createLiger(matrix_list, remove.missing = FALSE)
+  ligs = normalize(ligs, remove.missing = FALSE)
+  ligs = selectGenes(ligs)
+  ligs@var.genes = obj@var.genes
+  for (mf in 1:length(methfiles)){
+    ligs@norm.data[[mf]] = matrix_list[[mf]]
+  }
+  ligs = scaleNotCenter(ligs)
+  ligs@H = obj@H
+  ligs@H.norm = obj@H.norm
+  ligs@V = obj@V
+  ligs@W = obj@W
+  ligs@tsne.coords = obj@tsne.coords
+  ligs@clusters = obj@clusters
+  
+  #Read in desired genes
+  #If base files is TRUE, generate a pdf of the Marker Genes
+  if(baseMarkers == TRUE){
+    genes_oi = readRDS("/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Base_Reference_Files/Marker_genes_vector.RDS")
+    pdf_name1 = paste0(direc, "/Images/Analysis", analysis_num, "_", region, "_BaseMarkerPlots.pdf" )
+    pdf(pdf_name1)
+    for (gene in extra){
+      plotGene(ligs, genes_oi)
+    }
+    dev.off()
+  }
+  #If added genes is true, plot these additional genes into a seperate pdf
+  if (length(added_genes) != 0){
+    pdf_name1 = paste0(direc, "/Images/Analysis", analysis_num, "_", region, "_AddedMarkerPlots.pdf" )
+    pdf(pdf_name1)
+    for (gene in extra){
+      plotGene(ligs, added_genes)
+    }
+    dev.off()
+  }
+}
 
