@@ -633,7 +633,7 @@ preprocess_and_run = function(filepath, region, analysis_num, chunk_size, num_ge
   liger_name = paste0(filepath, "/", region, "/Analysis", analysis_num, "_", region, "/onlineINMF_",region, "_object.RDS" )
   print("Saving LIGER object")
   object_new = runUMAP(object_new,  n_neighbors=30, min_dist=0.3, distance ="cosine")
-  object_new = readSubset(object_new)
+  #object_new = readSubset(object_new)
   saveRDS(object_new, liger_name)
   max_factor_assignment = function(object){
     h_factors = object@H.norm
