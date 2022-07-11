@@ -1498,4 +1498,5 @@ generate_slice_gifs = function(
       }
 
     }
+  }
 }
