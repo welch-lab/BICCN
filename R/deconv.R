@@ -1,4 +1,4 @@
-# Functions required for utilization of the DUMfound deconvolution pipeline on
+ Functions required for utilization of the DUMfound deconvolution pipeline on
 # fully annotated region atlases
 
 #' @param filepath Path to directory within which the atlas structure was generated
@@ -126,7 +126,6 @@ reference_3d_coordinates = function(filepath,
                     units = "px")
   }
 }
-
 
 
 #' Subset a spatial dataset by coordinates for analysis
@@ -1208,7 +1207,22 @@ plot_layer = function(
     colnames(loadings) = sub("/",".",sub(" ", "_", cell.types.use))
 
     coords = coords[rownames(loadings),]
-    plotting_df = as.data.frame(cbind(coords, loadings))
+    plotting_df = as.data.frame(cbind(cbind(coords, loadings), assignments))
+    
+    if(mat.use == "assignment"){
+      all_plot = ggplot(plotting_df, aes_string(x = colnames(plotting_df)[1],
+                                                y = colnames(plotting_df)[2],
+                                                fill = colnames(loadings)[i])) +
+        geom_tile() +
+        coord_fixed(ratio = 1) +
+        viridis::scale_fill_viridis() +
+        ggtitle(paste0("Distribution of ",cell.types.use[i]),
+                subtitle = paste0("In ", axis, " slice ", idx)) +
+        theme(legend.title = element_blank(),
+              text = element_text(size = 8),
+              axis.text = element_text(size = 5))
+    }
+    
     for(i in 1:ncol(loadings)){
       slice_plot = ggplot(plotting_df, aes_string(x = colnames(plotting_df)[1],
                                                   y = colnames(plotting_df)[2],
@@ -1247,7 +1261,7 @@ plot_layer = function(
     genes.use = intersect(genes.use, rownames(spatial.data))
     spatial.data[is.na(spatial.data)] = 0
     spatial.data = spatial.data[genes.use,colnames(spatial.data) %in% rownames(coords)]
-    
+
     if(is.vector(spatial.data)){
       new_spatial_data = matrix(spatial.data)
       rownames(new_spatial_data) = names(spatial.data)
@@ -1335,7 +1349,7 @@ voxelize_analysis = function(
                         voxel.size,
                         paste0(new_dir),
                         verbose)
-  
+
   save_spatial_data(filepath,
                     region,
                     paste0(new_dir,"/",region,"_generated_voxel_exp.RDS"),
