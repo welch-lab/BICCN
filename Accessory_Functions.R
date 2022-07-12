@@ -2113,7 +2113,6 @@ plot_layer = function(
 
 # added_genes , a vector. Allows for additional genes to be added in and graphed
 # @baseMarkers , Boolean, Signifies whether to plot the base Marker Gene Profiles
-
 generate_markergenes = function(region, analysis_num, filepath  ="/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Analyses_By_Region/", added_genes = c(), baseMarkers = TRUE){
   #Get a list of all relevant files
   direc = paste0(filepath, region, "/", "Analysis", analysis_num, "_", region)
@@ -2127,9 +2126,7 @@ generate_markergenes = function(region, analysis_num, filepath  ="/nfs/turbo/umm
   for (rfile in 1:length(dirfiles)){
     fn = paste0(direc, "/", dirfiles[[rfile]])
     mm = readRDS(fn)
-    if(dirfiles[[rfile]] %in% methfiles){
-      mm = as(mm, "dgCMatrix")
-    }
+    mm = as(mm, "dgCMatrix")
     matrix_list[[rfile]] = mm
     mname = sub("_qc.RDS", "", dirfiles[[rfile]])
     names(matrix_list)[[rfile]] = mname
@@ -2141,10 +2138,24 @@ generate_markergenes = function(region, analysis_num, filepath  ="/nfs/turbo/umm
   ligs = normalize(ligs, remove.missing = FALSE)
   ligs = selectGenes(ligs)
   ligs@var.genes = obj@var.genes
-  for (mf in 1:length(methfiles)){
-    ligs@norm.data[[mf]] = matrix_list[[mf]]
+  if(length(methfiles) > 1){
+    for (mf in 1:length(methfiles)){
+      ligs@norm.data[[mf]] = matrix_list[[mf]]
+    }
   }
   ligs = scaleNotCenter(ligs)
+  
+  if(dim(ligs@H.norm)[1] != dim(ligs@cell.data)[1]){
+    bars_we_have = rownames(ligs@cell.data)
+    for (k in 1:length(obj@H)){
+      rel_bars = subset(bars_we_have, bars_we_have %in% rownames(obj@H[[k]]))
+      obj@H[[k]] = obj@H[[k]][rel_bars,]
+    }
+    obj@H.norm = obj@H.norm[bars_we_have,]
+    obj@tsne.coords = obj@tsne.coords[bars_we_have,]
+    obj@clusters = obj@clusters[bars_we_have]
+  }
+  
   ligs@H = obj@H
   ligs@H.norm = obj@H.norm
   ligs@V = obj@V
@@ -2152,14 +2163,19 @@ generate_markergenes = function(region, analysis_num, filepath  ="/nfs/turbo/umm
   ligs@tsne.coords = obj@tsne.coords
   ligs@clusters = obj@clusters
   
+  
+  
+  
+  
+  
   #Read in desired genes
   #If base files is TRUE, generate a pdf of the Marker Genes
   if(baseMarkers == TRUE){
     genes_oi = readRDS("/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Base_Reference_Files/Marker_genes_vector.RDS")
     pdf_name1 = paste0(direc, "/Images/Analysis", analysis_num, "_", region, "_BaseMarkerPlots.pdf" )
     pdf(pdf_name1)
-    for (gene in extra){
-      plotGene(ligs, genes_oi)
+    for (gene in genes_oi){
+      plotGene(ligs, gene)
     }
     dev.off()
   }
@@ -2167,8 +2183,8 @@ generate_markergenes = function(region, analysis_num, filepath  ="/nfs/turbo/umm
   if (length(added_genes) != 0){
     pdf_name1 = paste0(direc, "/Images/Analysis", analysis_num, "_", region, "_AddedMarkerPlots.pdf" )
     pdf(pdf_name1)
-    for (gene in extra){
-      plotGene(ligs, added_genes)
+    for (gene in added_genes){
+      plotGene(ligs, gene)
     }
     dev.off()
   }
