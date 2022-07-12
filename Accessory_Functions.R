@@ -2114,7 +2114,7 @@ plot_layer = function(
 # added_genes , a vector. Allows for additional genes to be added in and graphed
 # @baseMarkers , Boolean, Signifies whether to plot the base Marker Gene Profiles
 
-generate_markergenes = function(region, analysis, filepath  ="/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Analyses_By_Region/", added_genes = c(), baseMarkers = TRUE){
+generate_markergenes = function(region, analysis_num, filepath  ="/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Analyses_By_Region/", added_genes = c(), baseMarkers = TRUE){
   #Get a list of all relevant files
   direc = paste0(filepath, region, "/", "Analysis", analysis_num, "_", region)
   dirfiles = list.files(direc)
