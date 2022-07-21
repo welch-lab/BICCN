@@ -1,4 +1,4 @@
- Functions required for utilization of the DUMfound deconvolution pipeline on
+# Functions required for utilization of the DUMfound deconvolution pipeline on
 # fully annotated region atlases
 
 #' @param filepath Path to directory within which the atlas structure was generated
