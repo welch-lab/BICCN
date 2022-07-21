@@ -1269,11 +1269,10 @@ graph_celltypes = function(resolution, cluster_picked){
 
 #' The generate_umaps function generates labeled umaps given our newly derived LIGER annotations
 #' 2nd: It generates a READme with all of the region/analysis umaps in one place
-generate_umaps =  function(filepath, analysis_num, region){
+generate_umaps =  function(filepath, analysis_num, region, desiredresults, loom = FALSE){
   liger.path = paste0(filepath, region, "/Analysis", analysis_num, "_", region, "/onlineINMF_", region, "_object.RDS")
   ligs = readRDS(liger.path)
-  results.path = paste0(filepath, region, "/Analysis", analysis_num, "_", region, "/Analysis", analysis_num, "_", region, "_Results_Table.RDS")
-  results = readRDS(results.path)
+  results = readRDS(desiredresults)
   ligs_clusts = names(ligs@clusters)
   results = results[match(ligs_clusts, results$Barcode), ] 
   low_re = results$lowRAnnotations
@@ -1292,9 +1291,14 @@ generate_umaps =  function(filepath, analysis_num, region){
   
   ligs_low@tsne.coords = umaps
   plot.labeled.low = plotByDatasetAndCluster(ligs_low,return.plots = TRUE, text.size = 6 )
+  if (Loom == FALSE){
   low_umap2 =paste0(filepath, "/", region, "/Analysis", analysis_num, "_", region, "/Images/Umap2_", region, "_Analysis_", analysis_num, "ligerlabeled.lowresolution.pdf")
   low_umap2png =paste0(filepath, "/", region, "/Analysis", analysis_num, "_", region, "/Images/Umap2_", region, "_Analysis_", analysis_num, "ligerlabeled.lowresolution.png")
-  
+  }
+  if (Loom == TRUE){
+    low_umap2 =paste0(filepath, "/", region, "/",region, "_Loom_Directory/Umap2_", region, "_Analysis_", analysis_num, "ligerlabeled.lowresolution_loom.pdf")
+    low_umap2png =paste0(filepath, "/", region, "/", region, "_Loom_Directory/Umap2_", region, "_Analysis_", analysis_num, "ligerlabeled.lowresolution_loom.png")
+  }
   png(low_umap2png, 1000, 800)
   print(plot.labeled.low[[2]])
   dev.off()
@@ -1305,8 +1309,14 @@ generate_umaps =  function(filepath, analysis_num, region){
   
   ligs_high@tsne.coords = umaps
   plot.labeled.high = plotByDatasetAndCluster(ligs_high,return.plots = TRUE, text.size = 6)
+  if (Loom == FALSE){
   high_umap2 =paste0(filepath, "/", region, "/Analysis", analysis_num, "_", region, "/Images/Umap2_", region, "_Analysis_", analysis_num, "ligerlabeled.highresolution.pdf")
   high_umap2png =paste0(filepath, "/", region, "/Analysis", analysis_num, "_", region, "/Images/Umap2_", region, "_Analysis_", analysis_num, "ligerlabeled.highresolution.png")
+  }
+  if (Loom == TRUE){
+    high_umap2 = paste0(filepath, "/", region, "/",region, "_Loom_Directory/Umap2_", region, "_Analysis_", analysis_num, "ligerlabeled.highresolution_loom.pdf")
+    high_umap2png = paste0(filepath, "/", region, "/", region, "_Loom_Directory/Umap2_", region, "_Analysis_", analysis_num, "ligerlabeled.highresolution_loom.png")
+  }
   
   png(high_umap2png, 1000, 800)
   print(plot.labeled.high[[2]])
