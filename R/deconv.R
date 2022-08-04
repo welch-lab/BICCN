@@ -1207,20 +1207,23 @@ plot_layer = function(
     colnames(loadings) = sub("/",".",sub(" ", "_", cell.types.use))
 
     coords = coords[rownames(loadings),]
-    plotting_df = as.data.frame(cbind(cbind(coords, loadings), assignments))
+    plotting_df = as.data.frame(cbind(coords, loadings))
     
     if(mat.use == "assignment"){
+      plotting_df = cbind(plotting_df, as.character(assignments[rownames(plotting_df)]))
+      colnames(plotting_df)[ncol(plotting_df)] = "assignments"
+
       all_plot = ggplot(plotting_df, aes_string(x = colnames(plotting_df)[1],
                                                 y = colnames(plotting_df)[2],
-                                                fill = colnames(loadings)[i])) +
+                                                fill = "assignments")) +
         geom_tile() +
         coord_fixed(ratio = 1) +
         viridis::scale_fill_viridis() +
-        ggtitle(paste0("Distribution of ",cell.types.use[i]),
+        ggtitle(paste0("Distribution of all cell types",
                 subtitle = paste0("In ", axis, " slice ", idx)) +
         theme(legend.title = element_blank(),
               text = element_text(size = 8),
-              axis.text = element_text(size = 5))
+              axis.text = element_text(size = 5)))
     }
     
     for(i in 1:ncol(loadings)){
