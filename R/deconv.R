@@ -894,7 +894,7 @@ summarize_by_layer = function(
     if(!dir.exists(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/",spatial.data.name,"/plots"))){
       dir.create(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/",spatial.data.name,"/plots"))
     }
-    ggplot2::theme_set(theme_cowplot())
+    ggplot2::theme_set(cowplot::theme_cowplot())
     labels.cell.type = expand.grid(rownames(cell.type.matrix), colnames(cell.type.matrix))
     cell.type.df = data.frame(Layers = as.character(labels.cell.type[,1]),
                               Cell_Types = as.character(labels.cell.type[,2]),
