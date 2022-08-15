@@ -1,0 +1,8 @@
+{
+    "r.rpath.windows": "\"C:\\Program Files\\R\\R-4.2.1\\bin\\x64\\R.exe\"",
+    "r.rpath.linux": "",
+    "r.rterm.windows": "c:\\users\\andrew\\.local\\bin\\radian.exe",
+    "r.libPaths": [
+        "C:/Users/andrew/AppData/Local/R/win-library/4.2"
+    ]
+}
