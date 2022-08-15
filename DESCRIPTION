@@ -14,7 +14,7 @@ Authors@R: c(person("Joshua", "Sodicoff", role = "aut",
 Depends: RANN, BiocManager
 biocViews:
 Remotes: AllenInstitute/scrattch.hicat
-Imports: rliger, stringr, magrittr, dplyr, tidyr, ggplot2, reshape, openxlsx, cowplot, "scrattch.hicat", rgl, sjmisc, limma, edgeR, impute, GO.db
+Imports: rliger, stringr, magrittr, dplyr, tidyr, ggplot2, reshape, openxlsx, cowplot, preprocessCore, scrattch.hicat, rgl, sjmisc, limma, edgeR, impute, GO.db
 Suggests: MASS,  shinythemes, shiny, gplots
 Description: Pipeline to elicit reproducible workflows for the BICCN project
 License: GPL (>= 3)
