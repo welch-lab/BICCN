@@ -1384,3 +1384,69 @@ voxelize_analysis = function(
 
   saveRDS(list(raw = voxel_out, proportions = voxel_prop), paste0(new_dir, "/deconvolution_output.RDS"))
 }
+
+
+calculate_wasserstein = function(
+    filepath,
+    region,
+    spatial.data.name,
+    mat.use = "proportions",
+    use.cell.types = TRUE,
+    cell.types.use = NULL,
+    genes.use = NULL,
+    p = 2
+){
+  loadings = readRDS(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/",spatial.data.name,"/deconvolution_output.RDS"))[[mat.use]]
+  coords = readRDS(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name,"/",spatial.data.name,"_coords.RDS"))
+  
+  if(use.cell.types){
+    if(!is.null(cell.types.use)){
+      cell.types.use = intersect(cell.types.use, colnames(loadings))
+    } else {
+      cell.types.use = colnames(loadings)
+    }
+    cell.types.use = cell.types.use[cell.types.use != ""]
+    loadings = loadings[rownames(loadings) %in% rownames(coords), cell.types.use]
+    if(is.vector(loadings)){
+      new_loadings = matrix(loadings)
+      rownames(new_loadings) = names(loadings)
+      colnames(new_loadings) = cell.types.use
+      loadings = new_loadings
+      rm(new_loadings)
+    }
+    
+    colnames(loadings) = sub("/",".",sub(" ", "_", cell.types.use))
+    
+    coords = coords[rownames(loadings),]
+  }
+  
+  if(!is.null(genes.use)){
+    exp = t(readRDS(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name,"/",spatial.data.name,"_exp.RDS")))
+    exp = exp[, colnames(exp) %in% genes.use]
+    exp[exp < 0] = 0
+    exp = exp[rownames(loadings),]
+    
+    loadings = cbind(loadings, exp)
+  }
+  loadings = scale(loadings, center = F)
+  library(transport)
+  
+  vars_1 = vars_2 = colnames(loadings)
+  distance_mat = matrix(0L, nrow = ncol(loadings), ncol = ncol(loadings))
+  colnames(distance_mat) = rownames(distance_mat) = vars_1
+  loadings = apply(loadings, MARGIN = 2, function(x){x/sum(x)})
+  for(var_1 in vars_1){
+    mass_1 =  loadings[,var_1]
+    distribution_1 = wpp(coords,mass_1)
+    for(var_2 in vars_2){
+      mass_2 =  loadings[,var_2]
+      distribution_2 = wpp(coords,mass_2)
+      distance_mat[var_1, var_2] = 
+        distance_mat[var_2, var_1] = 
+        wasserstein(distribution_1, distribution_2, p)
+    }
+    vars_2 = vars_2[2:length(vars_2)]
+  }
+  
+  saveRDS(distance_mat, paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name,"/",spatial.data.name,"_wasserstein_dist.RDS"))
+}
