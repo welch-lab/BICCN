@@ -243,7 +243,7 @@ for (file.listed in 1:length(filenames)){
     use.cells = colnames(working_file)
   }
   if(analysis_num == 2){
-    if(data.type != "meth"){
+    if(data.type %notin% c("meth","atac")){
       results_filename = paste0(filepath,region, "/Analysis1_", region, "/Analysis1_", region, "_Results_Table.RDS")
       results = readRDS(results_filename)
       results = filter(results, results$highRAnnotations =="NonN")
@@ -252,7 +252,7 @@ for (file.listed in 1:length(filenames)){
     } else {use.cells = colnames(working_file)}
   }
   if(analysis_num == 3){
-    if(data.type != "meth"){
+    if(data.type %notin% c("meth","atac")){
       results_filename = paste0(filepath,region, "/Analysis1_", region, "/Analysis1_", region, "_Results_Table.RDS")
       results = readRDS(results_filename)
       results = filter(results, results$highRAnnotations =="Neu")
@@ -299,29 +299,28 @@ for (file.listed in 1:length(filenames)){
 
   }
 
-  if (data.type == "atac"){
-    qc_table = readRDS(qc_table_path)
-    #Find the appropriate cutoff to apply
-    if (data.type == "atac"){ qc_stats = filter(qc_table, qc_table$DataType == "atac")}
-    nUMI_cutoff = qc_stats$nUMI
-    mito_cutoff = qc_stats$mito
-    ligs = createLiger(list(qc_mat = working_file))
-    celldata = ligs@cell.data
-    celldata$Mito = getProportionMito(ligs)
-    celldata = filter(celldata, celldata$nUMI >= as.numeric(nUMI_cutoff))
-    remaining_nUMI = rownames(celldata)
-    celldata = filter(celldata, celldata$Mito <= as.numeric(mito_cutoff))
-    remaining_mito = rownames(celldata)
-    before_subset = dim(working_file)[[2]] #Gets you original dimensions of matrix
-    working_file = working_file[,use.cells] #Gets you a matrix subset for the appropriate cell population
-    after_subset = dim(working_file)[[2]]  #Gets you dimensions of matrix after subsetting for the appropriate cell population
-    cells_after_subset = colnames(working_file) #Gets you the cell names present after subsetting for cell populations
-    sub_cells = subset(rownames(celldata), rownames(celldata) %in% colnames(working_file))
-    qc.matrix = working_file[, sub_cells]
-    remaining_GeneCounts = remaining_cyto = colnames(qc.matrix)
-    cytoplasmic_cutoff = GeneCount_cutoff = NA
-
-  }
+  #if (data.type == "atac"){
+  #  qc_table = readRDS(qc_table_path)
+  #  #Find the appropriate cutoff to apply
+  #  if (data.type == "atac"){ qc_stats = filter(qc_table, qc_table$DataType == "atac")}
+  #  nUMI_cutoff = qc_stats$nUMI
+  #  mito_cutoff = qc_stats$mito
+  #  ligs = createLiger(list(qc_mat = working_file))
+  #  celldata = ligs@cell.data
+  #  celldata$Mito = getProportionMito(ligs)
+  #  celldata = filter(celldata, celldata$nUMI >= as.numeric(nUMI_cutoff))
+  #  remaining_nUMI = rownames(celldata)
+  #  celldata = filter(celldata, celldata$Mito <= as.numeric(mito_cutoff))
+  #  remaining_mito = rownames(celldata)
+  #  before_subset = dim(working_file)[[2]] #Gets you original dimensions of matrix
+  #  working_file = working_file[,use.cells] #Gets you a matrix subset for the appropriate cell population
+  #  after_subset = dim(working_file)[[2]]  #Gets you dimensions of matrix after subsetting for the appropriate cell population
+  #  cells_after_subset = colnames(working_file) #Gets you the cell names present after subsetting for cell populations
+  #  sub_cells = subset(rownames(celldata), rownames(celldata) %in% colnames(working_file))
+  #  qc.matrix = working_file[, sub_cells]
+  #  remaining_GeneCounts = remaining_cyto = colnames(qc.matrix)
+  #  cytoplasmic_cutoff = GeneCount_cutoff = NA
+  #}
 
   if (data.type == "sc10Xv3" | data.type == "sc10Xv2"){  #i.e. originally called tenx
     qc_table = readRDS(qc_table_path)
@@ -385,7 +384,7 @@ for (file.listed in 1:length(filenames)){
 
   }
 
-  if (data.type != "meth"){
+  if (data.type %notin% c("meth","atac")){
     #Count removed Cells
     #Cell kept after discarding cells that did not pass nUMI threshold
     lost_nUMI = length(subset(cells_after_subset, cells_after_subset %notin% remaining_nUMI))
@@ -401,7 +400,7 @@ for (file.listed in 1:length(filenames)){
     qc_summary = rbind(qc_summary, newest_qc)
   }
 
-  if( data.type == "meth") {
+  if( data.type %in% c("meth", "atac")) {
     if (analysis_num == 1 | analysis_num == 2){
       print("No preprocessing for methylation data necessary, it is not used")
     }
