@@ -197,7 +197,6 @@ doubletFinder <- function(data, select.genes, proportion.artificial = 0.20,
 #'
 #' }
 #'
-
 apply_qc = function(filenames,
                     region,
                     analysis_num ,
@@ -205,207 +204,224 @@ apply_qc = function(filenames,
                     filepath_cytoplasmic = "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Base_Reference_Files/Cytoplasmic_genes.csv",
                     filepath = "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/",
                     verbose = TRUE){
-if(str_sub(filepath, start = -1L, end = -1L) != "/"){
-  filepath = paste0(filepath, "/")
-}
-'%notin%' = Negate('%in%')
-qc_summary = setNames(data.frame(matrix(ncol = 13, nrow = 0)), c("Datatype", "Edition", "OriginalDimensions", "AnalysisDimensions", "FailnUMI", "nUMIThreshold", "FailMito", "MitoThreshold", "FailCyto", "CytoThreshold", "Lost for Gene Counts", "Gene Count Cutoff", "FinalDimensions"))
-for (file.listed in 1:length(filenames)){
-  #i.e. for each file
-  # For Analysis != 1, we will need to filter the matrices on the basis on their results
-  #i.e. Analysis one should be all cells, not including methylation
-  #Analysis 2 should just be non-neuronal cells
-  #Analysis 3 should be just neuronal cells + meth
-  #Analysis 4 should be just inhib
-  #Analysis 5 should be just excit
-  #Read in each file
-  working_file = readRDS(filenames[[file.listed]])
-
-  #Determine type, while accomodating for the fact that some types might have multiple files
-  data.type = names(filenames[file.listed])
-  if(verbose){
-    message("Processing ", data.type)
+  if(str_sub(filepath, start = -1L, end = -1L) != "/"){
+    filepath = paste0(filepath, "/")
   }
-
-  if(str_contains(data.type,"_")){
-    edition = str_split(data.type[[1]], "_")[[1]][2]
-    data.type = str_split(data.type[[1]], "_")[[1]][1]
-  }else{ edition = 0 }
-  #Need to check data for duplicate cellnames
-  if (length(unique(colnames(working_file))) != length(colnames(working_file))){
-    colnames(working_file) %<>% make.unique()
-    warning("Duplicated cell names, making unique")
-
-  }
-
-  #Determine cell labels
-  if (analysis_num == 1){
-    use.cells = colnames(working_file)
-  }
-  if(analysis_num == 2){
-    if(data.type %notin% c("meth","atac")){
-      results_filename = paste0(filepath,region, "/Analysis1_", region, "/Analysis1_", region, "_Results_Table.RDS")
+  '%notin%' = Negate('%in%')
+  qc_summary = setNames(data.frame(matrix(ncol = 13, nrow = 0)), c("Datatype", "Edition", "OriginalDimensions", "AnalysisDimensions", "FailnUMI", "nUMIThreshold", "FailMito", "MitoThreshold", "FailCyto", "CytoThreshold", "Lost for Gene Counts", "Gene Count Cutoff", "FinalDimensions"))
+  for (file.listed in 1:length(filenames)){
+    #i.e. for each file
+    # For Analysis != 1, we will need to filter the matrices on the basis on their results
+    #i.e. Analysis one should be all cells, not including methylation
+    #Analysis 2 should just be non-neuronal cells
+    #Analysis 3 should be just neuronal cells + meth
+    #Analysis 4 should be just inhib
+    #Analysis 5 should be just excit
+    #Read in each file
+    working_file = readRDS(filenames[[file.listed]])
+    
+    #Determine type, while accomodating for the fact that some types might have multiple files
+    data.type = names(filenames[file.listed])
+    if(verbose){
+      message("Processing ", data.type)
+    }
+    
+    if(str_contains(data.type,"_")){
+      edition = str_split(data.type[[1]], "_")[[1]][2]
+      data.type = str_split(data.type[[1]], "_")[[1]][1]
+    }else{ edition = 0 }
+    #Need to check data for duplicate cellnames
+    if (length(unique(colnames(working_file))) != length(colnames(working_file))){
+      colnames(working_file) %<>% make.unique()
+      warning("Duplicated cell names, making unique")
+      
+    }
+    
+    #Determine cell labels
+    if (analysis_num == 1){
+      use.cells = colnames(working_file)
+    }
+    if(analysis_num == 2){
+      if(data.type %notin% c("meth","atac")){
+        results_filename = paste0(filepath,region, "/Analysis1_", region, "/Analysis1_", region, "_Results_Table.RDS")
+        results = readRDS(results_filename)
+        results = filter(results, results$highRAnnotations =="NonN")
+        results = subset(results, results$Barcode %in% colnames(working_file))
+        use.cells = results$Barcode
+      } else {use.cells = colnames(working_file)}
+    }
+    if(analysis_num == 3){
+      if(data.type %notin% c("meth","atac")){
+        results_filename = paste0(filepath,region, "/Analysis1_", region, "/Analysis1_", region, "_Results_Table.RDS")
+        results = readRDS(results_filename)
+        results = filter(results, results$highRAnnotations =="Neu")
+        results = subset(results, results$Barcode %in% colnames(working_file))
+        use.cells = results$Barcode
+      } else {use.cells = colnames(working_file)}
+    }
+    if(analysis_num == 4){
+      results_filename = paste0(filepath,region, "/Analysis3_", region, "/Analysis3_", region, "_Results_Table.RDS")
       results = readRDS(results_filename)
-      results = filter(results, results$highRAnnotations =="NonN")
+      results = filter(results, results$highRAnnotations =="Inh")
       results = subset(results, results$Barcode %in% colnames(working_file))
       use.cells = results$Barcode
-    } else {use.cells = colnames(working_file)}
-  }
-  if(analysis_num == 3){
-    if(data.type %notin% c("meth","atac")){
-      results_filename = paste0(filepath,region, "/Analysis1_", region, "/Analysis1_", region, "_Results_Table.RDS")
+    }
+    if(analysis_num == 5){
+      results_filename = paste0(filepath,region, "/Analysis3_", region, "/Analysis3_", region, "_Results_Table.RDS")
       results = readRDS(results_filename)
-      results = filter(results, results$highRAnnotations =="Neu")
+      results = filter(results, results$highRAnnotations =="Exc")
       results = subset(results, results$Barcode %in% colnames(working_file))
       use.cells = results$Barcode
-    } else {use.cells = colnames(working_file)}
-  }
-  if(analysis_num == 4){
-    results_filename = paste0(filepath,region, "/Analysis3_", region, "/Analysis3_", region, "_Results_Table.RDS")
-    results = readRDS(results_filename)
-    results = filter(results, results$highRAnnotations =="Inh")
-    results = subset(results, results$Barcode %in% colnames(working_file))
-    use.cells = results$Barcode
-  }
-  if(analysis_num == 5){
-    results_filename = paste0(filepath,region, "/Analysis3_", region, "/Analysis3_", region, "_Results_Table.RDS")
-    results = readRDS(results_filename)
-    results = filter(results, results$highRAnnotations =="Exc")
-    results = subset(results, results$Barcode %in% colnames(working_file))
-    use.cells = results$Barcode
-  }
-  if (length(use.cells) < 30){next}
-  ######################### Pre-process
-  #Change the names of the Rik genes. This needs to be done for the sc10Xv3 and smartseq datasets
-  if (data.type == "smartseq"){
-    #With the new smartseq data, we no longer need the gene converter
-
-    #rik_converter = readRDS("/nfs/turbo/umms-welchjd/BRAIN_initiative/Ensembl_conversion/ConvertRik.Tenx.SMART.RDS")
-    #Need to raise a warning if there are genes in the smartseq matrix that are not in the conversion table
-    #refined_genes = rownames(working_file)
-    #potential_outliers = subset(refined_genes, refined_genes %notin% rik_converter$Og_Barcode)
-    #if (length(potential_outliers >= 1)) {
-    #  warning("There are genes in the matrix that are not covered in the conversion table. Please update the conversion table to address these genes and then rerun the function.", immediate. = T)
+    }
+    if (length(use.cells) < 30){next}
+    ######################### Pre-process
+    #Change the names of the Rik genes. This needs to be done for the sc10Xv3 and smartseq datasets
+    if (data.type == "smartseq"){
+      #With the new smartseq data, we no longer need the gene converter
+      
+      #rik_converter = readRDS("/nfs/turbo/umms-welchjd/BRAIN_initiative/Ensembl_conversion/ConvertRik.Tenx.SMART.RDS")
+      #Need to raise a warning if there are genes in the smartseq matrix that are not in the conversion table
+      #refined_genes = rownames(working_file)
+      #potential_outliers = subset(refined_genes, refined_genes %notin% rik_converter$Og_Barcode)
+      #if (length(potential_outliers >= 1)) {
+      #  warning("There are genes in the matrix that are not covered in the conversion table. Please update the conversion table to address these genes and then rerun the function.", immediate. = T)
+      #}
+      #rowname_new = rik_converter$New_Barcode[match(rownames(working_file), rik_converter$Og_Barcode)]
+      #rownames(working_file) = rowname_new
+      qc.matrix = working_file[,use.cells]  #only grab applicable cell populations
+      remaining_GeneCounts = remaining_nUMI = remaining_mito = remaining_cyto = colnames(qc.matrix)
+      nUMI_cutoff = mito_cutoff = cytoplasmic_cutoff = GeneCount_cutoff = NA
+      before_subset = dim(working_file)[[2]] #Gets you original dimensions of matrix
+      working_file = working_file[,use.cells] #Gets you a matrix subset for the appropriate cell population
+      after_subset = dim(working_file)[[2]]  #Gets you dimensions of matrix after subsetting for the appropriate cell population
+      cells_after_subset = colnames(working_file) #Gets you the cell names present after subsetting for cell populations
+      
+    }
+    
+    #if (data.type == "atac"){
+    #  qc_table = readRDS(qc_table_path)
+    #  #Find the appropriate cutoff to apply
+    #  if (data.type == "atac"){ qc_stats = filter(qc_table, qc_table$DataType == "atac")}
+    #  nUMI_cutoff = qc_stats$nUMI
+    #  mito_cutoff = qc_stats$mito
+    #  ligs = createLiger(list(qc_mat = working_file))
+    #  celldata = ligs@cell.data
+    #  celldata$Mito = getProportionMito(ligs)
+    #  celldata = filter(celldata, celldata$nUMI >= as.numeric(nUMI_cutoff))
+    #  remaining_nUMI = rownames(celldata)
+    #  celldata = filter(celldata, celldata$Mito <= as.numeric(mito_cutoff))
+    #  remaining_mito = rownames(celldata)
+    #  before_subset = dim(working_file)[[2]] #Gets you original dimensions of matrix
+    #  working_file = working_file[,use.cells] #Gets you a matrix subset for the appropriate cell population
+    #  after_subset = dim(working_file)[[2]]  #Gets you dimensions of matrix after subsetting for the appropriate cell population
+    #  cells_after_subset = colnames(working_file) #Gets you the cell names present after subsetting for cell populations
+    #  sub_cells = subset(rownames(celldata), rownames(celldata) %in% colnames(working_file))
+    #  qc.matrix = working_file[, sub_cells]
+    #  remaining_GeneCounts = remaining_cyto = colnames(qc.matrix)
+    #  cytoplasmic_cutoff = GeneCount_cutoff = NA
     #}
-    #rowname_new = rik_converter$New_Barcode[match(rownames(working_file), rik_converter$Og_Barcode)]
-    #rownames(working_file) = rowname_new
-    qc.matrix = working_file[,use.cells]  #only grab applicable cell populations
-    remaining_GeneCounts = remaining_nUMI = remaining_mito = remaining_cyto = colnames(qc.matrix)
-    nUMI_cutoff = mito_cutoff = cytoplasmic_cutoff = GeneCount_cutoff = NA
-    before_subset = dim(working_file)[[2]] #Gets you original dimensions of matrix
-    working_file = working_file[,use.cells] #Gets you a matrix subset for the appropriate cell population
-    after_subset = dim(working_file)[[2]]  #Gets you dimensions of matrix after subsetting for the appropriate cell population
-    cells_after_subset = colnames(working_file) #Gets you the cell names present after subsetting for cell populations
-
-  }
-
-  #if (data.type == "atac"){
-  #  qc_table = readRDS(qc_table_path)
-  #  #Find the appropriate cutoff to apply
-  #  if (data.type == "atac"){ qc_stats = filter(qc_table, qc_table$DataType == "atac")}
-  #  nUMI_cutoff = qc_stats$nUMI
-  #  mito_cutoff = qc_stats$mito
-  #  ligs = createLiger(list(qc_mat = working_file))
-  #  celldata = ligs@cell.data
-  #  celldata$Mito = getProportionMito(ligs)
-  #  celldata = filter(celldata, celldata$nUMI >= as.numeric(nUMI_cutoff))
-  #  remaining_nUMI = rownames(celldata)
-  #  celldata = filter(celldata, celldata$Mito <= as.numeric(mito_cutoff))
-  #  remaining_mito = rownames(celldata)
-  #  before_subset = dim(working_file)[[2]] #Gets you original dimensions of matrix
-  #  working_file = working_file[,use.cells] #Gets you a matrix subset for the appropriate cell population
-  #  after_subset = dim(working_file)[[2]]  #Gets you dimensions of matrix after subsetting for the appropriate cell population
-  #  cells_after_subset = colnames(working_file) #Gets you the cell names present after subsetting for cell populations
-  #  sub_cells = subset(rownames(celldata), rownames(celldata) %in% colnames(working_file))
-  #  qc.matrix = working_file[, sub_cells]
-  #  remaining_GeneCounts = remaining_cyto = colnames(qc.matrix)
-  #  cytoplasmic_cutoff = GeneCount_cutoff = NA
-  #}
-
-  if (data.type == "sc10Xv3" | data.type == "sc10Xv2"){  #i.e. originally called tenx
-    qc_table = readRDS(qc_table_path)
-    #Find the appropriate cutoff to apply
-    qc_stats = filter(qc_table, qc_table$DataType == "sc10Xv3")
-    qc_stats = filter(qc_stats, qc_stats$Analysis == analysis_num)
-    if (region != "OLF" & region != "CB"){
-      qc_stats = filter(qc_stats, qc_stats$Region == "ALL")
-    } else {
-      qc_stats = filter(qc_stats, qc_stats$Region == region)
+    
+    if (data.type == "sc10Xv3" | data.type == "sc10Xv2"){  #i.e. originally called tenx
+      qc_table = readRDS(qc_table_path)
+      #Find the appropriate cutoff to apply
+      qc_stats = filter(qc_table, qc_table$DataType == "sc10Xv3")
+      qc_stats = filter(qc_stats, qc_stats$Analysis == analysis_num)
+      if (region != "OLF" & region != "CB"){
+        qc_stats = filter(qc_stats, qc_stats$Region == "ALL")
+      } else {
+        qc_stats = filter(qc_stats, qc_stats$Region == region)
+      }
+      
+      GeneCount_cutoff = qc_stats$GeneCounts
+      mito_cutoff = qc_stats$mito
+      nUMI_cutoff = NA
+      cytoplasmic_cutoff = qc_stats$CytoplasmicScore
+      ligs = createLiger(list(qc_mat = working_file))
+      celldata = ligs@cell.data
+      celldata$Mito = getProportionMito(ligs)
+      #Calculate cytoplasmic score
+      if (analysis_num == 3 | analysis_num == 4 | analysis_num == 5){
+        celldata$Cytoplasmic_Score = cal_qc_score(working_file, qc.gene.FN = filepath_cytoplasmic)
+      }
+      remaining_nUMI = rownames(celldata)
+      celldata = filter(celldata, celldata$nGene >= as.numeric(GeneCount_cutoff))
+      remaining_GeneCounts = rownames(celldata)
+      # celldata = filter(celldata, celldata$Mito <= as.numeric(mito_cutoff))
+      remaining_mito = rownames(celldata)
+      if (analysis_num == 3 | analysis_num == 4 | analysis_num == 5){
+        celldata = filter(celldata, celldata$Cytoplasmic_Score > as.numeric(cytoplasmic_cutoff))
+      }
+      remaining_cyto = rownames(celldata)
+      before_subset = dim(working_file)[[2]] #Gets you original dimensions of matrix
+      working_file = working_file[,use.cells] #Gets you a matrix subset for the appropriate cell population
+      after_subset = dim(working_file)[[2]]  #Gets you dimensions of matrix after subsetting for the appropriate cell population
+      cells_after_subset = colnames(working_file) #Gets you the cell names present after subsetting for cell populations
+      #If datatype is ATAC sn10Xv3 sc10Xv3, filter for QC cells
+      sub_cells = subset(rownames(celldata), rownames(celldata) %in% colnames(working_file))
+      qc.matrix = working_file[, sub_cells]
     }
-
-    GeneCount_cutoff = qc_stats$GeneCounts
-    mito_cutoff = qc_stats$mito
-    nUMI_cutoff = NA
-    cytoplasmic_cutoff = qc_stats$CytoplasmicScore
-    ligs = createLiger(list(qc_mat = working_file))
-    celldata = ligs@cell.data
-    celldata$Mito = getProportionMito(ligs)
-    #Calculate cytoplasmic score
-    if (analysis_num == 3 | analysis_num == 4 | analysis_num == 5){
-      celldata$Cytoplasmic_Score = cal_qc_score(working_file, qc.gene.FN = filepath_cytoplasmic)
+    
+    if (data.type == "sn10Xv3" | data.type == "sn10Xv2"){
+      #Remember, new macosko data is already pre-filtered. No need to apply any QC.
+      qc_table = readRDS(qc_table_path)
+      qc_stats = filter(qc_table, qc_table$DataType == "sn10Xv3" )
+      nUMI_cutoff = qc_stats$nUMI
+      mito_cutoff = qc_stats$mito
+      cytoplasmic_cutoff = qc_stats$CytoplasmicScore
+      ligs = createLiger(list(qc_mat = working_file))
+      celldata = ligs@cell.data
+      remaining_nUMI = rownames(celldata)
+      remaining_cyto = remaining_mito = rownames(celldata)
+      before_subset = dim(working_file)[[2]] #Gets you original dimensions of matrix
+      use.cells = as.character(use.cells)
+      working_file = working_file[,use.cells] #Gets you a matrix subset for the appropriate cell population
+      after_subset = dim(working_file)[[2]]  #Gets you dimensions of matrix after subsetting for the appropriate cell population
+      cells_after_subset = colnames(working_file) #Gets you the cell names present after subsetting for cell populations
+      #If datatype is ATAC sn10Xv3 sc10Xv3, filter for QC cells
+      sub_cells = subset(rownames(celldata), rownames(celldata) %in% colnames(working_file))
+      qc.matrix = working_file[, sub_cells]
+      
     }
-    remaining_nUMI = rownames(celldata)
-    celldata = filter(celldata, celldata$nGene >= as.numeric(GeneCount_cutoff))
-    remaining_GeneCounts = rownames(celldata)
-    # celldata = filter(celldata, celldata$Mito <= as.numeric(mito_cutoff))
-    remaining_mito = rownames(celldata)
-    if (analysis_num == 3 | analysis_num == 4 | analysis_num == 5){
-      celldata = filter(celldata, celldata$Cytoplasmic_Score > as.numeric(cytoplasmic_cutoff))
+    
+    if (data.type %notin% c("meth","atac")){
+      #Count removed Cells
+      #Cell kept after discarding cells that did not pass nUMI threshold
+      lost_nUMI = length(subset(cells_after_subset, cells_after_subset %notin% remaining_nUMI))
+      lost_mito = length(subset(remaining_nUMI, remaining_nUMI %notin% remaining_mito))
+      lost_cyto = length(subset(remaining_mito, remaining_mito %notin% remaining_cyto))
+      lost_GeneCounts = length(subset(remaining_cyto, remaining_cyto %notin% remaining_GeneCounts))
+      new.dim = dim(qc.matrix)[[2]]
+      if (edition == 0){
+        save.filename = paste0(filepath, region, "/Analysis", analysis_num , "_", region, "/", region, "_", data.type, "_qc.RDS")
+      } else {save.filename = paste0(filepath, region, "/Analysis", analysis_num , "_", region, "/", region, "_" ,data.type,"_", edition, "_qc.RDS") }
+      saveRDS(qc.matrix, save.filename)
+      newest_qc = c(data.type, edition, before_subset, after_subset, lost_nUMI, nUMI_cutoff, lost_mito, mito_cutoff, lost_cyto, cytoplasmic_cutoff, lost_GeneCounts,  GeneCount_cutoff, new.dim)
+      qc_summary = rbind(qc_summary, newest_qc)
     }
-    remaining_cyto = rownames(celldata)
-    before_subset = dim(working_file)[[2]] #Gets you original dimensions of matrix
-    working_file = working_file[,use.cells] #Gets you a matrix subset for the appropriate cell population
-    after_subset = dim(working_file)[[2]]  #Gets you dimensions of matrix after subsetting for the appropriate cell population
-    cells_after_subset = colnames(working_file) #Gets you the cell names present after subsetting for cell populations
-    #If datatype is ATAC sn10Xv3 sc10Xv3, filter for QC cells
-    sub_cells = subset(rownames(celldata), rownames(celldata) %in% colnames(working_file))
-    qc.matrix = working_file[, sub_cells]
-  }
-
-  if (data.type == "sn10Xv3" | data.type == "sn10Xv2"){
-    #Remember, new macosko data is already pre-filtered. No need to apply any QC.
-    qc_table = readRDS(qc_table_path)
-    qc_stats = filter(qc_table, qc_table$DataType == "sn10Xv3" )
-    nUMI_cutoff = qc_stats$nUMI
-    mito_cutoff = qc_stats$mito
-    cytoplasmic_cutoff = qc_stats$CytoplasmicScore
-    ligs = createLiger(list(qc_mat = working_file))
-    celldata = ligs@cell.data
-    remaining_nUMI = rownames(celldata)
-    remaining_cyto = remaining_mito = rownames(celldata)
-    before_subset = dim(working_file)[[2]] #Gets you original dimensions of matrix
-    use.cells = as.character(use.cells)
-    working_file = working_file[,use.cells] #Gets you a matrix subset for the appropriate cell population
-    after_subset = dim(working_file)[[2]]  #Gets you dimensions of matrix after subsetting for the appropriate cell population
-    cells_after_subset = colnames(working_file) #Gets you the cell names present after subsetting for cell populations
-    #If datatype is ATAC sn10Xv3 sc10Xv3, filter for QC cells
-    sub_cells = subset(rownames(celldata), rownames(celldata) %in% colnames(working_file))
-    qc.matrix = working_file[, sub_cells]
-
-  }
-
-  if (data.type %notin% c("meth","atac")){
-    #Count removed Cells
-    #Cell kept after discarding cells that did not pass nUMI threshold
-    lost_nUMI = length(subset(cells_after_subset, cells_after_subset %notin% remaining_nUMI))
-    lost_mito = length(subset(remaining_nUMI, remaining_nUMI %notin% remaining_mito))
-    lost_cyto = length(subset(remaining_mito, remaining_mito %notin% remaining_cyto))
-    lost_GeneCounts = length(subset(remaining_cyto, remaining_cyto %notin% remaining_GeneCounts))
-    new.dim = dim(qc.matrix)[[2]]
-    if (edition == 0){
-      save.filename = paste0(filepath, region, "/Analysis", analysis_num , "_", region, "/", region, "_", data.type, "_qc.RDS")
-    } else {save.filename = paste0(filepath, region, "/Analysis", analysis_num , "_", region, "/", region, "_" ,data.type,"_", edition, "_qc.RDS") }
-    saveRDS(qc.matrix, save.filename)
-    newest_qc = c(data.type, edition, before_subset, after_subset, lost_nUMI, nUMI_cutoff, lost_mito, mito_cutoff, lost_cyto, cytoplasmic_cutoff, lost_GeneCounts,  GeneCount_cutoff, new.dim)
-    qc_summary = rbind(qc_summary, newest_qc)
-  }
-
-  if( data.type %in% c("meth", "atac")) {
-    if (data.type == "meth" & (analysis_num == 1 | analysis_num == 2)){
-      print("No preprocessing for methylation data necessary, it is not used")
-    }
-    if (data.type == "atac" | analysis_num != 1 & analysis_num != 2){
-
+    
+    if( data.type == "meth"){
+      if (analysis_num == 1 | analysis_num == 2){
+        print("No preprocessing for methylation data necessary, it is not used")
+      }
+      if (analysis_num != 1 & analysis_num != 2){
+        
+        before_subset = dim(working_file)[[2]] #Gets you original dimensions of matrix
+        use.cells = subset(use.cells, use.cells %in% colnames(working_file))
+        qc.matrix = working_file[,use.cells] #Gets you a matrix subset for the appropriate cell population
+        after_subset = dim(qc.matrix)[[2]]  #Gets you dimensions of matrix after subsetting for the appropriate cell population
+        cells_after_subset = colnames(working_file)
+        lost_GeneCounts = lost_nUMI = lost_mito = lost_cyto = 0
+        nUMI_cutoff = mito_cutoff = cytoplasmic_cutoff = GeneCount_cutoff = NA
+        new.dim = dim(qc.matrix)[[2]]
+        
+        nUMI_cutoff = mito_cutoff = NA
+        if (edition == 0){
+          save.filename = paste0(filepath, region, "/Analysis", analysis_num , "_", region, "/", region, "_",data.type, "_qc.RDS")
+        } else { save.filename = paste0(filepath, region, "/Analysis", analysis_num , "_", region, "/", region, "_" ,data.type,"_", edition, "_qc.RDS") }
+        saveRDS(qc.matrix, save.filename)
+        newest_qc = c(data.type, edition, before_subset, after_subset, lost_nUMI, nUMI_cutoff, lost_mito, mito_cutoff, lost_cyto, cytoplasmic_cutoff, lost_GeneCounts,  GeneCount_cutoff, new.dim)
+        qc_summary = rbind(qc_summary, newest_qc) }}
+    if( data.type == "atac") {
       before_subset = dim(working_file)[[2]] #Gets you original dimensions of matrix
       use.cells = subset(use.cells, use.cells %in% colnames(working_file))
       qc.matrix = working_file[,use.cells] #Gets you a matrix subset for the appropriate cell population
@@ -414,27 +430,29 @@ for (file.listed in 1:length(filenames)){
       lost_GeneCounts = lost_nUMI = lost_mito = lost_cyto = 0
       nUMI_cutoff = mito_cutoff = cytoplasmic_cutoff = GeneCount_cutoff = NA
       new.dim = dim(qc.matrix)[[2]]
-
+      
       nUMI_cutoff = mito_cutoff = NA
       if (edition == 0){
         save.filename = paste0(filepath, region, "/Analysis", analysis_num , "_", region, "/", region, "_",data.type, "_qc.RDS")
       } else { save.filename = paste0(filepath, region, "/Analysis", analysis_num , "_", region, "/", region, "_" ,data.type,"_", edition, "_qc.RDS") }
       saveRDS(qc.matrix, save.filename)
       newest_qc = c(data.type, edition, before_subset, after_subset, lost_nUMI, nUMI_cutoff, lost_mito, mito_cutoff, lost_cyto, cytoplasmic_cutoff, lost_GeneCounts,  GeneCount_cutoff, new.dim)
-      qc_summary = rbind(qc_summary, newest_qc) }}}
-if(verbose){
-  message("Done Processing ", data.type, " ", edition)
+      qc_summary = rbind(qc_summary, newest_qc) }
+    
+    if(verbose){
+      message("Done Processing ", data.type, " ", edition)
+    }
+    
+    if (data.type != "meth" & data.type != "atac" & data.type != "smartseq" & data.type != "sc10Xv3" & data.type != "sn10Xv3" & data.type != "sc10Xv2"){
+      warning("Uknown Data Type submitted", immediate. = T)
+    }}
+  #Output a .csv to the Analysis directory
+  csv_filename = paste0(filepath, region, "/Analysis", analysis_num , "_", region, "/", region, "_Overall_qc.csv")
+  colnames(qc_summary) = c("Datatype", "Edition", "OriginalDimensions", "AnalysisDimensions", "FailnUMI", "nUMIThreshold", "FailMito", "MitoThreshold", "FailCyto", "CytoThreshold", "Lost for Gene Counts", "Gene Count Cutoff", "FinalDimensions")
+  write.csv(qc_summary, csv_filename)
 }
 
-if (data.type != "meth" & data.type != "atac" & data.type != "smartseq" & data.type != "sc10Xv3" & data.type != "sn10Xv3" & data.type != "sc10Xv2"){
-  warning("Uknown Data Type submitted", immediate. = T)
 
-}
-#Output a .csv to the Analysis directory
-csv_filename = paste0(filepath, region, "/Analysis", analysis_num , "_", region, "/", region, "_Overall_qc.csv")
-colnames(qc_summary) = c("Datatype", "Edition", "OriginalDimensions", "AnalysisDimensions", "FailnUMI", "nUMIThreshold", "FailMito", "MitoThreshold", "FailCyto", "CytoThreshold", "Lost for Gene Counts", "Gene Count Cutoff", "FinalDimensions")
-write.csv(qc_summary, csv_filename)
-}
 
 #' Calculates a cytoplasmic score, used in determination of sample quality
 #'
@@ -519,20 +537,7 @@ max_factor_assignment = function(object){
 #'
 #' }
 #'
-
-preprocess_and_run = function(filepath,
-                              region,
-                              analysis_num,
-                              chunk_size,
-                              num_genes = 2500,
-                              gene_num_tolerance = 100,
-                              var_thresh_start = 2,
-                              max_var_thresh = 4,
-                              customGeneList = NA,
-                              return.object = FALSE,
-                              qn_ref = NA,
-                              knownAnnotations = "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Base_Reference_Files/Reference_Annotations.RDS",
-                              MaxFactor = FALSE){
+preprocess_and_run = function(filepath, region, analysis_num, chunk_size, num_genes = 2500, gene_num_tolerance = 100, var_thresh_start = 2, max_var_thresh = 4, customGeneList = NA, return.object = FALSE, qn_ref = NA, knownAnnotations = "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Base_Reference_Files/Reference_Annotations_updated_with_MacoskoLabels.RDS", MaxFactor = FALSE, labels = TRUE, manualH5s = c(), numFactors = 30, qn_k = 20){
   qc_files = list.files(paste0(filepath, "/", region, "/Analysis", analysis_num , "_", region, "/"))
   qc_files = grep(paste0(region,"_(sc10Xv3_|smartseq_|atac_|meth_|sn10Xv3_|sc10Xv2_).*(qc.RDS)"), qc_files, value = TRUE)
   non_meth_files = grep("meth",qc_files, value = TRUE, invert = TRUE)
@@ -556,6 +561,17 @@ preprocess_and_run = function(filepath,
     rhdf5::h5closeAll()
   }
   data_names = gsub("(_qc.RDS)", "", non_meth_files)
+  if (length(manualH5s) >= 1){
+    nonmeth_add = grep("meth", manualH5s, value = TRUE, invert = TRUE)
+    data_names = c(data_names, nonmeth_add)
+    for (item in 1:length(nonmeth_add)){
+      nonmeth_add[[item]] = paste0(filepath, "/", region, "/Analysis", analysis_num , "_", region, "/", nonmeth_add[[item]])
+    }
+    data_names = sort(data_names)
+    hdf5_files = c(hdf5_files, nonmeth_add)
+    hdf5_files = sort(hdf5_files)
+  }
+  
   names(hdf5_files) = data_names
   object = createLiger(raw.data = as.list(hdf5_files))
   print("Normalizing data")
@@ -579,14 +595,14 @@ preprocess_and_run = function(filepath,
       var_thresh_old = var_thresh_new
     }
     message(paste0(length(object@var.genes), " genes found with var.thresh = ",var_thresh_old))
-  }
+  } 
   if (!is.na(customGeneList)){
     print("Using custom gene list")
     customGenes = readRDS(customGeneList)
     object@var.genes = customGenes
   }
   meth_files = setdiff(qc_files, non_meth_files)
-
+  
   if(length(meth_files)>0){
     hdf5_files = paste0(filepath, "/", region, "/Analysis", analysis_num , "_", region, "/",gsub(".RDS", ".H5",meth_files))
     data_names = gsub("(_qc.RDS)", "",meth_files)
@@ -596,19 +612,19 @@ preprocess_and_run = function(filepath,
     object@var.genes = new_genes
     message(paste0(length(object@var.genes), " Genes after accounting for those in common with methylation data"))
   }
-
+  
   print("Scaling Object")
-
+  
   object = scaleNotCenter(object, chunk = chunk_size)
-
+  
   if(length(meth_files)>0){
     hdf5_files = paste0(filepath, "/", region, "/Analysis", analysis_num , "_", region, "/",gsub(".RDS", ".H5",meth_files))
     data_names = gsub("(_qc.RDS)", "",meth_files)
-
+    
     for(i in 1:length(meth_files)){
       current_matrix = readRDS(paste0(filepath, "/",  region, "/Analysis", analysis_num , "_", region, "/",meth_files[i]))
       #current_matrix = current_matrix[vargenes,]
-
+      
       current_matrix = current_matrix[object@var.genes,]
       current_matrix = as.matrix(max(current_matrix) - current_matrix)
       met.cell.data = data.frame(dataset = rep(data_names[i], ncol(current_matrix)), nUMI = rep(1,ncol(current_matrix)), nGene = rep(1,ncol(current_matrix)), barcode = colnames(current_matrix))
@@ -635,34 +651,52 @@ preprocess_and_run = function(filepath,
       rhdf5::h5closeAll()
     }
   }
-
   hdf5_files = paste0(filepath, "/", region, "/Analysis", analysis_num , "_", region, "/",gsub(".RDS", ".H5",qc_files))
   data_names = gsub("(_qc.RDS)", "",qc_files)
+  
+  if (length(manualH5s) >= 1){
+    nonmeth_add = grep("meth", manualH5s, value = TRUE, invert = TRUE)
+    data_names = c(data_names, nonmeth_add)
+    for (item in 1:length(nonmeth_add)){
+      nonmeth_add[[item]] = paste0(filepath, "/", region, "/Analysis", analysis_num , "_", region, "/", nonmeth_add[[item]])
+    }
+    data_names = sort(data_names)
+    hdf5_files = c(hdf5_files, nonmeth_add)
+    hdf5_files = sort(hdf5_files)
+  }
+  
   names(hdf5_files) = data_names
   rhdf5::h5closeAll()
-
+  
   var.genes = object@var.genes
   rm(object)
   rhdf5::h5closeAll()
-
+  
   object_new = createLiger(as.list(hdf5_files))
   object_new@var.genes = var.genes
-  object_new = online_iNMF(object_new, k = 30, lambda = 5, max.epochs = 20, seed = 123)
+  object_new = online_iNMF(object_new, k = numFactors , lambda = 5, max.epochs = 20, seed = 123)
   if (!is.na(qn_ref)){
-    object_new = quantile_norm(object_new, do.center = T, ref_dataset = qn_ref)
+    object_new = quantile_norm(object_new, do.center = T, ref_dataset = qn_ref, knn_k = qn_k)
   } else{
-    object_new = quantile_norm(object_new, do.center = T)
+    object_new = quantile_norm(object_new, do.center = T, knn_k = qn_k)
   }
   liger_name = paste0(filepath, "/", region, "/Analysis", analysis_num, "_", region, "/onlineINMF_",region, "_object.RDS" )
   print("Saving LIGER object")
   object_new = runUMAP(object_new,  n_neighbors=30, min_dist=0.3, distance ="cosine")
+  #object_new = readSubset(object_new)
   saveRDS(object_new, liger_name)
-
+  max_factor_assignment = function(object){
+    h_factors = object@H.norm
+    max_assignments = apply(h_factors, 1, which.max)
+    object@clusters = as.factor(max_assignments)
+    return(object)
+  }
+  
   if(MaxFactor == TRUE){
     print("Performing Max Cell Type Assignment")
     liger_low = liger_high = max_factor_assignment(object_new)
   }
-
+  
   if ( MaxFactor== FALSE){
     print("Running low resolution louvain clustering")
     if (analysis_num == 2){
@@ -704,7 +738,7 @@ preprocess_and_run = function(filepath,
   png(high_umap2png, 1000, 800)
   print(plots_high[[2]])
   dev.off()
-
+  
   ##########################################################
   # #Generate a saved results table
   result = data.frame(object_new@tsne.coords)
@@ -728,25 +762,46 @@ preprocess_and_run = function(filepath,
     #   #Graph Type
     annies = master$Type
     names(annies) = master$Cell_Barcodes
-
+    
   }
-
+  
   clusts = liger_low@clusters
-  result$ann = annies[names(clusts)]
-  liger_low@clusters = as.factor(annies[names(clusts)])
-
-  # #Return UMAP with OG labels
-  print("Plotting labeled UMAPS....")
-  plots_low = plotByDatasetAndCluster(liger_low, return.plots = TRUE, text.size = 6)
-  low_umap2 =paste0(filepath,"/", region, "/Analysis", analysis_num, "_", region, "/Images/Umap2_", region, "_Analysis_", analysis_num, "labeled.pdf")
-  pdf(low_umap2, width = 10, height = 8)
-  print(plots_low[[2]])
-  dev.off()
-
-  low_umap2.png =paste0(filepath,"/", region, "/Analysis", analysis_num, "_", region, "/Images/Umap2_", region, "_Analysis_", analysis_num, "labeled.png")
-  png(low_umap2.png, 1000, 800)
-  print(plots_low[[2]])
-  dev.off()
+  if (MaxFactor == TRUE){
+    clusts2 = data.frame(clusts)
+    clusts2$Barcode = rownames(clusts2)
+    annies2 = data.frame(annies)
+    annies2$Barcode = rownames(annies2)
+    full = left_join(clusts2, annies2)
+    full2 = full$annies
+    names(full2) = full$Barcode
+    full2 = as.factor(full2)
+    liger_low@clusters = full2
+    result$Barcode = rownames(result)
+    result = left_join(result, full)
+    result = select(result, -c(clusts))
+    rownames(result) = result$Barcode
+    result = select(result, -c(Barcode))
+    
+  }
+  if(MaxFactor == FALSE){
+    result$ann = annies[names(clusts)]
+    liger_low@clusters = as.factor(annies[names(clusts)])
+  }
+  
+  if (labels == TRUE){
+    # #Return UMAP with OG labels
+    print("Plotting labeled UMAPS....")
+    plots_low = plotByDatasetAndCluster(liger_low, return.plots = TRUE, text.size = 6)
+    low_umap2 =paste0(filepath,"/", region, "/Analysis", analysis_num, "_", region, "/Images/Umap2_", region, "_Analysis_", analysis_num, "labeled.pdf")
+    pdf(low_umap2, width = 10, height = 8)
+    print(plots_low[[2]])
+    dev.off()
+    
+    low_umap2.png =paste0(filepath,"/", region, "/Analysis", analysis_num, "_", region, "/Images/Umap2_", region, "_Analysis_", analysis_num, "labeled.png")
+    png(low_umap2.png, 1000, 800)
+    print(plots_low[[2]])
+    dev.off()
+  }
   # #Rename Results Table
   names(result) = c("UMAP1","UMAP2","dataset","lowRcluster","highRcluster", "OG_Annotations")
   result$Barcode = rownames(result)
@@ -785,6 +840,11 @@ preprocess_and_run = function(filepath,
   }
   results_filename = paste0(filepath,"/",  region, "/Analysis", analysis_num, "_", region, "/Analysis", analysis_num, "_", region,"_Results_Table.RDS")
   saveRDS(result, results_filename)
+  #Also, save cell data information
+  cell_data = liger_low@cell.data
+  cell_data_filename = paste0(filepath,"/",  region, "/Analysis", analysis_num, "_", region, "/Analysis", analysis_num, "_", region,"_CellData.RDS")
+  saveRDS(cell_data, cell_data_filename)
+  
 }
 
 #' annotate new clusters using reference labels for a subset of cells
