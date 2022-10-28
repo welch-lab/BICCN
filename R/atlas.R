@@ -401,10 +401,10 @@ for (file.listed in 1:length(filenames)){
   }
 
   if( data.type %in% c("meth", "atac")) {
-    if (analysis_num == 1 | analysis_num == 2){
+    if (data.type == "meth" & (analysis_num == 1 | analysis_num == 2)){
       print("No preprocessing for methylation data necessary, it is not used")
     }
-    if (analysis_num != 1 & analysis_num != 2){
+    if (data.type == "atac" | analysis_num != 1 & analysis_num != 2){
 
       before_subset = dim(working_file)[[2]] #Gets you original dimensions of matrix
       use.cells = subset(use.cells, use.cells %in% colnames(working_file))
