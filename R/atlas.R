@@ -1168,3 +1168,80 @@ doubletFinder <- function(data, select.genes, proportion.artificial = 0.20,
   }
 
 }
+generate_markergenes = function(region, analysis_num, filepath  ="/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Analyses_By_Region/", added_genes = c(), baseMarkers = TRUE){
+  #Get a list of all relevant files
+  direc = paste0(filepath, region, "/", "Analysis", analysis_num, "_", region)
+  dirfiles = list.files(direc)
+  dirfiles = grep("qc.RDS", dirfiles, value = TRUE)
+  #Remove methylation matrices as they are typically uninformative
+  #dirfiles = grep("meth", dirfiles, value = TRUE, invert = TRUE)
+  methfiles = grep("meth", dirfiles, value = TRUE)
+  #Read in files
+  matrix_list = c()
+  for (rfile in 1:length(dirfiles)){
+    fn = paste0(direc, "/", dirfiles[[rfile]])
+    mm = readRDS(fn)
+    mm = as(mm, "dgCMatrix")
+    matrix_list[[rfile]] = mm
+    mname = sub("_qc.RDS", "", dirfiles[[rfile]])
+    names(matrix_list)[[rfile]] = mname
+  }
+  #Read in the LIGER object
+  obj = readRDS(paste0(direc, "/onlineINMF_", region, "_object.RDS"))
+  #Create a useable LIGER object
+  ligs = createLiger(matrix_list, remove.missing = FALSE)
+  ligs = normalize(ligs, remove.missing = FALSE)
+  ligs = selectGenes(ligs)
+  ligs@var.genes = obj@var.genes
+  if(length(methfiles) > 1){
+    for (mf in 1:length(methfiles)){
+      ligs@norm.data[[mf]] = matrix_list[[mf]]
+    }
+  }
+  ligs = scaleNotCenter(ligs)
+  
+  if(dim(ligs@H.norm)[1] != dim(ligs@cell.data)[1]){
+    bars_we_have = rownames(ligs@cell.data)
+    for (k in 1:length(obj@H)){
+      rel_bars = subset(bars_we_have, bars_we_have %in% rownames(obj@H[[k]]))
+      obj@H[[k]] = obj@H[[k]][rel_bars,]
+    }
+    obj@H.norm = obj@H.norm[bars_we_have,]
+    obj@tsne.coords = obj@tsne.coords[bars_we_have,]
+    obj@clusters = obj@clusters[bars_we_have]
+  }
+  
+  ligs@H = obj@H
+  ligs@H.norm = obj@H.norm
+  ligs@V = obj@V
+  ligs@W = obj@W
+  ligs@tsne.coords = obj@tsne.coords
+  ligs@clusters = obj@clusters
+  
+  
+  
+  
+  
+  
+  #Read in desired genes
+  #If base files is TRUE, generate a pdf of the Marker Genes
+  if(baseMarkers == TRUE){
+    genes_oi = readRDS("/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Base_Reference_Files/Marker_genes_vector.RDS")
+    pdf_name1 = paste0(direc, "/Images/Analysis", analysis_num, "_", region, "_BaseMarkerPlots.pdf" )
+    pdf(pdf_name1)
+    for (gene in genes_oi){
+      plotGene(ligs, gene)
+    }
+    dev.off()
+  }
+  #If added genes is true, plot these additional genes into a seperate pdf
+  if (length(added_genes) != 0){
+    pdf_name1 = paste0(direc, "/Images/Analysis", analysis_num, "_", region, "_AddedMarkerPlots.pdf" )
+    pdf(pdf_name1)
+    for (gene in added_genes){
+      plotGene(ligs, gene)
+    }
+    dev.off()
+  }
+}
+
