@@ -227,6 +227,7 @@ deconvolve_spatial = function(filepath,
                               annotation.level = 3,
                               known.annotations = "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Base_Reference_Files/Reference_Annotations.RDS",
                               print.obj = FALSE,
+                              naive.clusters = FALSE,
                               verbose = TRUE){
   message("Loading Data")
   object_path = paste0(filepath,"/", region, "/Analysis1_", region, "/onlineINMF_",region, "_object.RDS" )
@@ -257,6 +258,9 @@ deconvolve_spatial = function(filepath,
     for(analysis_num in c(2,4,5)){
       analysis_results = readRDS(paste0(filepath,"/",  region, "/Analysis", analysis_num, "_", region, "/Analysis", analysis_num, "_", region,"_Results_Table.RDS"))
       analysis_clusters = as.character(analysis_results$highRAnnotations)
+      if(naive.clusters){
+          analysis_clusters = paste0(analysis_num ,"_",seq(to = length(analysis_clusters), by = 1))
+      }
       names(analysis_clusters) = analysis_results$Barcode
       clusters = c(clusters, analysis_clusters)
     }
@@ -540,6 +544,9 @@ deconvolve_spatial = function(filepath,
   saveRDS(out, paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/gene_signature_output.RDS"))
 
   dir_new = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
+  if(naive.clusters){
+    dir_new = paste0(dir_new, "_naive")
+  }
   if(!dir.exists(dir_new)){
     dir.create(dir_new)
   }
