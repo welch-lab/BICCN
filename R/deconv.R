@@ -1409,6 +1409,7 @@ calculate_wasserstein = function(
   loadings = readRDS(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/",spatial.data.name,"/deconvolution_output.RDS"))[[mat.use]]
   coords = readRDS(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name,"/",spatial.data.name,"_coords.RDS"))
   
+  loadings = loadings[, colSums(loadings) != 0]
   if(use.cell.types){
     if(!is.null(cell.types.use)){
       cell.types.use = intersect(cell.types.use, colnames(loadings))
@@ -1417,6 +1418,7 @@ calculate_wasserstein = function(
     }
     cell.types.use = cell.types.use[cell.types.use != ""]
     loadings = loadings[rownames(loadings) %in% rownames(coords), cell.types.use]
+    
     if(is.vector(loadings)){
       new_loadings = matrix(loadings)
       rownames(new_loadings) = names(loadings)
