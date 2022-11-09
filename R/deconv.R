@@ -227,6 +227,7 @@ deconvolve_spatial = function(filepath,
                               annotation.level = 3,
                               known.annotations = "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Base_Reference_Files/Reference_Annotations.RDS",
                               print.obj = FALSE,
+                              naive.clusters = FALSE,
                               verbose = TRUE){
   message("Loading Data")
   object_path = paste0(filepath,"/", region, "/Analysis1_", region, "/onlineINMF_",region, "_object.RDS" )
@@ -256,7 +257,11 @@ deconvolve_spatial = function(filepath,
     clusters = c()
     for(analysis_num in c(2,4,5)){
       analysis_results = readRDS(paste0(filepath,"/",  region, "/Analysis", analysis_num, "_", region, "/Analysis", analysis_num, "_", region,"_Results_Table.RDS"))
-      analysis_clusters = as.character(analysis_results$highRAnnotations)
+      if(naive.clusters){
+          analysis_clusters = paste0(analysis_num ,"_",analysis_results$highRcluster)
+      } else {
+          analysis_clusters = as.character(analysis_results$highRAnnotations)
+      }
       names(analysis_clusters) = analysis_results$Barcode
       clusters = c(clusters, analysis_clusters)
     }
@@ -369,8 +374,16 @@ deconvolve_spatial = function(filepath,
   }
 
   message(paste0(length(gene_vec), " genes found with p = ",var_thresh_old))
+  
+  dir_new = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
+  if(naive.clusters){
+    dir_new = paste0(dir_new, "_naive")
+  }
+  if(!dir.exists(dir_new)){
+    dir.create(dir_new)
+  }
 
-  saveRDS(list(chisq_vals = chisq_list, genes_used = gene_vec), paste0(filepath, "/",  region, "/", region,"_Deconvolution_Output/gene_selection_output.RDS"))
+  saveRDS(list(chisq_vals = chisq_list, genes_used = gene_vec), paste0(dir_new,"/gene_selection_output.RDS"))
 
   if(slide.seq){
     spatial.data = spatial.data[rownames(spatial.data) %in% gene_vec, ]
@@ -539,10 +552,7 @@ deconvolve_spatial = function(filepath,
 
   saveRDS(out, paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/gene_signature_output.RDS"))
 
-  dir_new = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
-  if(!dir.exists(dir_new)){
-    dir.create(dir_new)
-  }
+  
 
   message("Deconvolving spatial data")
   spatial.data = t(scale(t(as.matrix(spatial.data[gene_vec,])), center = FALSE))
