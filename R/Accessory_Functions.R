@@ -2227,9 +2227,10 @@ updateForLeiden = function(analysis_num = NA, region = NA, pathway = NA){
   saveRDS(results, results_path)
   
   #Make newest UMAP
-  leiden_clusters = leiden_clusters$V1
-  names(leiden_clusters) = names(ligs@H.norm)
+  leiden_clusters = leiden_clusters$Leiden_Clustering
   leiden_clusters = as.factor(leiden_clusters)
+  names(leiden_clusters) = rownames(ligs@H.norm)
+  
   ligs@clusters = leiden_clusters
   plots_low = plotByDatasetAndCluster(ligs, return.plots = TRUE, text.size = 6)
   
