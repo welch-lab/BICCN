@@ -1036,7 +1036,7 @@ analyze_gene_signatures = function(filepath,
   signatures = gene_sigs$W
   rownames(signatures) = colnames(gene_sigs$H[[1]])
   colnames(signatures) = readRDS(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/gene_selection_output.RDS"))[[2]]
-  signatures = signatures[rownames(signatures) != "",]
+  signatures = signatures[rowSums(signatures) != 0 & rownames(signatures) != "",]
 
   cos_sim = lsa::cosine(t(signatures))
 
@@ -1068,7 +1068,7 @@ analyze_gene_signatures = function(filepath,
 
   deconv_out = readRDS(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/",spatial.data.name,"/deconvolution_output.RDS"))
   loadings = deconv_out[[mat.use]]
-  loadings = loadings[, colnames(loadings)!=""]
+  loadings = loadings[, colSums(loadings) != 0 & colnames(loadings)!=""]
 
   corr_sim_dist = cor(loadings)
 
