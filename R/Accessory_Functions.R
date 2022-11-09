@@ -2200,3 +2200,50 @@ generate_markergenes = function(region, analysis_num, filepath  ="/nfs/turbo/umm
   }
 }
 
+updateForLeiden = function(analysis_num = NA, region = NA, pathway = NA){
+  #Read in results object
+  results_path = paste0(pathway, region, "/Analysis", analysis_num, "_", region,"/Analysis", analysis_num, "_", region, "_Results_Table.RDS" )
+  results = readRDS(results_path)
+  #Save version with max.factor clustering
+  old_results_path = paste0(pathway, region, "/Analysis", analysis_num, "_", region,"/Analysis", analysis_num, "_", region, "_Results_Table_OLD.RDS" )
+  saveRDS(results, old_results_path)
+  #Dispose of clusters and high r annotations column
+  results = select(results, -c("lowRcluster", "highRcluster", "highRAnnotations"))
+  #Read in online LIGER object
+  liger_path = paste0(pathway, region, "/Analysis", analysis_num, "_", region,"/onlineINMF_", region, "_object.RDS")
+  ligs = readRDS(liger_path)
+  #Confirm the order is the same
+  if(!identical(names(ligs@clusters), rownames(ligs@H.norm))){
+    warning("Order of Barcodes has become scrambled")
+  }
+  #Read in new Leiden Clusters
+  leiden_path = paste0(pathway, region, "/Analysis", analysis_num, "_", region,"/",region, "_A", analysis_num, "_Leiden_cluster.txt")
+  leiden_clusters = read.csv(leiden_path, header = FALSE)
+  leiden_clusters$Barcode = rownames(ligs@H.norm)
+  colnames(leiden_clusters)[1] = "Leiden_Clustering"
+  #Update Results Table
+  results = left_join(results, leiden_clusters)
+  #Save new results table
+  saveRDS(results, results_path)
+  
+  #Make newest UMAP
+  leiden_clusters = leiden_clusters$V1
+  names(leiden_clusters) = names(ligs@H.norm)
+  leiden_clusters = as.factor(leiden_clusters)
+  ligs@clusters = leiden_clusters
+  plots_low = plotByDatasetAndCluster(ligs, return.plots = TRUE, text.size = 6)
+  
+  #Graph newest UMAP
+  leiden_umap =paste0(pathway,"/",  region, "/Analysis", analysis_num, "_", region, "/Images/Umap_", region, "_Analysis_", analysis_num, "LeidenClustering.png")
+  png(leiden_umap, 1000, 800)
+  print(plots_low[[2]])
+  dev.off()
+  
+  #Update Annotations table
+  cluster_breakdowns_leiden = results %>% group_by(Leiden_Clustering, dataset, OG_Annotations)  %>% tally()
+  output_filepath = paste0(pathway,"/",  region, "/Analysis", analysis_num, "_", region, "/Cluster_Breakdowns_",region, "_Analysis_", analysis_num, "LeidenResults.xlsx")
+  wb <- createWorkbook()
+  addWorksheet(wb = wb, sheetName = "Leiden")
+  writeData(wb, sheet = "Leiden", x = cluster_breakdowns_leiden)
+  saveWorkbook(wb, output_filepath)
+}
