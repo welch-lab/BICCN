@@ -1467,3 +1467,33 @@ calculate_wasserstein = function(
   
   saveRDS(distance_mat, paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name,"/",spatial.data.name,"_wasserstein_dist.RDS"))
 }
+                                                                                                   
+refine_cluster_similarity(
+    filepath,
+    region,
+    spatial.data.name){
+  out = tryCatch({
+      spatial = readRDS(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name,"/",spatial.data.name,"_wasserstein_dist.RDS"))
+      expression = readRDS(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/",spatial.data.name,"/gene_signature_analysis_summary.RDS"))[["cos_sim_signature"]]
+      return(TRUE)
+    },
+    error = function(cond){
+      message("Please call calculate_wasserstein and analyze_gene_signatures for this spatial data before running this function.")
+      return(FALSE)
+    })
+  if(out){
+    shared_clusters = intersect(colnames(spatial), colnames(expression))
+    spatial = spatial[shared_clusters, shared_clusters]
+    expression = expression[shared_clusters, shared_clusters]
+    placeholder_vec = rep("",length(shared_clusters))
+    df_out = data.frame("cluster" = shared_clusters, 
+                        "wasserstein_50" = placeholder_vec,
+                        "wasserstein_75" = placeholder_vec,
+                        "wasserstein_90" = placeholder_vec,
+                        "corr_.5" = placeholder_vec,
+                        "corr_.75" = placeholder_vec,
+                        "corr_.9" = placeholder_vec)
+    
+  }
+    
+ }
