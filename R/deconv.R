@@ -199,6 +199,9 @@ subset_spatial_data = function(filepath,
 #'   cells or a filepath to a spreadsheet containing multiple levels of provided
 #'   annotations
 #' @param print.obj Print objective function values after convergence
+#' @param naive.clusters Use the unnamed clusters from the terminal analyses? (FALSE by default)
+#' @param naive.clusters.remove Takes a names list of vectors, where the name is the terminal analysis 
+#'   (2,4,5) and the vector are unwanted clusters (NULL by default)
 #' @param verbose Print progress bar/messages (TRUE by default)
 #'
 #' @return nothing
@@ -228,6 +231,7 @@ deconvolve_spatial = function(filepath,
                               known.annotations = "/nfs/turbo/umms-welchjd/BRAIN_initiative/BICCN_integration_Analyses/Base_Reference_Files/Reference_Annotations.RDS",
                               print.obj = FALSE,
                               naive.clusters = FALSE,
+                              naive.clusters.remove = NULL,
                               verbose = TRUE){
   message("Loading Data")
   object_path = paste0(filepath,"/", region, "/Analysis1_", region, "/onlineINMF_",region, "_object.RDS" )
@@ -259,6 +263,7 @@ deconvolve_spatial = function(filepath,
       analysis_results = readRDS(paste0(filepath,"/",  region, "/Analysis", analysis_num, "_", region, "/Analysis", analysis_num, "_", region,"_Results_Table.RDS"))
       if(naive.clusters){
           analysis_clusters = paste0(analysis_num ,"_",analysis_results$highRcluster)
+          analysis_clusters[analysis_clusters %in% paste0(analysis_num, "_", naive.clusters.remove[[as.character(analysis_num]])] = ""
       } else {
           analysis_clusters = as.character(analysis_results$highRAnnotations)
       }
