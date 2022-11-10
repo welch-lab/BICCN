@@ -386,6 +386,8 @@ deconvolve_spatial = function(filepath,
   }
   if(!dir.exists(dir_new)){
     dir.create(dir_new)
+    file.copy(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name,"/",spatial.data.name,"_exp.RDS"), paste0(dir_new,"/",spatial.data.name,"_naive_exp.RDS"))
+    file.copy(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name,"/",spatial.data.name,"_coords.RDS"), paste0(dir_new,"/",spatial.data.name,"_naive_coords.RDS"))
   }
 
   saveRDS(list(chisq_vals = chisq_list, genes_used = gene_vec), paste0(dir_new,"/gene_selection_output.RDS"))
