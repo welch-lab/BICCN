@@ -233,6 +233,18 @@ deconvolve_spatial = function(filepath,
                               naive.clusters = FALSE,
                               naive.clusters.remove = NULL,
                               verbose = TRUE){
+  
+  dir_new = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
+  
+  if(naive.clusters){
+    dir_new = paste0(dir_new, "_naive")
+  }
+  if(!dir.exists(dir_new)){
+    dir.create(dir_new)
+    file.copy(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name,"/",spatial.data.name,"_exp.RDS"), paste0(dir_new,"/",spatial.data.name,"_naive_exp.RDS"))
+    file.copy(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name,"/",spatial.data.name,"_coords.RDS"), paste0(dir_new,"/",spatial.data.name,"_naive_coords.RDS"))
+  }
+  
   message("Loading Data")
   object_path = paste0(filepath,"/", region, "/Analysis1_", region, "/onlineINMF_",region, "_object.RDS" )
   object = readRDS(object_path)
@@ -342,8 +354,6 @@ deconvolve_spatial = function(filepath,
 
   norm.data = norm.data[!sapply(norm.data, function(x){length(x) == 0})]
 
-
-
   message("Selecting genes with the KW test")
   chisq_list = list()
   for(i in 1:length(norm.data)){
@@ -379,18 +389,12 @@ deconvolve_spatial = function(filepath,
   }
 
   message(paste0(length(gene_vec), " genes found with p = ",var_thresh_old))
-  
-  dir_new = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
+                                                                                                   
   if(naive.clusters){
-    dir_new = paste0(dir_new, "_naive")
+      saveRDS(list(chisq_vals = chisq_list, genes_used = gene_vec), paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/gene_selection_output_naive.RDS"))
+  } else {
+      saveRDS(list(chisq_vals = chisq_list, genes_used = gene_vec), paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/gene_selection_output.RDS"))
   }
-  if(!dir.exists(dir_new)){
-    dir.create(dir_new)
-    file.copy(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name,"/",spatial.data.name,"_exp.RDS"), paste0(dir_new,"/",spatial.data.name,"_naive_exp.RDS"))
-    file.copy(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name,"/",spatial.data.name,"_coords.RDS"), paste0(dir_new,"/",spatial.data.name,"_naive_coords.RDS"))
-  }
-
-  saveRDS(list(chisq_vals = chisq_list, genes_used = gene_vec), paste0(dir_new,"/gene_selection_output.RDS"))
 
   if(slide.seq){
     spatial.data = spatial.data[rownames(spatial.data) %in% gene_vec, ]
@@ -557,9 +561,11 @@ deconvolve_spatial = function(filepath,
 
   names(x = out$V) <- names(x = out$H) <- names(x = out$H_refined) <- names(x = E)
 
-  saveRDS(out, paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/gene_signature_output.RDS"))
-
-  
+  if(naive.clusters){
+      saveRDS(out, paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/gene_signature_output_naive.RDS"))
+  } else {
+      saveRDS(out, paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/gene_signature_output.RDS"))
+  }
 
   message("Deconvolving spatial data")
   spatial.data = t(scale(t(as.matrix(spatial.data[gene_vec,])), center = FALSE))
@@ -601,13 +607,19 @@ deconvolve_new_data = function(filepath,
                     spatial.data.name,
                     slide.seq = FALSE,
                     z = 1,
-                    n.umi.thresh = 150){
+                    n.umi.thresh = 150,
+                    naive.clusters = FALSE){
   spatial.data = readRDS(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name,"/",spatial.data.name,"_exp.RDS"))
 
-  deconv_out= readRDS(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/gene_signature_output.RDS"))
+  if(naive.clusters){
+     deconv_out= readRDS(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/gene_signature_output_naive.RDS"))
+     gene_vec = readRDS(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/gene_selection_output_naive.RDS"))[[2]]
+  } else {
+     deconv_out= readRDS(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/gene_signature_output.RDS"))
+     gene_vec = readRDS(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/gene_selection_output.RDS"))[[2]]
+  }
   W = deconv_out$W
   clust_levels = colnames(deconv_out$H[[1]])
-  gene_vec = readRDS(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/gene_selection_output.RDS"))[[2]]
 
 
   if(!slide.seq){
@@ -696,7 +708,7 @@ voxelize_single_cells = function(
   region,
   spatial.data.name,
   voxel.size,
-  out.filepath = "~",
+  out.filepath = NULL,
   verbose = TRUE
 ){
   spatial.data = readRDS(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name,"/",spatial.data.name,"_exp.RDS"))
@@ -731,9 +743,17 @@ voxelize_single_cells = function(
   rownames(coords_out) = colnames(voxel_exp) = names(voxel_list) = paste0("voxel_",1:nrow(coords_out))
   rownames(voxel_exp) = rownames(spatial.data)
 
-  saveRDS(voxel_exp, paste0(out.filepath,"/",region,"_generated_voxel_exp.RDS"))
-  saveRDS(coords_out, paste0(out.filepath,"/",region,"_generated_voxel_coords.RDS"))
-  saveRDS(voxel_list,paste0(out.filepath,"/",region,"_generated_voxels_to_samples.RDS"))
+
+  if(is.null(out.filepath)){
+    new_dir = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name, "_", voxel.size)
+    dir.create(new_dir)
+    message("Saving to new spatial data folder - " ,spatial.data.name, "_", voxel.size)
+    out.filepath = new_dir
+  }
+  saveRDS(voxel_exp, paste0(out.filepath,"/",spatial.data.name, "_", voxel.size, "_exp.RDS"))
+  saveRDS(coords_out,paste0(out.filepath,"/",spatial.data.name, "_", voxel.size, "_coords.RDS"))
+  saveRDS(voxel_list,paste0(out.filepath,"/",spatial.data.name, "_", voxel.size, "_voxels_to_samples.RDS"))
+
   if(verbose){
     message(paste0("Generated ", nrow(coords_out), " voxels at ", voxel.size, " cubed resolution." ))
     message(paste0("Mean samples per voxel: ", round(mean(sapply(voxel_list, length)))))
@@ -1038,11 +1058,17 @@ analyze_gene_signatures = function(filepath,
                                    mat.use = "proportions"){
 
   library(ggplot2)
-
-  gene_sigs = readRDS(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/gene_signature_output.RDS"))
+   
+  if(grepl("naive", spatial.data.name, fixed = TRUE)){
+      gene_sigs = readRDS(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/gene_signature_output.RDS"))
+      genes = readRDS(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/gene_selection_output.RDS"))[[2]]
+  } else {
+      gene_sigs = readRDS(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/gene_signature_output_naive.RDS"))
+      genes = readRDS(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/gene_selection_output_naive.RDS"))[[2]]
+  }
   signatures = gene_sigs$W
   rownames(signatures) = colnames(gene_sigs$H[[1]])
-  colnames(signatures) = readRDS(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/gene_selection_output.RDS"))[[2]]
+  colnames(signatures) = genes
   signatures = signatures[rowSums(signatures) != 0 & rownames(signatures) != "",]
 
   cos_sim = lsa::cosine(t(signatures))
@@ -1358,26 +1384,15 @@ voxelize_analysis = function(
   verbose = TRUE
 ){
 
-  new_dir = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",new.spatial.data.name)
-
-  dir.create(new_dir)
-
   voxelize_single_cells(filepath,
                         region,
                         spatial.data.name,
                         voxel.size,
-                        paste0(new_dir),
+                        NULL,
                         verbose)
+  
+  new_dir = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name, "_", voxel.size)
 
-  save_spatial_data(filepath,
-                    region,
-                    paste0(new_dir,"/",region,"_generated_voxel_exp.RDS"),
-                    paste0(new_dir,"/",region,"_generated_voxel_coords.RDS"),
-                    new.spatial.data.name
-  )
-
-  file.remove(paste0(new_dir,"/",region,"_generated_voxel_exp.RDS"))
-  file.remove(paste0(new_dir,"/",region,"_generated_voxel_coords.RDS"))
 
   voxel_to_sample = readRDS(paste0(new_dir,"/",region,"_generated_voxels_to_samples.RDS"))
 
