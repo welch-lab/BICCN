@@ -1393,10 +1393,6 @@ voxelize_analysis = function(
   
   new_dir = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name, "_", voxel.size)
 
-
-  voxel_to_sample = readRDS(paste0(new_dir,"/",region,"_generated_voxels_to_samples.RDS"))
-
-
   deconv_out = readRDS(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name,"/deconvolution_output.RDS"))[[1]]
   deconv_out = deconv_out[,colnames(deconv_out) != ""]
 
