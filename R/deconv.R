@@ -581,6 +581,9 @@ deconvolve_spatial = function(filepath,
                           })
 
   names(x = out$V) <- names(x = out$H) <- names(x = out$H_refined) <- names(x = E)
+  
+  rownames(out$W) = clust_levels
+  colnames(out$W) = gene_vec
 
   if(naive.clusters){
       saveRDS(out, paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/gene_signature_output_naive.RDS"))
@@ -1116,7 +1119,7 @@ analyze_gene_signatures = function(filepath,
   dir_spatial = paste0(dir_deconv,spatial.data.name)
 
    
-  if(grepl("naive", spatial.data.name, fixed = TRUE)){
+  if(!grepl("naive", spatial.data.name, fixed = TRUE)){
       gene_sigs = readRDS(paste0(dir_deconv, "gene_signature_output.RDS"))
       genes = readRDS(paste0(dir_deconv, "gene_selection_output.RDS"))[[2]]
   } else {
@@ -1212,7 +1215,7 @@ analyze_gene_signatures = function(filepath,
                     width = 1000,
                     height = 800,
                     units = "px")
-    ggplot2::ggsave(paste0(dir_plots, /cell_type_distribution_dendrogram.PNG"),
+    ggplot2::ggsave(paste0(dir_plots, "/cell_type_distribution_dendrogram.PNG"),
                     dendro_dist_plot,
                     width = 500,
                     height = 400,
@@ -1450,9 +1453,9 @@ voxelize_analysis = function(
                         NULL,
                         verbose)
   
-  new_dir = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name, "_", voxel.size)
-
-  deconv_out = readRDS(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name,"/deconvolution_output.RDS"))[[1]]
+  old_dir = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
+  deconv_out = readRDS(paste0(old_dir,"/deconvolution_output.RDS"))[[1]]
+  new_dir = paste0(old_dir, "_", voxel.size)
   deconv_out = deconv_out[,colnames(deconv_out) != ""]
 
   voxel_out = matrix(0L, nrow = length(voxel_to_sample), ncol = ncol(deconv_out))
@@ -1481,10 +1484,12 @@ calculate_wasserstein = function(
     use.cell.types = TRUE,
     cell.types.use = NULL,
     genes.use = NULL,
-    p = 2
-){
-  loadings = readRDS(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/",spatial.data.name,"/deconvolution_output.RDS"))[[mat.use]]
-  coords = readRDS(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name,"/",spatial.data.name,"_coords.RDS"))
+    p = 2){
+
+  dir_spatial = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
+
+  loadings = readRDS(paste0(dir_spatial,"/deconvolution_output.RDS"))[[mat.use]]
+  coords = readRDS(paste0(dir_spatial,"/",spatial.data.name,"_coords.RDS"))
   
   loadings = loadings[, colSums(loadings) != 0]
   if(use.cell.types){
@@ -1510,7 +1515,7 @@ calculate_wasserstein = function(
   }
   
   if(!is.null(genes.use)){
-    exp = t(readRDS(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name,"/",spatial.data.name,"_exp.RDS")))
+    exp = t(readRDS(paste0(dir_spatial,"/",spatial.data.name,"_exp.RDS")))
     exp = exp[, colnames(exp) %in% genes.use]
     exp[exp < 0] = 0
     exp = exp[rownames(loadings),]
@@ -1537,16 +1542,17 @@ calculate_wasserstein = function(
     vars_2 = vars_2[2:length(vars_2)]
   }
   
-  saveRDS(distance_mat, paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name,"/",spatial.data.name,"_wasserstein_dist.RDS"))
+  saveRDS(distance_mat, paste0(dir_spatial,"/",spatial.data.name,"_wasserstein_dist.RDS"))
 }
                                                                                                    
 refine_cluster_similarity(
     filepath,
     region,
     spatial.data.name){
+  spatial_dir = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
   out = tryCatch({
-      spatial = readRDS(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name,"/",spatial.data.name,"_wasserstein_dist.RDS"))
-      expression = readRDS(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/",spatial.data.name,"/gene_signature_analysis_summary.RDS"))[["cos_sim_signature"]]
+      spatial = readRDS(paste0(spatial_dir,"/",spatial.data.name,"_wasserstein_dist.RDS"))
+      expression = readRDS(paste0(spatial_dir,"/gene_signature_analysis_summary.RDS"))[["cos_sim_signature"]]
       return(TRUE)
     },
     error = function(cond){
@@ -1572,7 +1578,7 @@ refine_cluster_similarity(
       corr_vals = c(expression[cluster,clusts_use] >.5, expression[cluster,clusts_use] >.75, expression[cluster,clusts_use] >.9)
       df_out[cluster,] = c(wasserstein_vals, corr_vals)
     }
-    write.csv(df_out,paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name,"/",spatial.data.name,"_cluster_similarity.csv"),row.names = TRUE)
+    write.csv(df_out,paste0(spatial_dir,"/",spatial.data.name,"_cluster_similarity.csv"),row.names = TRUE)
   }
     
  }
