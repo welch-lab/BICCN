@@ -16,6 +16,7 @@ save_spatial_data = function(filepath,
   dir_new = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
   if(!dir.exists(dir_new)){
     dir.create(dir_new)
+    message("Created directory at ", dir_new)
   }
   file.copy(spatial.data.file, paste0(dir_new,"/",spatial.data.name,"_exp.RDS"))
   if(is.character(coords)){
@@ -105,25 +106,29 @@ reference_3d_coordinates = function(filepath,
   print(p1)
   print(p2)
   print(p3)
+  message("Plots generated")
   if(save.plots){
-    if(!dir.exists(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/",spatial.data.name,"/plots"))){
-      dir.create(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/plots"))
+    plots_dir = paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/",spatial.data.name,"/plots")
+    if(!dir.exists(plots_dir)){
+      dir.create(plots_dir)
+      message("Created directory at ", plots_dir)
     }
-    ggplot2::ggsave(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/",spatial.data.name,"/plots/x_y_coord_reference.PNG"),
+    ggplot2::ggsave(paste0(plots_dir, "/x_y_coord_reference.PNG"),
                     p1,
                     width = 500,
                     height = 500,
                     units = "px")
-    ggplot2::ggsave(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/",spatial.data.name,"/plots/x_z_coord_reference.PNG"),
+    ggplot2::ggsave(paste0(plots_dir, "/x_z_coord_reference.PNG"),
                     p2,
                     width = 500,
                     height = 500,
                     units = "px")
-    ggplot2::ggsave(paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/",spatial.data.name,"/plots/y_z_coord_reference.PNG"),
+    ggplot2::ggsave(paste0(plots_dir, "/y_z_coord_reference.PNG"),
                     p3,
                     width = 500,
                     height = 500,
                     units = "px")
+    message("Plots saved")
   }
 }
 
@@ -147,8 +152,9 @@ subset_spatial_data = function(filepath,
                                                    c(NaN, NaN),
                                                    c(NaN, NaN)),
                                out.filepath = NULL){
-  coords = readRDS(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name,"/",spatial.data.name,"_coords.RDS"))
-  spatial.data = readRDS(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name,"/",spatial.data.name,"_exp.RDS"))
+  deconv_dir = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/")
+  coords = readRDS(paste0(deconv_dir,spatial.data.name,"/",spatial.data.name,"_coords.RDS"))
+  spatial.data = readRDS(paste0(deconv_dir,spatial.data.name,"/",spatial.data.name,"_exp.RDS"))
   for(i in 1:ncol(coords)){
     subset.specs[[i]][is.nan(subset.specs[[i]])] = range(coords[,i])[is.nan(subset.specs[[i]])]
     coords = coords[coords[,i] >= subset.specs[[i]][1] & coords[,i] <= subset.specs[[i]][2], ]
@@ -159,12 +165,18 @@ subset_spatial_data = function(filepath,
     message(paste0("Sample subset to ", nrow(coords), " samples."))
   }
   spatial.data = spatial.data[, rownames(coords)]
+  new_spatial.data.name = paste0(spatial.data.name,"_subset_",nrow(coords))
   if(!is.null(out.filepath)){
-    saveRDS(spatial.data, paste0(out.filepath, "/", spatial.data.name,"_exp.RDS"))
+    saveRDS(spatial.data, paste0(out.filepath, "/", new_spatial.data.name,"_exp.RDS"))
     saveRDS(coords, paste0(out.filepath, "/", spatial.data.name,"_coords.RDS"))
+    message("Saved expression and coordinates to ", out.filepath)
   } else {
-    saveRDS(spatial.data, paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name,"/",spatial.data.name,"_exp.RDS"))
-    saveRDS(coords, paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name,"/",spatial.data.name,"_coords.RDS"))
+    new_dir = paste0(deconv_dir,new_spatial.data.name)
+    dir.create(new_dir)
+    message("Created directory at ", plots_dir)
+    saveRDS(spatial.data, paste0(new_dir,"/",new_spatial.data.name,"_exp.RDS"))
+    saveRDS(coords, paste0(new_dir,"/",new_spatial.data.name,"_coords.RDS"))
+    message("Saved expression and coordinates to ", new_dir)
   }
 }
 
@@ -233,16 +245,20 @@ deconvolve_spatial = function(filepath,
                               naive.clusters = FALSE,
                               naive.clusters.remove = NULL,
                               verbose = TRUE){
+  dir_spatial = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
   
-  dir_new = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
-  
-  if(naive.clusters){
-    dir_new = paste0(dir_new, "_naive")
-  }
   if(!dir.exists(dir_new)){
-    dir.create(dir_new)
-    file.copy(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name,"/",spatial.data.name,"_exp.RDS"), paste0(dir_new,"/",spatial.data.name,"_naive_exp.RDS"))
-    file.copy(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name,"/",spatial.data.name,"_coords.RDS"), paste0(dir_new,"/",spatial.data.name,"_naive_coords.RDS"))
+    if(naive.clusters){
+      dir_naive = paste0(dir_spatial, "_naive")
+      dir.create(dir_naive)
+      message("Created directory at ", dir_naive)
+      file.copy(paste0(dir_spatial,"/",spatial.data.name,"_exp.RDS"), paste0(dir_naive,"/",spatial.data.name,"_naive_exp.RDS"))
+      file.copy(paste0(dir_spatial, "/",spatial.data.name,"_coords.RDS"), paste0(dir_naive,"/",spatial.data.name,"_naive_coords.RDS"))
+      spatial.data.name = paste0(spatial.data.name, "_naive")
+      dir_spatial = dir_naive
+    } else {
+      error("No spatial data directory found at ",dir_spatial, ". use `save_spatial_data` to put data in the specified folder")
+    }
   }
   
   message("Loading Data")
@@ -275,7 +291,7 @@ deconvolve_spatial = function(filepath,
       analysis_results = readRDS(paste0(filepath,"/",  region, "/Analysis", analysis_num, "_", region, "/Analysis", analysis_num, "_", region,"_Results_Table.RDS"))
       if(naive.clusters){
           analysis_clusters = paste0(analysis_num ,"_",analysis_results$highRcluster)
-          analysis_clusters[analysis_clusters %in% paste0(analysis_num, "_", naive.clusters.remove[[as.character(analysis_num]])] = ""
+          analysis_clusters[analysis_clusters %in% paste0(analysis_num, "_", naive.clusters.remove[[as.character(analysis_num)]])] = ""
       } else {
           analysis_clusters = as.character(analysis_results$highRAnnotations)
       }
@@ -285,6 +301,9 @@ deconvolve_spatial = function(filepath,
     clusters = clusters[clusters != ""]
     clusters = as.factor(clusters)
   }
+  
+  message("Clusters loaded. Preview labels below")
+  print(table(clusters))
 
   h5_files = sapply(1:length(object@norm.data), function(i){object@h5file.info[[i]]$file.path})
   rna_files = grep(paste0("_(sc10Xv3_|smartseq_|sn10Xv3_|sc10Xv2_)"), h5_files, value = TRUE)
@@ -296,13 +315,14 @@ deconvolve_spatial = function(filepath,
     rhdf5::h5read(i, "/matrix/barcodes")#change, extract from H5
   })
 
-  spatial.data = readRDS(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name,"/",spatial.data.name,"_exp.RDS"))
+  spatial.data = readRDS(paste0(dir_spatial"/",spatial.data.name,"_exp.RDS"))
   
   if(!slide.seq){
     spatial.data[spatial.data == -1] = NA
     genes_NA = apply(spatial.data, MARGIN = 1, function(x){sum(is.na(x))})
     mean_genes_NA = mean(genes_NA)
     genes_use = rownames(spatial.data)[genes_NA < (mean_genes_NA + z * mean_genes_NA)]
+    message(length(genes_use), " genes saved out of ", nrow(spatial.data), " total.")
     spatial.data = spatial.data[genes_use,]
     #simplest way to handle this
     spatial.data[is.na(spatial.data)] = 0
@@ -389,7 +409,6 @@ deconvolve_spatial = function(filepath,
   }
 
   message(paste0(length(gene_vec), " genes found with p = ",var_thresh_old))
-                                                                                                   
   if(naive.clusters){
       saveRDS(list(chisq_vals = chisq_list, genes_used = gene_vec), paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/gene_selection_output_naive.RDS"))
   } else {
@@ -399,6 +418,7 @@ deconvolve_spatial = function(filepath,
   if(slide.seq){
     spatial.data = spatial.data[rownames(spatial.data) %in% gene_vec, ]
     spatial.data = spatial.data[,Matrix::colSums(spatial.data) > n.umi.thresh]
+    message
   }
 
   message("Learning gene signatures")
