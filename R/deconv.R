@@ -315,7 +315,7 @@ deconvolve_spatial = function(filepath,
     rhdf5::h5read(i, "/matrix/barcodes")#change, extract from H5
   })
 
-  spatial.data = readRDS(paste0(dir_spatial"/",spatial.data.name,"_exp.RDS"))
+  spatial.data = readRDS(paste0(dir_spatial,"/",spatial.data.name,"_exp.RDS"))
   
   if(!slide.seq){
     spatial.data[spatial.data == -1] = NA
@@ -419,7 +419,7 @@ deconvolve_spatial = function(filepath,
     original_dim = dim(spatial.data)
     spatial.data = spatial.data[rownames(spatial.data) %in% gene_vec, ]
     spatial.data = spatial.data[,Matrix::colSums(spatial.data) > n.umi.thresh]
-    message(nrow(spatial.data), " genes used out of ", original_dim[1], " and ", ncol(spatial.data) " cells used out of ", original_dim[2])
+    message(nrow(spatial.data), " genes used out of ", original_dim[1], " and ", ncol(spatial.data), " cells used out of ", original_dim[2])
   }
 
   message("Learning gene signatures")
@@ -651,7 +651,7 @@ deconvolve_new_data = function(filepath,
     }
   }
   
-  spatial.data = readRDS(paste0(dir_spatial"/",spatial.data.name,"_exp.RDS"))
+  spatial.data = readRDS(paste0(dir_spatial,"/",spatial.data.name,"_exp.RDS"))
 
   
   if(naive.clusters){
@@ -682,7 +682,7 @@ deconvolve_new_data = function(filepath,
     original_dim = dim(spatial.data)
     spatial.data = spatial.data[rownames(spatial.data) %in% gene_vec, ]
     spatial.data = spatial.data[,Matrix::colSums(spatial.data) > n.umi.thresh]
-    message(nrow(spatial.data), " genes used out of ", original_dim[1], " and ", ncol(spatial.data) " cells used out of ", original_dim[2])
+    message(nrow(spatial.data), " genes used out of ", original_dim[1], " and ", ncol(spatial.data), " cells used out of ", original_dim[2])
   }
 
   W = W[,gene_vec %in% shared_genes]
@@ -1278,7 +1278,7 @@ plot_layer = function(
   }
 
   if(mat.use == "assignment"){
-    assignments = readRDS(dir_spatial,"/deconvolution_max_factor_assignment.RDS"))
+    assignments = readRDS(paste0(dir_spatial,"/deconvolution_max_factor_assignment.RDS"))
     sub_vec = rep(0,nlevels(assignments))
     loadings = Reduce(rbind, lapply(assignments, function(x){subbed_vec = sub_vec; subbed_vec[as.numeric(x)] = 1; return(subbed_vec)}))
     colnames(loadings) = levels(assignments)
@@ -1545,7 +1545,7 @@ calculate_wasserstein = function(
   saveRDS(distance_mat, paste0(dir_spatial,"/",spatial.data.name,"_wasserstein_dist.RDS"))
 }
                                                                                                    
-refine_cluster_similarity(
+refine_cluster_similarity = function(
     filepath,
     region,
     spatial.data.name){
