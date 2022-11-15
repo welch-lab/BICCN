@@ -1550,35 +1550,29 @@ refine_cluster_similarity(
     region,
     spatial.data.name){
   spatial_dir = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
-  out = tryCatch({
-      spatial = readRDS(paste0(spatial_dir,"/",spatial.data.name,"_wasserstein_dist.RDS"))
-      expression = readRDS(paste0(spatial_dir,"/gene_signature_analysis_summary.RDS"))[["cos_sim_signature"]]
-      return(TRUE)
-    },
-    error = function(cond){
-      message("Please call calculate_wasserstein and analyze_gene_signatures for this spatial data before running this function.")
-      return(FALSE)
-    })
-  if(out){
-    shared_clusters = intersect(colnames(spatial), colnames(expression))
-    spatial = spatial[shared_clusters, shared_clusters]
-    expression = expression[shared_clusters, shared_clusters]
-    placeholder_vec = rep("",length(shared_clusters))
-    df_out = data.frame("wasserstein_50" = placeholder_vec,
-                        "wasserstein_75" = placeholder_vec,
-                        "wasserstein_90" = placeholder_vec,
-                        "corr_.5" = placeholder_vec,
-                        "corr_.75" = placeholder_vec,
-                        "corr_.9" = placeholder_vec)
-    rownames(df_out) = shared_clusters
-    for(cluster in shared_clusters){
-      #come back to this part to figure out how to convert these values into concatenated strings for each output of the clusters denoted.
-      clusts_use = setdiff(shared_clusters, cluster)
-      wasserstein_thresh = as.numeric(quantile(spatial[cluster, clusts_use], probs=c(.5,.75,.9)))
-      corr_vals = c(expression[cluster,clusts_use] >.5, expression[cluster,clusts_use] >.75, expression[cluster,clusts_use] >.9)
-      df_out[cluster,] = c(wasserstein_vals, corr_vals)
-    }
-    write.csv(df_out,paste0(spatial_dir,"/",spatial.data.name,"_cluster_similarity.csv"),row.names = TRUE)
+  spatial = readRDS(paste0(spatial_dir,"/",spatial.data.name,"_wasserstein_dist.RDS"))
+  expression = readRDS(paste0(spatial_dir,"/gene_signature_analysis_summary.RDS"))[["cos_sim_signature"]]
+  shared_clusters = intersect(colnames(spatial), colnames(expression))
+  spatial = spatial[shared_clusters, shared_clusters]
+  expression = expression[shared_clusters, shared_clusters]
+  placeholder_vec = rep("",length(shared_clusters))
+  df_out = data.frame("wasserstein_10" = placeholder_vec,
+                      "wasserstein_25" = placeholder_vec,
+                      "wasserstein_50" = placeholder_vec,
+                      "corr_.9" = placeholder_vec,
+                      "corr_.75" = placeholder_vec,
+                      "corr_.5" = placeholder_vec)
+  rownames(df_out) = shared_clusters
+  for(cluster in shared_clusters){
+    #come back to this part to figure out how to convert these values into concatenated strings for each output of the clusters denoted.
+    clusts_use = setdiff(shared_clusters, cluster)
+    wasserstein_vec = spatial[cluster, clusts_use]
+    wasserstein_thresh = c(0,as.numeric(quantile(wasserstein_vec, probs=c(.1,.25,.5))))
+    wasserstein_strings = sapply(1:3, function(x){paste(clusts_use[wasserstein_vec > wasserstein_thresh[x] & wasserstein_vec <= wasserstein_thresh[x+1]], collapse = ",")})
+    corr_thresh = c(.5, .75, .9, 1)
+    corr_vec = expression[cluster,clusts_use]
+    corr_strings = sapply(3:1, function(x){paste(clusts_use[corr_vec >= corr_thresh[x] & corr_vec < corr_thresh[x+1]], collapse = ",")})
+    df_out[cluster,] = c(wasserstein_strings, corr_strings)
   }
-    
+  write.csv(df_out,paste0(spatial_dir,"/",spatial.data.name,"_cluster_similarity.csv"),row.names = TRUE)    
  }
