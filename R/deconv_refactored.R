@@ -718,27 +718,18 @@ deconvolve_spatial = function(filepath,
   if(naive.clusters){
     descriptor = paste0(descriptor, "_naive")
   }
-  gene_vec = readRDS(paste0(dir_spatial,"/gene_selection_qc_",descriptor,".RDS"))
-  
-  sample.cells = readRDS(paste0(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/sampled_cells_", descriptor,".RDS")))
-  
-  if(naive.clusters){
-    clusters = readRDS(paste0(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/naive_clusters.RDS")))
-  } else if(clusters.from.atlas){
-    clusters = readRDS(paste0(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/object_clusters.RDS")))
-  } else {
-    clusters = readRDS(paste0(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/user_defined_clusters.RDS")))
-  }
-  
-  clust_levels = levels(clusters[sample.cells])
   
   spatial.data = readRDS(paste0(dir_spatial,"/",spatial.data.name,"_exp_qc_",descriptor,".RDS"))
   
   out = readRDS(paste0(dir_spatial, "/gene_signature_output_",descriptor,".RDS"))
   W = out[["W"]]
+  
+  gene_vec = intersect(colnames(W), rownames(spatial.data))
+  spatial.data = spatial.data[gene_vec,]
+  W = W[,gene_vec]
 
   message("Deconvolving spatial data")
-  spatial.data = t(scale(t(as.matrix(spatial.data[gene_vec,])), center = FALSE))
+  spatial.data = t(scale(t(as.matrix(spatial.data)), center = FALSE))
   spatial.data[spatial.data < 0 ] = 0
   spatial.data[is.nan(spatial.data)] = 0
   deconv_h = t(rliger:::solveNNLS(t(W),spatial.data))
@@ -754,8 +745,27 @@ deconvolve_from_w = function(filepath,
                     region,
                     spatial.data.name,
                     W){
-  #TODO
+  set.seed(rand.seed)
   
+  dir_spatial = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
+  
+  spatial.data = readRDS(paste0(dir_spatial,"/",spatial.data.name,"_exp.RDS"))
+  gene_vec = intersect(colnames(W), rownames(spatial.data))
+  
+  spatial.data = spatial.data[gene_vec,]
+  W = W[,gene_vec]
+
+  message("Deconvolving spatial data")
+  spatial.data = t(scale(t(as.matrix(spatial.data)), center = FALSE))
+  spatial.data[spatial.data < 0 ] = 0
+  spatial.data[is.nan(spatial.data)] = 0
+  deconv_h = t(rliger:::solveNNLS(t(W),spatial.data))
+  colnames(deconv_h) = rownames(W)
+  deconv_frac = t(apply(deconv_h, MARGIN = 1, function(x){x/sum(x)}))
+  rownames(deconv_frac) = rownames(deconv_h) = colnames(spatial.data)
+  deconv_frac[is.nan(deconv_frac)] = 0
+  saveRDS(list(raw = deconv_h, proportions = deconv_frac), paste0(dir_spatial,"/deconvolution_output_custom_W.RDS"))
+  message("Deconvolution completed")
 }
 
 #' Convert proportions generated during the deconvolution into cell-type
@@ -777,13 +787,25 @@ deconvolve_from_w = function(filepath,
 assign_single_cells = function(
   filepath,
   region,
-  spatial.data.name){
+  spatial.data.name,
+  rand.seed = 123,
+  clusters.from.atlas = TRUE,
+  naive.clusters = FALSE){
+  
   dir_spatial = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
-  proportions = readRDS(paste0(dir_spatial,"/deconvolution_output.RDS"))[[2]]
+  descriptor = as.character(rand.seed)
+  if(clusters.from.atlas){
+    descriptor = paste0(descriptor, "_object_clusters")
+  }
+  if(naive.clusters){
+    descriptor = paste0(descriptor, "_naive")
+  }
+ 
+  proportions = readRDS(paste0(dir_spatial,"/deconvolution_output_",descriptor,".RDS"))[[2]]
   cell_types = colnames(proportions)
   max = as.factor(apply(proportions, MARGIN = 1, function(x){cell_types[which.max(x)]}))
   names(max) = rownames(proportions)
-  saveRDS(max, paste0(dir_spatial,"/deconvolution_max_factor_assignment.RDS"))
+  saveRDS(max, paste0(dir_spatial,"/deconvolution_max_factor_assignment_",descriptor,".RDS"))
 }
 
 
@@ -893,21 +915,34 @@ generate_loading_gifs = function(
   filepath,
   region,
   spatial.data.name,
+  rand.seed = 123,
+  clusters.from.atlas = TRUE,
+  naive.clusters = FALSE,
   mat.use = "proportions",#raw, proportions, or assignment
   cell.types.plot = NULL,
   dims = c(500, 500)
 ){
   library(rgl)
   dir_spatial = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
+  
+  descriptor = as.character(rand.seed)
+  if(clusters.from.atlas){
+    descriptor = paste0(descriptor, "_object_clusters")
+  }
+  if(naive.clusters){
+    descriptor = paste0(descriptor, "_naive")
+  }
+  
   if(mat.use != "assignment"){
-    loadings = readRDS(paste0(dir_spatial,"/deconvolution_output.RDS"))
+    loadings = readRDS(paste0(dir_spatial,"/deconvolution_output_",descriptor,".RDS"))[[2]]
     cell_types = colnames(loadings[[1]])
   } else {
-    assignments = readRDS(paste0(dir_spatial,"/deconvolution_max_factor_assignment.RDS"))
+    assignments = readRDS(paste0(dir_spatial,"/deconvolution_max_factor_assignment_",descriptor,".RDS"))
     cell_types = levels(assignments)
   }
-  if(!dir.exists(paste0(dir_spatial,"/gifs"))){
-    dir_gifs = paste0(dir_spatial,"/gifs")
+  
+  if(!dir.exists(paste0(dir_spatial,"/",descriptor,"_output"))){
+    dir_gifs = paste0(dir_spatial,"/",descriptor,"_output")
     dir.create(dir_gifs)
     message("Created directory at ", dir_gifs)
   }
