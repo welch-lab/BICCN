@@ -183,7 +183,6 @@ subset_spatial_data = function(filepath,
 sample_single_cell = function(
     filepath,
     region,
-    spatial.data.name,
     n.cells = 500,
     known.annotations = NULL,
     naive.clusters = FALSE,
@@ -276,83 +275,43 @@ sample_single_cell = function(
      saveRDS(clusters, paste0(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/user_defined_clusters.RDS")))
   }
           
-          
-  if(!is.null(spatial.data.name)){
-    dir_spatial = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
-    if(!dir.exists(dir_spatial)){
-      if(naive.clusters){
-        dir_naive = paste0(dir_spatial, "_naive")
-        dir.create(dir_naive)
-        message("Created directory at ", dir_naive)
-        file.copy(paste0(dir_spatial,"/",spatial.data.name,"_exp.RDS"), paste0(dir_naive,"/",spatial.data.name,"_naive_exp.RDS"))
-        file.copy(paste0(dir_spatial, "/",spatial.data.name,"_coords.RDS"), paste0(dir_naive,"/",spatial.data.name,"_naive_coords.RDS"))
-        spatial.data.name = paste0(spatial.data.name, "_naive")
-        dir_spatial = dir_naive
-      } else {
-        error("No spatial data directory found at ",dir_spatial, ". use `save_spatial_data` to put data in the specified folder")
-      }
-    }
-    spatial.data = readRDS(paste0(dir_spatial,"/",spatial.data.name,"_exp.RDS"))
-    
-    shared_genes = intersect(rownames(spatial.data), Reduce(intersect, liger_genes))
-    
-    norm.data = lapply(1:length(rna_files), function(i){
-      n = rna_files[i]
-      out_mat = rliger:::Matrix.column_norm(Matrix::sparseMatrix(
-        dims = c(length(liger_genes[[i]]), length(liger_cells[[i]])),
-        i = as.numeric(rhdf5::h5read(n, "/matrix/indices")+1),
-        p = as.numeric(rhdf5::h5read(n, "/matrix/indptr")),
-        x = as.numeric(rhdf5::h5read(n, "/matrix/data"))
-      ))
-      rownames(out_mat) = liger_genes[[i]]
-      colnames(out_mat) = liger_cells[[i]]
-      out_mat = out_mat[liger_genes[[i]] %in% shared_genes, liger_cells[[i]] %in% sample.cells]
-      gene_means = rhdf5::h5read(rna_files[i], "gene_means")[liger_genes[[i]] %in% shared_genes]
-      gene_sum_sq = rhdf5::h5read(rna_files[i], "gene_sum_sq")[liger_genes[[i]] %in% shared_genes]
-      root_mean_sum_sq = sqrt(gene_sum_sq/(ncol(out_mat)-1))
-      out_mat= sweep(out_mat, 1, root_mean_sum_sq, "/") #liger_cells[[i]] %in% sample.cells
-      out_mat[is.na(out_mat)] = 0
-      out_mat[out_mat == Inf] = 0
-      return(out_mat)
-    })
-    norm.data = norm.data[!sapply(norm.data, function(x){length(x) == 0})]
-    saveRDS(norm.data, paste0(dir_spatial,"/",spatial.data.name,"_",descriptor,"_norm_data.RDS"))
-  }
   
+  shared_genes = Reduce(intersect, liger_genes)
+
+  norm.data = lapply(1:length(rna_files), function(i){
+    n = rna_files[i]
+    out_mat = rliger:::Matrix.column_norm(Matrix::sparseMatrix(
+      dims = c(length(liger_genes[[i]]), length(liger_cells[[i]])),
+      i = as.numeric(rhdf5::h5read(n, "/matrix/indices")+1),
+      p = as.numeric(rhdf5::h5read(n, "/matrix/indptr")),
+      x = as.numeric(rhdf5::h5read(n, "/matrix/data"))
+    ))
+    rownames(out_mat) = liger_genes[[i]]
+    colnames(out_mat) = liger_cells[[i]]
+    out_mat = out_mat[liger_genes[[i]] %in% shared_genes, liger_cells[[i]] %in% sample.cells]
+    gene_means = rhdf5::h5read(rna_files[i], "gene_means")[liger_genes[[i]] %in% shared_genes]
+    gene_sum_sq = rhdf5::h5read(rna_files[i], "gene_sum_sq")[liger_genes[[i]] %in% shared_genes]
+    root_mean_sum_sq = sqrt(gene_sum_sq/(ncol(out_mat)-1))
+    out_mat= sweep(out_mat, 1, root_mean_sum_sq, "/") #liger_cells[[i]] %in% sample.cells
+    out_mat[is.na(out_mat)] = 0
+    out_mat[out_mat == Inf] = 0
+    return(out_mat)
+  })
+  norm.data = norm.data[!sapply(norm.data, function(x){length(x) == 0})]
+  saveRDS(norm.data, paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",descriptor,"_norm_data.RDS"))
 }
 
-select_spatial_genes = function(
+select_defining_genes = function(
     filepath,
     region,
-    spatial.data.name,
-    use.sampling = NULL,###
     clusters.from.atlas = TRUE,
     naive.clusters = FALSE,
-    z = 1,
-    n.umi.thresh = 150,
-    n.cells = 500,
     deconv.gene.num = 2000,
     gene.num.tol = 50,
     rand.seed = 123
     ){
   set.seed(rand.seed)
-  
-  dir_spatial = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
-  
-  if(!dir.exists(dir_new)){
-    if(naive.clusters){
-      dir_naive = paste0(dir_spatial, "_naive")
-      dir.create(dir_naive)
-      message("Created directory at ", dir_naive)
-      file.copy(paste0(dir_spatial,"/",spatial.data.name,"_exp.RDS"), paste0(dir_naive,"/",spatial.data.name,"_naive_exp.RDS"))
-      file.copy(paste0(dir_spatial, "/",spatial.data.name,"_coords.RDS"), paste0(dir_naive,"/",spatial.data.name,"_naive_coords.RDS"))
-      spatial.data.name = paste0(spatial.data.name, "_naive")
-      dir_spatial = dir_naive
-    } else {
-      error("No spatial data directory found at ",dir_spatial, ". use `save_spatial_data` to put data in the specified folder")
-    }
-  }
-  
+    
   descriptor = as.character(rand.seed)
   
   if(clusters.from.atlas){
@@ -361,50 +320,9 @@ select_spatial_genes = function(
   if(naive.clusters){
     descriptor = paste0(descriptor, "_naive")
   }
+      
+  norm.data = readRDS(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",descriptor,"_norm_data.RDS"))
   
-  sample.cells = readRDS(paste0(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/sampled_cells_", descriptor,".RDS")))
-  
-  object_path = paste0(filepath,"/", region, "/Analysis1_", region, "/onlineINMF_",region, "_object.RDS" )
-  object = readRDS(object_path)
-  
-  h5_files = sapply(1:length(object@norm.data), function(i){object@h5file.info[[i]]$file.path})
-  rna_files = grep(paste0("_(sc10Xv3_|smartseq_|sn10Xv3_|sc10Xv2_)"), h5_files, value = TRUE)
-  
-  liger_genes = lapply(rna_files, function(i){
-    rhdf5::h5read(i, "/matrix/features")[[1]] #change, extract from H5
-  })
-  
-  spatial.data = readRDS(paste0(dir_spatial,"/",spatial.data.name,"_exp.RDS"))
-  
-  shared_genes = intersect(rownames(spatial.data), Reduce(intersect, liger_genes))
-  
-  
-  if(is.null(use.sampling)){
-    norm.data = readRDS(paste0(dir_spatial,"/",spatial.data.name,"_",descriptor,"_norm_data.RDS"))
-  } else {
-    sample.cells = readRDS(use.sampling)
-    norm.data = lapply(1:length(rna_files), function(i){
-      n = rna_files[i]
-      out_mat = rliger:::Matrix.column_norm(Matrix::sparseMatrix(
-        dims = c(length(liger_genes[[i]]), length(liger_cells[[i]])),
-        i = as.numeric(rhdf5::h5read(n, "/matrix/indices")+1),
-        p = as.numeric(rhdf5::h5read(n, "/matrix/indptr")),
-        x = as.numeric(rhdf5::h5read(n, "/matrix/data"))
-      ))
-      rownames(out_mat) = liger_genes[[i]]
-      colnames(out_mat) = liger_cells[[i]]
-      out_mat = out_mat[liger_genes[[i]] %in% shared_genes, liger_cells[[i]] %in% sample.cells]
-      gene_means = rhdf5::h5read(rna_files[i], "gene_means")[liger_genes[[i]] %in% shared_genes]
-      gene_sum_sq = rhdf5::h5read(rna_files[i], "gene_sum_sq")[liger_genes[[i]] %in% shared_genes]
-      root_mean_sum_sq = sqrt(gene_sum_sq/(ncol(out_mat)-1))
-      out_mat= sweep(out_mat, 1, root_mean_sum_sq, "/") #liger_cells[[i]] %in% sample.cells
-      out_mat[is.na(out_mat)] = 0
-      out_mat[out_mat == Inf] = 0
-      return(out_mat)
-    })
-    norm.data = norm.data[!sapply(norm.data, function(x){length(x) == 0})]
-    saveRDS(norm.data, paste0(dir_spatial,"/",spatial.data.name,"_",descriptor,"_norm_data.RDS"))
-  }
   message("Selecting genes with the KW test")
   
   chisq_list = list()
@@ -419,7 +337,7 @@ select_spatial_genes = function(
   high = 1
   low = 0
   
-  gene_vec = shared_genes
+  gene_vec = rownames(norm.data[[1]])
   for(i in 1:length(chisq_list)){
     chisq_list[[i]][is.na(chisq_list[[i]])] = 0
     gene_vec = intersect(gene_vec, names(chisq_list[[i]][chisq_list[[i]] > quantile(chisq_list[[i]], var_thresh_start)]))
@@ -521,8 +439,9 @@ learn_gene_signatures =function(filepath,
     descriptor = paste0(descriptor, "_naive")
   }
   
-  norm.data = saveRDS(paste0(dir_spatial,"/",spatial.data.name,"_",descriptor,"_norm_data.RDS"))
+  norm.data = readRDS(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",descriptor,"_norm_data.RDS"))
   gene_vec = readRDS(paste0(dir_spatial,"/gene_selection_qc_",descriptor,".RDS"))
+  gene_vec = intersect(gene_vec, rownames(norm.data[[1]]))
   
   sample.cells = readRDS(paste0(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/sampled_cells_", descriptor,".RDS")))
   
@@ -706,7 +625,8 @@ deconvolve_spatial = function(filepath,
                              spatial.data.name,
                              rand.seed = 123,
                              clusters.from.atlas = TRUE,
-                             naive.clusters = FALSE){
+                             naive.clusters = FALSE,
+                             W = NULL){
   set.seed(rand.seed)
   
   dir_spatial = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
@@ -722,8 +642,13 @@ deconvolve_spatial = function(filepath,
   
   spatial.data = readRDS(paste0(dir_spatial,"/",spatial.data.name,"_exp_qc_",descriptor,".RDS"))
   
-  out = readRDS(paste0(dir_spatial, "/gene_signature_output_",descriptor,".RDS"))
-  W = out[["W"]]
+  if(is.null(W)){
+    out = readRDS(paste0(dir_spatial, "/gene_signature_output_",descriptor,".RDS"))
+    W = out[["W"]]
+  } else {
+    W = readRDS(W)
+    descriptor = paste0(rand.seed, "_custom_w")
+  }
   
   gene_vec = intersect(colnames(W), rownames(spatial.data))
   spatial.data = spatial.data[gene_vec,]
@@ -740,33 +665,9 @@ deconvolve_spatial = function(filepath,
   deconv_frac[is.nan(deconv_frac)] = 0
   saveRDS(list(raw = deconv_h, proportions = deconv_frac), paste0(dir_spatial,"/deconvolution_output_",descriptor,".RDS"))
   message("Deconvolution completed")
-}
+  
+  dir.create(paste0(dir_spatial,"/",descriptor,"_output"))
 
-deconvolve_from_w = function(filepath,
-                    region,
-                    spatial.data.name,
-                    W){
-  set.seed(rand.seed)
-  
-  dir_spatial = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
-  
-  spatial.data = readRDS(paste0(dir_spatial,"/",spatial.data.name,"_exp.RDS"))
-  gene_vec = intersect(colnames(W), rownames(spatial.data))
-  
-  spatial.data = spatial.data[gene_vec,]
-  W = W[,gene_vec]
-
-  message("Deconvolving spatial data")
-  spatial.data = t(scale(t(as.matrix(spatial.data)), center = FALSE))
-  spatial.data[spatial.data < 0 ] = 0
-  spatial.data[is.nan(spatial.data)] = 0
-  deconv_h = t(rliger:::solveNNLS(t(W),spatial.data))
-  colnames(deconv_h) = rownames(W)
-  deconv_frac = t(apply(deconv_h, MARGIN = 1, function(x){x/sum(x)}))
-  rownames(deconv_frac) = rownames(deconv_h) = colnames(spatial.data)
-  deconv_frac[is.nan(deconv_frac)] = 0
-  saveRDS(list(raw = deconv_h, proportions = deconv_frac), paste0(dir_spatial,"/deconvolution_output_custom_W.RDS"))
-  message("Deconvolution completed")
 }
 
 #' Convert proportions generated during the deconvolution into cell-type
@@ -925,6 +826,13 @@ generate_loading_gifs = function(
 ){
   library(rgl)
   dir_spatial = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
+  dir_output = paste0(dir_spatial,"/",descriptor,"_output")
+
+  dir_gifs = paste0(dir_output,"/plots")
+  if(!dir.exists(dir_gifs)){
+    dir.create(paste0(dir_gifs))
+    message("Created directory at ", dir_gifs)
+  }
   
   descriptor = as.character(rand.seed)
   if(clusters.from.atlas){
@@ -935,18 +843,14 @@ generate_loading_gifs = function(
   }
   
   if(mat.use != "assignment"){
-    loadings = readRDS(paste0(dir_spatial,"/deconvolution_output_",descriptor,".RDS"))[[2]]
+    loadings = readRDS(paste0(dir_spatial,"/deconvolution_output_",descriptor,".RDS"))
     cell_types = colnames(loadings[[1]])
   } else {
     assignments = readRDS(paste0(dir_spatial,"/deconvolution_max_factor_assignment_",descriptor,".RDS"))
     cell_types = levels(assignments)
   }
   
-  if(!dir.exists(paste0(dir_spatial,"/",descriptor,"_output"))){
-    dir_gifs = paste0(dir_spatial,"/",descriptor,"_output")
-    dir.create(dir_gifs)
-    message("Created directory at ", dir_gifs)
-  }
+  
   grDevices::palette(viridis::viridis(option="A",n=50,direction = -1))
   if(is.null(cell.types.plot)){
     cell.types.plot = cell_types
@@ -965,7 +869,7 @@ generate_loading_gifs = function(
       plot3d(coords[,1],coords[,2],coords[,3],col = colors_view,aspect=c(67,41,58),xlab="Anterior-Posterior",ylab="Inferior-Superior",zlab="Left-Right",size=5, add = TRUE)
       decorate3d(xlab = colnames(coords)[1], ylab = colnames(coords)[2],zlab = colnames(coords)[3], box = FALSE, axes = FALSE)
       axes3d(c("x--","y--","z--"))#axes3d(c("x--","y--","z--"))
-      movie3d(spin3d(axis = c(0, 0, 1)), duration = 20, movie = paste0(dir_gifs,"/", region, "_",cell_type_consistent,"_spatial_summary"))
+      movie3d(spin3d(axis = c(0, 0, 1)), duration = 20, movie = paste0(dir_gifs,"/", region, "_",cell_type_consistent,"_spatial_summary_",descriptor))
     } else {
       colors_view = (assignments == cell_type)*20 + 1
       try(rgl.close(), silent = TRUE)
@@ -973,7 +877,7 @@ generate_loading_gifs = function(
       plot3d(coords[,1],coords[,2],coords[,3],col = colors_view,aspect=c(67,41,58),xlab="Anterior-Posterior",ylab="Inferior-Superior",zlab="Left-Right",size=1, type = "p", add = TRUE)
       decorate3d(xlab = colnames(coords)[1], ylab = colnames(coords)[2],zlab = colnames(coords)[3], box = FALSE, axes = FALSE)
       axes3d(c("x--","y--","z--"))#axes3d(c("x--","y--","z--"))
-      movie3d(spin3d(axis = c(0, 0, 1)), duration = 20, movie = paste0(dir_gifs, "/", region, "_",cell_type_consistent,"_spatial_summary"))
+      movie3d(spin3d(axis = c(0, 0, 1)), duration = 20, movie = paste0(dir_gifs, "/", region, "_",cell_type_consistent,"_spatial_summary_",descriptor))
     }
 
   }
@@ -1023,14 +927,23 @@ summarize_by_layer = function(
   genes.use = NULL){
   
   dir_spatial = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
+  dir_output = paste0(dir_spatial,"/",descriptor,"_output")
+
+  descriptor = as.character(rand.seed)
+  if(clusters.from.atlas){
+    descriptor = paste0(descriptor, "_object_clusters")
+  }
+  if(naive.clusters){
+    descriptor = paste0(descriptor, "_naive")
+  }
   
   if(mat.use == "assignment"){
-    assignments = readRDS(paste0(dir_spatial,"/deconvolution_max_factor_assignment.RDS"))
+    assignments = readRDS(paste0(dir_spatial,"/deconvolution_max_factor_assignment_",descriptor,".RDS"))
     sub_vec = rep(0,nlevels(assignments))
     loadings = Reduce(rbind, lapply(assignments, function(x){subbed_vec = sub_vec; subbed_vec[as.numeric(x)] = 1; return(subbed_vec)}))
     colnames(loadings) = levels(assignments)
   } else {
-    loadings = readRDS(paste0(dir_spatial,"/deconvolution_output.RDS"))[[mat.use]]
+    loadings = readRDS(paste0(dir_spatial,"/deconvolution_output_",descriptor,".RDS"))[[mat.use]]
   }
 
   if(use.cell.types){
@@ -1053,7 +966,7 @@ summarize_by_layer = function(
         }
       }
     }
-    saveRDS(cell.type.matrix, paste0(dir_spatial,"/cell_type_layer_summary.RDS"))
+    saveRDS(cell.type.matrix, paste0(dir_output,"/cell_type_layer_summary_",descriptor,".RDS"))
   }
   if(!is.null(genes.use)){
     spatial.data = readRDS(paste0(dir_spatial,"/",spatial.data.name,"_exp.RDS"))
@@ -1074,10 +987,10 @@ summarize_by_layer = function(
         }
       }
     }
-    saveRDS(cell.type.matrix, paste0(filepath,"/",  region,"/", region,"_Deconvolution_Output/",spatiaal.data.name,"gene_layer_summary.RDS"))
+    saveRDS(cell.type.matrix, paste0(dir_output,"/",spatial.data.name,"gene_layer_summary_",descriptor,".RDS"))
   }
   if(plot){
-    dir_plots = paste0(dir_spatial,"/plots")
+    dir_plots = paste0(dir_output,"/plots")
     if(!dir.exists(dir_plots)){
       dir.create(paste0(dir_plots))
       message("Created directory at ", dir_plots)
@@ -1103,7 +1016,7 @@ summarize_by_layer = function(
 
       print(overall.cell.type.plot)
 
-      ggplot2::ggsave(paste0(dir_plots, "/cell_type_layer_distribution.PNG"),
+      ggplot2::ggsave(paste0(dir_plots, "/cell_type_layer_distribution_",descriptor,".PNG"),
                       overall.cell.type.plot,
                       width = 1000,
                       height = 800,
@@ -1121,7 +1034,7 @@ summarize_by_layer = function(
         ggplot2::xlab("Layer") +
         ggplot2::ylab("Value") +
         ggplot2::ggtitle(paste0("Distribution of ",cell_type_consistent, " cells by layer"))
-        ggplot2::ggsave(paste0(dir_plots, "/",cell_type_consistent,"_layer_distribution.PNG"),
+        ggplot2::ggsave(paste0(dir_plots, "/",cell_type_consistent,"_layer_distribution_",descriptor,".PNG"),
                       by.cell.type.plot,
                       width = 500,
                       height = 400,
@@ -1148,7 +1061,7 @@ summarize_by_layer = function(
 
         print(overall.gene.plot)
 
-        ggplot2::ggsave(paste0(dir_plots, "/gene_layer_distribution.PNG"),
+        ggplot2::ggsave(paste0(dir_plots, "/gene_layer_distribution_",descriptor,".PNG"),
                         overall.gene.plot,
                         width = 1000,
                         height = 800,
@@ -1166,7 +1079,7 @@ summarize_by_layer = function(
           ggplot2::xlab("Layer") +
           ggplot2::ylab("Value") +
           ggplot2::ggtitle(paste0("Distribution of ",i, " expression by layer"))
-        ggplot2::ggsave(paste0(dir_plots, "/",gene_consistent,"_gene_layer_distribution.PNG"),
+        ggplot2::ggsave(paste0(dir_plots, "/",gene_consistent,"_gene_layer_distribution_",descriptor,".PNG"),
                         by.gene.plot,
                         width = 500,
                         height = 400,
