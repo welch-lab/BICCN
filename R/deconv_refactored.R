@@ -412,7 +412,7 @@ qc_spatial_data = function(
   }
   
   saveRDS(spatial.data, paste0(dir_spatial,"/",spatial.data.name,"_exp_qc_",descriptor,".RDS"))
-  saveRDS(rownames(spatial.data.name), paste0(dir_spatial,"/gene_selection_qc_",descriptor,".RDS"))
+  saveRDS(rownames(spatial.data), paste0(dir_spatial,"/gene_selection_qc_",descriptor,".RDS"))
 }
 
 learn_gene_signatures =function(filepath,
@@ -428,8 +428,6 @@ learn_gene_signatures =function(filepath,
                               naive.clusters = FALSE){
   set.seed(rand.seed)
   
-  dir_spatial = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
-  
   descriptor = as.character(rand.seed)
   
   if(clusters.from.atlas){
@@ -437,7 +435,10 @@ learn_gene_signatures =function(filepath,
   }
   if(naive.clusters){
     descriptor = paste0(descriptor, "_naive")
+    spatial.data.name = paste0(spatial.data.name, "_naive")
   }
+  
+  dir_spatial = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
   
   norm.data = readRDS(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",descriptor,"_norm_data.RDS"))
   gene_vec = readRDS(paste0(dir_spatial,"/gene_selection_qc_",descriptor,".RDS"))
@@ -628,9 +629,7 @@ deconvolve_spatial = function(filepath,
                              naive.clusters = FALSE,
                              W = NULL){
   set.seed(rand.seed)
-  
-  dir_spatial = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
-  
+    
   descriptor = as.character(rand.seed)
   
   if(clusters.from.atlas){
@@ -638,7 +637,10 @@ deconvolve_spatial = function(filepath,
   }
   if(naive.clusters){
     descriptor = paste0(descriptor, "_naive")
+    spatial.data.name = paste0(spatial.data.name, "_naive")
   }
+  
+  dir_spatial = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
   
   spatial.data = readRDS(paste0(dir_spatial,"/",spatial.data.name,"_exp_qc_",descriptor,".RDS"))
   
