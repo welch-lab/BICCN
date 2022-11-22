@@ -195,10 +195,10 @@ sample_single_cell = function(
   
   message("Loading Data")
   
-  object_path = paste0(filepath,"/", region, "/Analysis1_", region, "/onlineINMF_",region, "_object.RDS" )
-  object = readRDS(object_path)
+  object_paths = paste0(filepath,"/", region, "/Analysis",c(2,4,5),"_", region, "/onlineINMF_",region, "_object.RDS" )
+  objects = lapply(object_paths, function(object_path){readRDS(object_path)})
   
-  h5_files = sapply(1:length(object@norm.data), function(i){object@h5file.info[[i]]$file.path})
+  h5_files = Reduce(c, lapply(objects, function(object){sapply(1:length(object@norm.data), function(i){object@h5file.info[[i]]$file.path})}))
   rna_files = grep(paste0("_(sc10Xv3_|smartseq_|sn10Xv3_|sc10Xv2_)"), h5_files, value = TRUE)
   
   liger_cells = lapply(rna_files, function(i){
@@ -316,7 +316,7 @@ sample_single_cell = function(
       return(out_mat)
     })
     norm.data = norm.data[!sapply(norm.data, function(x){length(x) == 0})]
-    saveRDS(norm.data, paste0(dir_spatial,"/",spatial.data.name,"_",descriptor,"norm_data.RDS"))
+    saveRDS(norm.data, paste0(dir_spatial,"/",spatial.data.name,"_",descriptor,"_norm_data.RDS"))
   }
   
 }
@@ -380,8 +380,9 @@ select_spatial_genes = function(
   
   
   if(is.null(use.sampling)){
-    norm.data = readRDS(paste0(dir_spatial,"/",spatial.data.name,"_",descriptor,"norm_data.RDS"))
+    norm.data = readRDS(paste0(dir_spatial,"/",spatial.data.name,"_",descriptor,"_norm_data.RDS"))
   } else {
+    sample.cells = readRDS(use.sampling)
     norm.data = lapply(1:length(rna_files), function(i){
       n = rna_files[i]
       out_mat = rliger:::Matrix.column_norm(Matrix::sparseMatrix(
@@ -402,7 +403,7 @@ select_spatial_genes = function(
       return(out_mat)
     })
     norm.data = norm.data[!sapply(norm.data, function(x){length(x) == 0})]
-    saveRDS(norm.data, paste0(dir_spatial,"/",spatial.data.name,"_",descriptor,"norm_data.RDS"))
+    saveRDS(norm.data, paste0(dir_spatial,"/",spatial.data.name,"_",descriptor,"_norm_data.RDS"))
   }
   message("Selecting genes with the KW test")
   
@@ -520,7 +521,7 @@ learn_gene_signatures =function(filepath,
     descriptor = paste0(descriptor, "_naive")
   }
   
-  norm.data = saveRDS(paste0(dir_spatial,"/",spatial.data.name,"_",descriptor,"norm_data.RDS"))
+  norm.data = saveRDS(paste0(dir_spatial,"/",spatial.data.name,"_",descriptor,"_norm_data.RDS"))
   gene_vec = readRDS(paste0(dir_spatial,"/gene_selection_qc_",descriptor,".RDS"))
   
   sample.cells = readRDS(paste0(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/sampled_cells_", descriptor,".RDS")))
