@@ -377,8 +377,6 @@ qc_spatial_data = function(
 ){
   set.seed(rand.seed)
   
-  dir_spatial = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
-  
   descriptor = as.character(rand.seed)
   
   if(clusters.from.atlas){
@@ -386,11 +384,16 @@ qc_spatial_data = function(
   }
   if(naive.clusters){
     descriptor = paste0(descriptor, "_naive")
+    spatial.data.name = paste0(spatial.data.name, "_naive")
   }
+  
+  dir_spatial = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
+  
+  
   
   spatial.data = readRDS(paste0(dir_spatial,"/",spatial.data.name,"_exp.RDS"))
   gene_data = readRDS(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/gene_selection_",descriptor,".RDS"))
-  gene_vec = gene_data[[3]]
+  gene_vec = gene_data[[2]]
   
   
   if(!slide.seq){
