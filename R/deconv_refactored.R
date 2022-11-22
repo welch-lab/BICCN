@@ -373,9 +373,6 @@ qc_spatial_data = function(
     naive.clusters = FALSE,
     z = 1,
     n.umi.thresh = 150,
-    n.cells = 500,
-    deconv.gene.num = 2000,
-    gene.num.tol = 50,
     rand.seed = 123
 ){
   set.seed(rand.seed)
