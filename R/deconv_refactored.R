@@ -1399,10 +1399,28 @@ calculate_wasserstein = function(
 refine_cluster_similarity = function(
     filepath,
     region,
-    spatial.data.name){
-  spatial_dir = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
-  spatial = readRDS(paste0(spatial_dir,"/",spatial.data.name,"_wasserstein_dist.RDS"))
-  expression = readRDS(paste0(spatial_dir,"/gene_signature_analysis_summary.RDS"))[["cos_sim_signature"]]
+    spatial.data.name,
+    rand.seed){
+  library(ggplot2)
+  
+  set.seed(rand.seed)
+  
+  descriptor = as.character(rand.seed)
+  
+  if(clusters.from.atlas){
+    descriptor = paste0(descriptor, "_object_clusters")
+  }
+  if(naive.clusters){
+    descriptor = paste0(descriptor, "_naive")
+    spatial.data.name = paste0(spatial.data.name, "_naive")
+  }
+  
+  dir_spatial = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
+  dir_output = paste0(dir_spatial,"/",descriptor,"_output")
+  
+  spatial = readRDS(paste0(dir_out,"/wasserstein_distance_mat_",descriptor,".RDS"))
+  
+  expression = readRDS(paste0(dir_out,"/gene_signature_analysis_summary_",descriptor,".RDS"))[["cos_sim_signature"]]
   shared_clusters = intersect(colnames(spatial), colnames(expression))
   spatial = spatial[shared_clusters, shared_clusters]
   expression = expression[shared_clusters, shared_clusters]
@@ -1425,5 +1443,57 @@ refine_cluster_similarity = function(
     corr_strings = sapply(3:1, function(x){paste(clusts_use[corr_vec >= corr_thresh[x] & corr_vec < corr_thresh[x+1]], collapse = ",")})
     df_out[cluster,] = c(wasserstein_strings, corr_strings)
   }
-  write.csv(df_out,paste0(spatial_dir,"/",spatial.data.name,"_cluster_similarity.csv"),row.names = TRUE)    
- }
+  write.csv(df_out,paste0(dir_out,"/",spatial.data.name,"_cluster_similarity_",descriptor,".csv"),row.names = TRUE)    
+}
+
+
+threshold_similar_clusts = function(
+    filepath,
+    region,
+    spatial.data.name,
+    clust.compare,
+    quantile.wasserstein = .1,
+    correlation.val = .9,
+    rand.seed = 123){
+  library(ggplot2)
+  
+  set.seed(rand.seed)
+  
+  descriptor = as.character(rand.seed)
+  
+  if(clusters.from.atlas){
+    descriptor = paste0(descriptor, "_object_clusters")
+  }
+  if(naive.clusters){
+    descriptor = paste0(descriptor, "_naive")
+    spatial.data.name = paste0(spatial.data.name, "_naive")
+  }
+  
+  dir_spatial = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
+  dir_output = paste0(dir_spatial,"/",descriptor,"_output")
+  
+  spatial = readRDS(paste0(dir_out,"/wasserstein_distance_mat_",descriptor,".RDS"))
+  
+  expression = readRDS(paste0(dir_out,"/gene_signature_analysis_summary_",descriptor,".RDS"))[["cos_sim_signature"]]
+  shared_clusters = intersect(colnames(spatial), colnames(expression))
+  clusts_use = setdiff(shared_clusters, cluster)
+  spatial = spatial[cluster, clusts_use]
+  expression = expression[cluster, clusts_use]
+  
+  wasserstein_thresh = clusts_use[wasserstein_vec <= quantile(wasserstein_vec, probs=quantile.wasserstein)[1]]
+  corr_thresh = clusts_use[expression >= correlation.val]
+  thresh_clusts = intersect(wasserstein_thresh, corr_thresh)
+  print("Clusters meeting provided thresholds:")
+  print(thresh_clusts)
+  
+  thresh_file = paste0(dir_output, "/thresh_clusters_",descriptor,".RDS")
+  if(file.exists(thresh_file)){
+    thresh_list = readRDS(thresh_file)
+    thresh_file[[paste0("wass_",quantile.wasserstein,"_corr_",correlation.val)]] = thresh_clusts
+    saveRDS(thresh_list, thresh_file)
+  } else {
+    thresh_list = list()
+    thresh_file[[paste0("wass_",quantile.wasserstein,"_corr_",correlation.val)]] = thresh_clusts
+    saveRDS(thresh_list, thresh_file)
+  }
+}
