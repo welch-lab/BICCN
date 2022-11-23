@@ -831,6 +831,7 @@ generate_loading_gifs = function(
   cell.types.plot = NULL,
   dims = c(500, 500)
 ){
+  set.seed(rand.seed)
   library(rgl)
   dir_spatial = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
   dir_output = paste0(dir_spatial,"/",descriptor,"_output")
@@ -932,7 +933,10 @@ summarize_by_layer = function(
   mat.use = "proportions",#"assignment
   use.cell.types = TRUE,
   cell.types.use = NULL,
-  genes.use = NULL){
+  genes.use = NULL,
+  rand.seed = 123){
+  
+  set.seed(rand.seed)
   
   dir_spatial = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
   dir_output = paste0(dir_spatial,"/",descriptor,"_output")
@@ -1102,7 +1106,8 @@ analyze_gene_signatures = function(filepath,
                                    region,
                                    spatial.data.name,
                                    plot = FALSE,
-                                   mat.use = "proportions"){
+                                   mat.use = "proportions",
+                                   rand.seed = 123){
   
   library(ggplot2)
   
@@ -1186,7 +1191,8 @@ analyze_spatial_correlation = function(filepath,
                                        region,
                                        spatial.data.name,
                                        plot = FALSE,
-                                       mat.use = "proportions"){
+                                       mat.use = "proportions",
+                                       rand.seed = 123){
   
   library(ggplot2)
   
@@ -1277,7 +1283,8 @@ calculate_wasserstein = function(
     cell.types.use = NULL,
     genes.use = NULL,
     p = 2,
-    plot = FALSE){
+    plot = FALSE,
+    rand.seed = 123){
   
   library(ggplot2)
   
