@@ -974,7 +974,7 @@ summarize_by_layer = function(
         }
       }
     }
-    saveRDS(cell.type.matrix, paste0(dir_output,"/cell_type_layer_summary_",descriptor,".RDS"))
+    saveRDS(cell.type.matrix, paste0(dir_output,"/",spatial.data.name,"_cell_type_layer_summary_",descriptor,".RDS"))
   }
   if(!is.null(genes.use)){
     spatial.data = readRDS(paste0(dir_spatial,"/",spatial.data.name,"_exp.RDS"))
@@ -995,7 +995,7 @@ summarize_by_layer = function(
         }
       }
     }
-    saveRDS(cell.type.matrix, paste0(dir_output,"/",spatial.data.name,"gene_layer_summary_",descriptor,".RDS"))
+    saveRDS(gene.matrix, paste0(dir_output,"/",spatial.data.name,"gene_layer_summary_",descriptor,".RDS"))
   }
   if(plot){
     dir_plots = paste0(dir_output,"/plots")
@@ -1098,393 +1098,173 @@ summarize_by_layer = function(
   }
 }
 
-#' Analyze gene signatures, resulting in analysis of similarity between cell
-#' types as well as of covariance in cell type distribution
-#'
-#' @param filepath Path to directory within which the atlas structure was generated
-#' @param region A string corresponding to the name of an anatomical region
-#' @param spatial.data.name A string, the name of the spatial dataset
-#' @param plot A logical, corresponding with if to make heaatmaps and dendrograms
-#'   from the generated data
-#' @param mat.use A string, either "raw" or "proportions"
-#'   corresponding to the raw cell type loadings or the normalized loadings
-#'
-#'
-#' @return nothing
-#'
-#' @import ggplot2, lsa, ggdendro
-#'
-#' @export
-#' @examples
-#' \dontrun{
-#'
-#' }
-
 analyze_gene_signatures = function(filepath,
                                    region,
                                    spatial.data.name,
                                    plot = FALSE,
                                    mat.use = "proportions"){
-
+  
   library(ggplot2)
-  dir_deconv = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/")
-  dir_spatial = paste0(dir_deconv,spatial.data.name)
-
-   
-  if(!grepl("naive", spatial.data.name, fixed = TRUE)){
-      gene_sigs = readRDS(paste0(dir_deconv, "gene_signature_output.RDS"))
-      genes = readRDS(paste0(dir_deconv, "gene_selection_output.RDS"))[[2]]
-  } else {
-      gene_sigs = readRDS(paste0(dir_deconv, "gene_signature_output_naive.RDS"))
-      genes = readRDS(paste0(dir_deconv, "gene_selection_output_naive.RDS"))[[2]]
+  
+  set.seed(rand.seed)
+  
+  descriptor = as.character(rand.seed)
+  
+  if(clusters.from.atlas){
+    descriptor = paste0(descriptor, "_object_clusters")
   }
+  if(naive.clusters){
+    descriptor = paste0(descriptor, "_naive")
+    spatial.data.name = paste0(spatial.data.name, "_naive")
+  }
+  
+  dir_spatial = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
+  dir_output = paste0(dir_spatial,"/",descriptor,"_output")
+  
+  gene_sigs = readRDS(paste0(dir_spatial, "/gene_signature_output_",descriptor,".RDS"))
+  genes = saveRDS(paste0(dir_spatial,"/gene_selection_qc_",descriptor,".RDS"))
+  
   signatures = gene_sigs$W
-  rownames(signatures) = colnames(gene_sigs$H[[1]])
-  colnames(signatures) = genes
   signatures = signatures[rowSums(signatures) != 0 & rownames(signatures) != "",]
-
+  
   cos_sim = lsa::cosine(t(signatures))
-
-  heatmap_df = data.frame(expand.grid(Cell_Type_1 = rownames(cos_sim),
-                                      Cell_Type_2 = colnames(cos_sim)),
-                          cos_sim = as.vector(cos_sim))
-  heatmap_plot = ggplot2::ggplot(heatmap_df, ggplot2::aes(x = Cell_Type_1, y = Cell_Type_2, fill = cos_sim)) +
-    ggplot2::labs(y = "Cell Types", fill = "", title = "Cosine Similarity for Cell Type Signatures") +
-    ggplot2::theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
-                   axis.title.x = ggplot2::element_blank(),
-                   text = ggplot2::element_text(size = 8),
-                   axis.text = ggplot2::element_text(size = 5),
-                   legend.title = ggplot2::element_blank(),
-                   legend.text = ggplot2::element_text(size = 3),
-                   legend.key.height = ggplot2::unit(3, 'mm'),
-                   legend.key.width = ggplot2::unit(1, 'mm')) +
-    ggplot2::geom_tile() +
-    viridis::scale_fill_viridis()
-
+  
+  
   cos_dist= as.dist(1- cos_sim)
   hierarchical_clust <- hclust(cos_dist, method = "ward.D2")
-
-  dendro_plot = ggdendro::ggdendrogram(hierarchical_clust, rotate = FALSE, size = 2) +
-    ggplot2::theme(axis.ticks.y = ggplot2::element_blank(),
-                   axis.text.y = ggplot2::element_blank(),
-                   text = ggplot2::element_text(size = 4),
-                   axis.text = ggplot2::element_text(size = 4)) +
-    ggplot2::ggtitle("Hierarchical Clustering", subtitle = "By Cell Type Signature")
-
-  deconv_out = readRDS(paste0(dir_spatial,"/deconvolution_output.RDS"))
-  loadings = deconv_out[[mat.use]]
-  loadings = loadings[, colSums(loadings) != 0 & colnames(loadings)!=""]
-
-  corr_sim_dist = cor(loadings)
-
-  heatmap_dist_df = data.frame(expand.grid(Cell_Type_1 = rownames(corr_sim_dist),
-                                           Cell_Type_2 = colnames(corr_sim_dist)),
-                               cos_sim = as.vector(corr_sim_dist))
-  heatmap_dist_plot = ggplot2::ggplot(heatmap_dist_df, ggplot2::aes(x = Cell_Type_1, y = Cell_Type_2, fill = cos_sim)) +
-    ggplot2::labs(y = "Cell Types", fill = "", title = "Correlation for Cell Type Distribution") +
-    ggplot2::theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
-                   axis.title.x = ggplot2::element_blank(),
-                   text = ggplot2::element_text(size = 8),
-                   axis.text = ggplot2::element_text(size = 5),
-                   legend.title = ggplot2::element_blank(),
-                   legend.text = ggplot2::element_text(size = 3),
-                   legend.key.height = ggplot2::unit(3, 'mm'),
-                   legend.key.width = ggplot2::unit(1, 'mm')) +
-    ggplot2::geom_tile() +
-    viridis::scale_fill_viridis()
-
-  cor_dist= as.dist(1- corr_sim_dist)
-  hierarchical_clust_dist <- hclust(cor_dist, method = "ward.D2")
-
-  dendro_dist_plot = ggdendro::ggdendrogram(hierarchical_clust_dist, rotate = FALSE, size = 2) +
-    ggplot2::theme(axis.ticks.y = ggplot2::element_blank(),
-                   axis.text.y = ggplot2::element_blank(),
-                   text = ggplot2::element_text(size = 4),
-                   axis.text = ggplot2::element_text(size = 4)) +
-    ggplot2::ggtitle("Hierarchical Clustering", subtitle = "By Cell Type Distribution")
+  
+  saveRDS(list(cos_sim_signature = cos_sim, dendro_sig = hierarchical_clust),
+          paste0(dir_out,"/gene_signature_analysis_summary_",descriptor,".RDS"))
   if(plot){
-    print(heatmap_plot)
-    print(dendro_plot)
-    print(heatmap_dist_plot)
-    print(dendro_dist_plot)
-    dir_plots = paste0(dir_spatial,"/plots")
+    
+    dir_plots = paste0(dir_output,"/plots")
     if(!dir.exists(dir_plots)){
       dir.create(paste0(dir_plots))
       message("Created directory at ", dir_plots)
     }
-    ggplot2::ggsave(paste0(dir_plots, "/cell_type_signature_heatmap.PNG"),
+    
+    heatmap_df = data.frame(expand.grid(Cell_Type_1 = rownames(cos_sim),
+                                        Cell_Type_2 = colnames(cos_sim)),
+                            cos_sim = as.vector(cos_sim))
+    heatmap_plot = ggplot2::ggplot(heatmap_df, ggplot2::aes(x = Cell_Type_1, y = Cell_Type_2, fill = cos_sim)) +
+      ggplot2::labs(y = "Cell Types", fill = "", title = "Cosine Similarity for Cell Type Signatures") +
+      ggplot2::theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+                     axis.title.x = ggplot2::element_blank(),
+                     text = ggplot2::element_text(size = 8),
+                     axis.text = ggplot2::element_text(size = 5),
+                     legend.title = ggplot2::element_blank(),
+                     legend.text = ggplot2::element_text(size = 3),
+                     legend.key.height = ggplot2::unit(3, 'mm'),
+                     legend.key.width = ggplot2::unit(1, 'mm')) +
+      ggplot2::geom_tile() +
+      viridis::scale_fill_viridis()
+    
+    dendro_plot = ggdendro::ggdendrogram(hierarchical_clust, rotate = FALSE, size = 2) +
+      ggplot2::theme(axis.ticks.y = ggplot2::element_blank(),
+                     axis.text.y = ggplot2::element_blank(),
+                     text = ggplot2::element_text(size = 4),
+                     axis.text = ggplot2::element_text(size = 4)) +
+      ggplot2::ggtitle("Hierarchical Clustering", subtitle = "By Cell Type Signature")
+    
+    print(heatmap_plot)
+    print(dendro_plot)
+   
+    ggplot2::ggsave(paste0(dir_plots, "/cell_type_signature_heatmap_",descriptor,".PNG"),
                     heatmap_plot,
                     width = 1000,
                     height = 800,
                     units = "px")
-    ggplot2::ggsave(paste0(dir_plots, "/cell_type_signature_dendrogram.PNG"),
+    ggplot2::ggsave(paste0(dir_plots, "/cell_type_signature_dendrogram_",descriptor,".PNG"),
                     dendro_plot,
                     width = 500,
                     height = 400,
                     units = "px")
-    ggplot2::ggsave(paste0(dir_plots, "/cell_type_distribution_heatmap.PNG"),
+  }
+}
+
+analyze_spatial_correlation = function(filepath,
+                                       region,
+                                       spatial.data.name,
+                                       plot = FALSE,
+                                       mat.use = "proportions"){
+  
+  library(ggplot2)
+  
+  set.seed(rand.seed)
+  
+  descriptor = as.character(rand.seed)
+  
+  if(clusters.from.atlas){
+    descriptor = paste0(descriptor, "_object_clusters")
+  }
+  if(naive.clusters){
+    descriptor = paste0(descriptor, "_naive")
+    spatial.data.name = paste0(spatial.data.name, "_naive")
+  }
+  
+  dir_spatial = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
+  dir_output = paste0(dir_spatial,"/",descriptor,"_output")
+  
+  deconv_out = readRDS(paste0(dir_spatial,"/deconvolution_output_",descriptor,".RDS"))
+  loadings = deconv_out[[mat.use]]
+  loadings = loadings[, colSums(loadings) != 0 & colnames(loadings)!=""]
+  
+  corr_sim_dist = cor(loadings)
+  
+  
+  
+  cor_dist= as.dist(1- corr_sim_dist)
+  hierarchical_clust_dist <- hclust(cor_dist, method = "ward.D2")
+  
+  saveRDS(list(cos_sim_signature = cos_sim, dendro_sig = hierarchical_clust),
+          paste0(dir_out,"/spatial_correlation_analysis_summary_",descriptor,".RDS"))
+  
+  if(plot){
+    
+    dir_plots = paste0(dir_output,"/plots")
+    if(!dir.exists(dir_plots)){
+      dir.create(paste0(dir_plots))
+      message("Created directory at ", dir_plots)
+    }    
+    
+    heatmap_dist_df = data.frame(expand.grid(Cell_Type_1 = rownames(corr_sim_dist),
+                                             Cell_Type_2 = colnames(corr_sim_dist)),
+                                 cos_sim = as.vector(corr_sim_dist))
+    heatmap_dist_plot = ggplot2::ggplot(heatmap_dist_df, ggplot2::aes(x = Cell_Type_1, y = Cell_Type_2, fill = cos_sim)) +
+      ggplot2::labs(y = "Cell Types", fill = "", title = "Correlation for Cell Type Distribution") +
+      ggplot2::theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+                     axis.title.x = ggplot2::element_blank(),
+                     text = ggplot2::element_text(size = 8),
+                     axis.text = ggplot2::element_text(size = 5),
+                     legend.title = ggplot2::element_blank(),
+                     legend.text = ggplot2::element_text(size = 3),
+                     legend.key.height = ggplot2::unit(3, 'mm'),
+                     legend.key.width = ggplot2::unit(1, 'mm')) +
+      ggplot2::geom_tile() +
+      viridis::scale_fill_viridis()
+    
+    dendro_dist_plot = ggdendro::ggdendrogram(hierarchical_clust_dist, rotate = FALSE, size = 2) +
+      ggplot2::theme(axis.ticks.y = ggplot2::element_blank(),
+                     axis.text.y = ggplot2::element_blank(),
+                     text = ggplot2::element_text(size = 4),
+                     axis.text = ggplot2::element_text(size = 4)) +
+      ggplot2::ggtitle("Hierarchical Clustering", subtitle = "By Cell Type Distribution")
+
+    print(heatmap_dist_plot)
+    print(dendro_dist_plot)
+
+    
+    ggplot2::ggsave(paste0(dir_plots, "/spatial_correlation_heatmap_",descriptor,".PNG"),
                     heatmap_dist_plot,
                     width = 1000,
                     height = 800,
                     units = "px")
-    ggplot2::ggsave(paste0(dir_plots, "/cell_type_distribution_dendrogram.PNG"),
+    ggplot2::ggsave(paste0(dir_plots, "/spatial_correlation_dendrogram_",descriptor,".PNG"),
                     dendro_dist_plot,
                     width = 500,
                     height = 400,
                     units = "px")
   }
-  saveRDS(list(cos_sim_signature = cos_sim, cor_sim_distribution = corr_sim_dist, dendro_sig = hierarchical_clust, dendro_dist = hierarchical_clust_dist),
-          paste0(dir_spatial,"/gene_signature_analysis_summary.RDS"))
-  detach("package:ggplot2", unload = TRUE)
-}
-
-
-#' Generate 2D plots of cell type and gene distribution, given a plane.
-#'
-#' @param filepath Path to directory within which the atlas structure was generated
-#' @param region A string corresponding to the name of an anatomical region
-#' @param spatial.data.name A string, the name of the spatial dataset
-#' @param axis A string corresponding to a column name of the coord object, the
-#'    axis along which to plot the slice
-#' @param idx An integer or vector of integers, corresponding to either what
-#'    slice along the given axis to plot or a range along that axis to flatten
-#' @param mat.use A string, either "raw", "proportions", or "assignment",
-#'    corresponding to the raw cell type loadings, the normalized loadings, or
-#'    cell type assignments for single cell spatial modalities
-#' @param use.cell.types A logical, if only the cell types provided to
-#'    cell.types.use should be summarized, as opposed to all deconvolved.
-#' @param cell.types.use A character vector of cell types to summarize
-#' @param genes.use A character vector of genes to summarize
-#' @param display.plots A logical, corresponding with if to display requested plots upon
-#'    generation
-#'
-#' @return nothing
-#'
-#' @import ggplot2, cowplot, viridis
-#'
-#' @export
-#' @examples
-#' \dontrun{
-#'
-#' }
-#'
-plot_layer = function(
-  filepath,
-  region,
-  spatial.data.name,
-  axis,
-  idx,
-  mat.use = "proportions",
-  use.cell.types = TRUE,
-  cell.types.use = NULL,
-  genes.use = NULL,
-  display.plots = FALSE){
-  library(ggplot2)
-
-  dir_spatial = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
-
-  dir_plots = paste0(dir_spatial,"/plots")
-  if(!dir.exists(dir_plots)){
-    dir.create(paste0(dir_plots))
-    message("Created directory at ", dir_plots)
-  }
-
-  if(mat.use == "assignment"){
-    assignments = readRDS(paste0(dir_spatial,"/deconvolution_max_factor_assignment.RDS"))
-    sub_vec = rep(0,nlevels(assignments))
-    loadings = Reduce(rbind, lapply(assignments, function(x){subbed_vec = sub_vec; subbed_vec[as.numeric(x)] = 1; return(subbed_vec)}))
-    colnames(loadings) = levels(assignments)
-    rownames(loadings) = names(assignments)
-  } else {
-    loadings = readRDS(paste0(dir_spatial,"/deconvolution_output.RDS"))[[mat.use]]
-  }
-
-  theme_set(cowplot::theme_cowplot())
-
-  coords = readRDS(paste0(dir_spatial,"/",spatial.data.name,"_coords.RDS"))
-
-  if(length(idx) > 1){
-    coords = coords[coords[,axis] >= idx[1] & coords[,axis] <= idx[2],
-                    setdiff(colnames(coords),axis)]
-  } else {
-    coords = coords[coords[,axis] == idx, setdiff(colnames(coords),axis)]
-  }
-  if(use.cell.types){
-    if(!is.null(cell.types.use)){
-      cell.types.use = intersect(cell.types.use, colnames(loadings))
-    } else {
-      cell.types.use = colnames(loadings)
-    }
-    cell.types.use = cell.types.use[cell.types.use != ""]
-    loadings = loadings[rownames(loadings) %in% rownames(coords), cell.types.use]
-    if(is.vector(loadings)){
-      new_loadings = matrix(loadings)
-      rownames(new_loadings) = names(loadings)
-      colnames(new_loadings) = cell.types.use
-      loadings = new_loadings
-      rm(new_loadings)
-    }
-
-    colnames(loadings) = sub("/",".",sub(" ", "_", cell.types.use))
-
-    coords = coords[rownames(loadings),]
-    plotting_df = as.data.frame(cbind(coords, loadings))
-    
-    if(mat.use == "assignment"){
-      plotting_df = cbind(plotting_df, assignments[rownames(plotting_df)])
-      colnames(plotting_df)[ncol(plotting_df)] = "assignments"
-
-      all_plot = ggplot(plotting_df, aes_string(x = colnames(plotting_df)[1],
-                                               y = colnames(plotting_df)[2])) +
-         geom_tile(aes(fill = assignments)) +
-         coord_fixed(ratio = 1) +
-         ggtitle(paste0("Distribution of all cell types",
-                        subtitle = paste0("In ", axis, " slice ", idx)) +
-                     theme(legend.title = element_blank(),
-                           text = element_text(size = 8),
-                           axis.text = element_text(size = 5)))
-     print(all_plot)
-    }
-    
-    for(i in 1:ncol(loadings)){
-      slice_plot = ggplot(plotting_df, aes_string(x = colnames(plotting_df)[1],
-                                                  y = colnames(plotting_df)[2],
-                                                  fill = colnames(loadings)[i])) +
-        geom_tile() +
-        coord_fixed(ratio = 1) +
-        viridis::scale_fill_viridis() +
-        ggtitle(paste0("Distribution of ",cell.types.use[i]),
-                subtitle = paste0("In ", axis, " slice ", idx)) +
-        theme(legend.title = element_blank(),
-              text = element_text(size = 8),
-              axis.text = element_text(size = 5))
-      if(display.plots){
-        print(slice_plot)
-      }
-      if(length(idx)>1){
-        ggsave(paste0(dir_plots, "/", colnames(loadings)[i],"_",axis,"_",idx[1],"_to_",idx[2],".PNG"),
-               slice_plot,
-               width = 1000,
-               height = 800,
-               units = "px")
-      } else {
-        ggsave(paste0(dir_plots, "/", colnames(loadings)[i],"_",axis,"_",idx,".PNG"),
-               slice_plot,
-               width = 1000,
-               height = 800,
-               units = "px")
-      }
-
-    }
-  }
-  if(!is.null(genes.use)){
-    spatial.data = readRDS(paste0(dir_spatial,"/",spatial.data.name,"_exp.RDS"))
-    genes.use = intersect(genes.use, rownames(spatial.data))
-    spatial.data[is.na(spatial.data)] = 0
-    spatial.data = spatial.data[genes.use,colnames(spatial.data) %in% rownames(coords)]
-
-    if(is.vector(spatial.data)){
-      new_spatial_data = matrix(spatial.data)
-      rownames(new_spatial_data) = names(spatial.data)
-      colnames(new_spatial_data) = genes.use
-      spatial.data = new_spatial_data
-      rm(new_spatial_data)
-    }
-
-    spatial.data = scale(t(spatial.data), center = FALSE)
-    spatial.data[spatial.data < 0 ] = 0
-    plotting_df = as.data.frame(cbind(coords, spatial.data))
-    for(i in 1:ncol(spatial.data)){
-      slice_plot = ggplot(plotting_df, aes_string(x = colnames(plotting_df)[1],
-                                                  y = colnames(plotting_df)[2],
-                                                  fill = colnames(spatial.data)[i])) +
-        geom_tile() +
-        coord_fixed(ratio = 1) +
-        viridis::scale_fill_viridis() +
-        ggtitle(paste0("Distribution of ",genes.use[i]),
-                subtitle = paste0("In ", axis, " slice ", idx)) +
-        theme(legend.title = element_blank(),
-              text = element_text(size = 8),
-              axis.text = element_text(size = 5))
-      if(display.plots){
-        print(slice_plot)
-      }
-      if(length(idx)>1){
-        ggsave(paste0(dir_plots ,"/", genes.use[i],"_",axis,"_",idx[1],"_to_",idx[2],".PNG"),
-               slice_plot,
-               width = 1000,
-               height = 800,
-               units = "px")
-      } else {
-        ggsave(paste0(dir_plots ,"/",genes.use[i],"_",axis,"_",idx,".PNG"),
-               slice_plot,
-               width = 1000,
-               height = 800,
-               units = "px")
-      }
-    }
-  }
-  detach("package:ggplot2", unload = TRUE)
-}
-
-
-
-
-
-#' Convert direct analysis on single cell spatial modality data into voxelized data
-#'
-#' @param filepath Path to directory within which the atlas structure was generated
-#' @param region A string corresponding to the name of an anatomical region
-#' @param spatial.data.name A string, the name of the spatial dataset
-#' @param voxel.size A numeric, corresponding to the side-length of desired voxels
-#' @param new.spatial.data.name A string, the name of the spatial dataseta
-#' @param verbose A logical, whether to print details on derived data
-#' @return nothing
-#'
-#' @import
-#'
-#' @export
-#' @examples
-#' \dontrun{
-#'
-#' }
-
-voxelize_analysis = function(
-  filepath,
-  region,
-  spatial.data.name,
-  voxel.size,
-  new.spatial.data.name,
-  verbose = TRUE
-){
-
-  voxelize_single_cells(filepath,
-                        region,
-                        spatial.data.name,
-                        voxel.size,
-                        NULL,
-                        verbose)
-  
-  old_dir = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
-  deconv_out = readRDS(paste0(old_dir,"/deconvolution_output.RDS"))[[1]]
-  new_dir = paste0(old_dir, "_", voxel.size)
-  deconv_out = deconv_out[,colnames(deconv_out) != ""]
-
-  voxel_out = matrix(0L, nrow = length(voxel_to_sample), ncol = ncol(deconv_out))
-  rownames(voxel_out) = names(voxel_to_sample)
-  colnames(voxel_out) = colnames(deconv_out)
-
-  for(i in names(voxel_to_sample)){
-    sub_deconv = deconv_out[rownames(deconv_out) %in% voxel_to_sample[[i]],]
-    if(is.vector(sub_deconv)){
-      voxel_out[i,] = sub_deconv
-    } else {
-      voxel_out[i,] = colMeans(deconv_out[rownames(deconv_out) %in% voxel_to_sample[[i]],])
-    }
-  }
-  voxel_prop = t(apply(voxel_out, MARGIN = 1, function(x){x/sum(x)}))
-
-  saveRDS(list(raw = voxel_out, proportions = voxel_prop), paste0(new_dir, "/deconvolution_output.RDS"))
 }
 
 
@@ -1496,12 +1276,31 @@ calculate_wasserstein = function(
     use.cell.types = TRUE,
     cell.types.use = NULL,
     genes.use = NULL,
-    p = 2){
-
+    p = 2,
+    plot = FALSE){
+  
+  library(ggplot2)
+  
+  set.seed(rand.seed)
+  
+  descriptor = as.character(rand.seed)
+  
+  if(clusters.from.atlas){
+    descriptor = paste0(descriptor, "_object_clusters")
+  }
+  if(naive.clusters){
+    descriptor = paste0(descriptor, "_naive")
+    spatial.data.name = paste0(spatial.data.name, "_naive")
+  }
+  
   dir_spatial = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
-
-  loadings = readRDS(paste0(dir_spatial,"/deconvolution_output.RDS"))[[mat.use]]
-  coords = readRDS(paste0(dir_spatial,"/",spatial.data.name,"_coords.RDS"))
+  dir_output = paste0(dir_spatial,"/",descriptor,"_output")
+  
+  deconv_out = readRDS(paste0(dir_spatial,"/deconvolution_output_",descriptor,".RDS"))
+  loadings = deconv_out[[mat.use]]
+  loadings = loadings[, colSums(loadings) != 0 & colnames(loadings)!=""]
+  
+  coords = readRDS(paste0(dir_spatial,"/",spatial.data.name,"_coords_qc_",descriptor,".RDS"))
   
   loadings = loadings[, colSums(loadings) != 0]
   if(use.cell.types){
@@ -1527,7 +1326,7 @@ calculate_wasserstein = function(
   }
   
   if(!is.null(genes.use)){
-    exp = t(readRDS(paste0(dir_spatial,"/",spatial.data.name,"_exp.RDS")))
+    exp = t(readRDS(paste0(dir_spatial,"/",spatial.data.name,"_exp_qc_",descriptor,".RDS")))
     exp = exp[, colnames(exp) %in% genes.use]
     exp[exp < 0] = 0
     exp = exp[rownames(loadings),]
@@ -1554,7 +1353,40 @@ calculate_wasserstein = function(
     vars_2 = vars_2[2:length(vars_2)]
   }
   
-  saveRDS(distance_mat, paste0(dir_spatial,"/",spatial.data.name,"_wasserstein_dist.RDS"))
+  saveRDS(distance_mat,
+          paste0(dir_out,"/wasserstein_distance_mat_",descriptor,".RDS"))
+  
+  if(plot){
+    
+    dir_plots = paste0(dir_output,"/plots")
+    if(!dir.exists(dir_plots)){
+      dir.create(paste0(dir_plots))
+      message("Created directory at ", dir_plots)
+    }    
+    
+    heatmap_wasserstein_df = data.frame(expand.grid(Cell_Type_1 = rownames(distance_mat),
+                                             Cell_Type_2 = colnames(distance_mat)),
+                                 wasserstein_dist = as.vector(distance_mat))
+    heatmap_wasserstein_plot = ggplot2::ggplot(wasserstein_dist, ggplot2::aes(x = Cell_Type_1, y = Cell_Type_2, fill = wasserstein_dist)) +
+      ggplot2::labs(y = "Cell Types", fill = "", title = "Wasserstein Distance by Cell Type and Gene") +
+      ggplot2::theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+                     axis.title.x = ggplot2::element_blank(),
+                     text = ggplot2::element_text(size = 8),
+                     axis.text = ggplot2::element_text(size = 5),
+                     legend.title = ggplot2::element_blank(),
+                     legend.text = ggplot2::element_text(size = 3),
+                     legend.key.height = ggplot2::unit(3, 'mm'),
+                     legend.key.width = ggplot2::unit(1, 'mm')) +
+      ggplot2::geom_tile() +
+      viridis::scale_fill_viridis()
+    
+    ggplot2::ggsave(paste0(dir_plots, "/wasserstein_heatmap_",descriptor,".PNG"),
+                    heatmap_wasserstein_plot,
+                    width = 1000,
+                    height = 800,
+                    units = "px")
+  }
+  
 }
                                                                                                    
 refine_cluster_similarity = function(
