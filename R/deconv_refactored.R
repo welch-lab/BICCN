@@ -392,6 +392,8 @@ qc_spatial_data = function(
   
   
   spatial.data = readRDS(paste0(dir_spatial,"/",spatial.data.name,"_exp.RDS"))
+  coords = readRDS(paste0(dir_spatial,"/",spatial.data.name,"_coords.RDS"))
+
   gene_data = readRDS(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/gene_selection_",descriptor,".RDS"))
   gene_vec = gene_data[[2]]
   
@@ -411,7 +413,10 @@ qc_spatial_data = function(
     message(nrow(spatial.data), " genes used out of ", original_dim[1], " and ", ncol(spatial.data), " cells used out of ", original_dim[2])
   }
   
+  coords = coords[colnames(spatial.data),]
+  
   saveRDS(spatial.data, paste0(dir_spatial,"/",spatial.data.name,"_exp_qc_",descriptor,".RDS"))
+  saveRDS(coords, paste0(dir_spatial,"/",spatial.data.name,"_coords_qc_",descriptor,".RDS"))
   saveRDS(rownames(spatial.data), paste0(dir_spatial,"/gene_selection_qc_",descriptor,".RDS"))
 }
 
@@ -859,7 +864,8 @@ generate_loading_gifs = function(
   } else {
     cell.types.plot = intersect(cell.types.plot, cell_types)
   }
-  coords = readRDS(paste0(dir_spatial,"/",spatial.data.name,"_coords.RDS"))
+  coords = readRDS(paste0(dir_spatial,"/",spatial.data.name,"_coords_qc_",descriptor,".RDS"))
+  
 
 
   for(cell_type in cell.types.plot){
