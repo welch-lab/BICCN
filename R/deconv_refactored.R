@@ -1367,7 +1367,7 @@ calculate_wasserstein = function(
   }
   
   saveRDS(distance_mat,
-          paste0(dir_out,"/wasserstein_distance_mat_",descriptor,".RDS"))
+          paste0(dir_output,"/wasserstein_distance_mat_",descriptor,".RDS"))
   
   if(plot){
     
@@ -1380,7 +1380,7 @@ calculate_wasserstein = function(
     heatmap_wasserstein_df = data.frame(expand.grid(Cell_Type_1 = rownames(distance_mat),
                                              Cell_Type_2 = colnames(distance_mat)),
                                  wasserstein_dist = as.vector(distance_mat))
-    heatmap_wasserstein_plot = ggplot2::ggplot(wasserstein_dist, ggplot2::aes(x = Cell_Type_1, y = Cell_Type_2, fill = wasserstein_dist)) +
+    heatmap_wasserstein_plot = ggplot2::ggplot(heatmap_wasserstein_df, ggplot2::aes(x = Cell_Type_1, y = Cell_Type_2, fill = wasserstein_dist)) +
       ggplot2::labs(y = "Cell Types", fill = "", title = "Wasserstein Distance by Cell Type and Gene") +
       ggplot2::theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
                      axis.title.x = ggplot2::element_blank(),
@@ -1424,9 +1424,9 @@ refine_cluster_similarity = function(
   dir_spatial = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
   dir_output = paste0(dir_spatial,"/",descriptor,"_output")
   
-  spatial = readRDS(paste0(dir_out,"/wasserstein_distance_mat_",descriptor,".RDS"))
+  spatial = readRDS(paste0(dir_output,"/wasserstein_distance_mat_",descriptor,".RDS"))
   
-  expression = readRDS(paste0(dir_out,"/gene_signature_analysis_summary_",descriptor,".RDS"))[["cos_sim_signature"]]
+  expression = readRDS(paste0(dir_output,"/gene_signature_analysis_summary_",descriptor,".RDS"))[["cos_sim_signature"]]
   shared_clusters = intersect(colnames(spatial), colnames(expression))
   spatial = spatial[shared_clusters, shared_clusters]
   expression = expression[shared_clusters, shared_clusters]
@@ -1449,7 +1449,7 @@ refine_cluster_similarity = function(
     corr_strings = sapply(3:1, function(x){paste(clusts_use[corr_vec >= corr_thresh[x] & corr_vec < corr_thresh[x+1]], collapse = ",")})
     df_out[cluster,] = c(wasserstein_strings, corr_strings)
   }
-  write.csv(df_out,paste0(dir_out,"/",spatial.data.name,"_cluster_similarity_",descriptor,".csv"),row.names = TRUE)    
+  write.csv(df_out,paste0(dir_output,"/",spatial.data.name,"_cluster_similarity_",descriptor,".csv"),row.names = TRUE)    
 }
 
 
@@ -1478,13 +1478,13 @@ threshold_similar_clusts = function(
   dir_spatial = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
   dir_output = paste0(dir_spatial,"/",descriptor,"_output")
   
-  spatial = readRDS(paste0(dir_out,"/wasserstein_distance_mat_",descriptor,".RDS"))
+  spatial = readRDS(paste0(dir_output,"/wasserstein_distance_mat_",descriptor,".RDS"))
   
-  expression = readRDS(paste0(dir_out,"/gene_signature_analysis_summary_",descriptor,".RDS"))[["cos_sim_signature"]]
+  expression = readRDS(paste0(dir_output,"/gene_signature_analysis_summary_",descriptor,".RDS"))[["cos_sim_signature"]]
   shared_clusters = intersect(colnames(spatial), colnames(expression))
-  clusts_use = setdiff(shared_clusters, cluster)
-  spatial = spatial[cluster, clusts_use]
-  expression = expression[cluster, clusts_use]
+  clusts_use = setdiff(shared_clusters, clust.compare)
+  spatial = spatial[clust.compare, clusts_use]
+  expression = expression[clust.compare, clusts_use]
   
   wasserstein_thresh = clusts_use[wasserstein_vec <= quantile(wasserstein_vec, probs=quantile.wasserstein)[1]]
   corr_thresh = clusts_use[expression >= correlation.val]
@@ -1499,7 +1499,7 @@ threshold_similar_clusts = function(
     saveRDS(thresh_list, thresh_file)
   } else {
     thresh_list = list()
-    thresh_file[[paste0("wass_",quantile.wasserstein,"_corr_",correlation.val)]] = thresh_clusts
+    thresh_list[[paste0("wass_",quantile.wasserstein,"_corr_",correlation.val)]] = thresh_clusts
     saveRDS(thresh_list, thresh_file)
   }
 }
