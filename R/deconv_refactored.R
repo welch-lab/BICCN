@@ -834,14 +834,6 @@ generate_loading_gifs = function(
 ){
   set.seed(rand.seed)
   library(rgl)
-  dir_spatial = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
-  dir_output = paste0(dir_spatial,"/",descriptor,"_output")
-
-  dir_gifs = paste0(dir_output,"/plots")
-  if(!dir.exists(dir_gifs)){
-    dir.create(paste0(dir_gifs))
-    message("Created directory at ", dir_gifs)
-  }
   
   descriptor = as.character(rand.seed)
   if(clusters.from.atlas){
@@ -849,6 +841,16 @@ generate_loading_gifs = function(
   }
   if(naive.clusters){
     descriptor = paste0(descriptor, "_naive")
+    spatial.data.name = paste0(spatial.data.name, "_naive")
+  }
+  
+  dir_spatial = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
+  dir_output = paste0(dir_spatial,"/",descriptor,"_output")
+
+  dir_gifs = paste0(dir_output,"/plots")
+  if(!dir.exists(dir_gifs)){
+    dir.create(paste0(dir_gifs))
+    message("Created directory at ", dir_gifs)
   }
   
   if(mat.use != "assignment"){
@@ -939,16 +941,17 @@ summarize_by_layer = function(
   
   set.seed(rand.seed)
   
-  dir_spatial = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
-  dir_output = paste0(dir_spatial,"/",descriptor,"_output")
-
   descriptor = as.character(rand.seed)
   if(clusters.from.atlas){
     descriptor = paste0(descriptor, "_object_clusters")
   }
   if(naive.clusters){
     descriptor = paste0(descriptor, "_naive")
+    spatial.data.name = paste0(spatial.data.name, "_naive")
   }
+  
+  dir_spatial = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
+  dir_output = paste0(dir_spatial,"/",descriptor,"_output")
   
   if(mat.use == "assignment"){
     assignments = readRDS(paste0(dir_spatial,"/deconvolution_max_factor_assignment_",descriptor,".RDS"))
