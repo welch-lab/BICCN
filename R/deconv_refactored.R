@@ -430,7 +430,8 @@ learn_gene_signatures =function(filepath,
                               rand.seed = 123,
                               print.obj = FALSE,
                               clusters.from.atlas = TRUE,
-                              naive.clusters = FALSE){
+                              naive.clusters = FALSE,
+                              verbose = FALSE){
   set.seed(rand.seed)
   
   descriptor = as.character(rand.seed)
