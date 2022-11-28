@@ -1131,7 +1131,7 @@ analyze_gene_signatures = function(filepath,
   dir_output = paste0(dir_spatial,"/",descriptor,"_output")
   
   gene_sigs = readRDS(paste0(dir_spatial, "/gene_signature_output_",descriptor,".RDS"))
-  genes = saveRDS(paste0(dir_spatial,"/gene_selection_qc_",descriptor,".RDS"))
+  genes = readRDS(paste0(dir_spatial,"/gene_selection_qc_",descriptor,".RDS"))
   
   signatures = gene_sigs$W
   signatures = signatures[rowSums(signatures) != 0 & rownames(signatures) != "",]
@@ -1143,7 +1143,7 @@ analyze_gene_signatures = function(filepath,
   hierarchical_clust <- hclust(cos_dist, method = "ward.D2")
   
   saveRDS(list(cos_sim_signature = cos_sim, dendro_sig = hierarchical_clust),
-          paste0(dir_out,"/gene_signature_analysis_summary_",descriptor,".RDS"))
+          paste0(dir_output,"/gene_signature_analysis_summary_",descriptor,".RDS"))
   if(plot){
     
     dir_plots = paste0(dir_output,"/plots")
@@ -1227,7 +1227,7 @@ analyze_spatial_correlation = function(filepath,
   hierarchical_clust_dist <- hclust(cor_dist, method = "ward.D2")
   
   saveRDS(list(cos_sim_signature = cos_sim, dendro_sig = hierarchical_clust),
-          paste0(dir_out,"/spatial_correlation_analysis_summary_",descriptor,".RDS"))
+          paste0(dir_output,"/spatial_correlation_analysis_summary_",descriptor,".RDS"))
   
   if(plot){
     
@@ -1287,6 +1287,7 @@ calculate_wasserstein = function(
     cell.types.use = NULL,
     genes.use = NULL,
     p = 2,
+    min.samples = 1,
     plot = FALSE,
     rand.seed = 123){
   
@@ -1320,8 +1321,9 @@ calculate_wasserstein = function(
     } else {
       cell.types.use = colnames(loadings)
     }
-    cell.types.use = cell.types.use[cell.types.use != ""]
+    cell.types.use = cell.types.use[cell.types.use != "" & apply(loadings, MARGIN = 2, function(x){sum(x != 0)}) > min.samples]
     loadings = loadings[rownames(loadings) %in% rownames(coords), cell.types.use]
+    
     
     if(is.vector(loadings)){
       new_loadings = matrix(loadings)
