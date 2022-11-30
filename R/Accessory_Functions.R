@@ -495,7 +495,7 @@ preprocess_and_run = function(filepath, region, analysis_num, chunk_size, num_ge
   print("Writing H5s")
   hdf5_files = paste0(filepath, "/", region, "/Analysis", analysis_num , "_", region, "/",gsub(".RDS", ".H5",non_meth_files))
   for (i in 1:length(hdf5_files)){
-    if(grep("sc10Xv", non_meth_files[i],) == 1){
+    if(length(grep("sc10Xv", non_meth_files[i])) == 1){
     current_matrix = readRDS(paste0(filepath, "/", region, "/Analysis", analysis_num , "_", region, "/",non_meth_files[i]))
     class(current_matrix) = "numeric"
     current_matrix = Matrix::Matrix(current_matrix, sparse = TRUE)} else{
