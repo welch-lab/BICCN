@@ -499,10 +499,7 @@ preprocess_and_run = function(filepath, region, analysis_num, chunk_size, num_ge
     current_matrix = readRDS(paste0(filepath, "/", region, "/Analysis", analysis_num , "_", region, "/",non_meth_files[i]))
     class(current_matrix) = "numeric"
     current_matrix = Matrix::Matrix(current_matrix, sparse = TRUE)
-    } else {
-      current_matrix = Matrix::Matrix(readRDS(paste0(filepath, "/", region, "/Analysis", analysis_num , "_", region, "/",non_meth_files[i])), sparse = TRUE)} else{
-    }   
-    
+    } else { current_matrix = Matrix::Matrix(readRDS(paste0(filepath, "/", region, "/Analysis", analysis_num , "_", region, "/",non_meth_files[i])), sparse = TRUE)} 
     rhdf5::h5createFile(hdf5_files[[i]])
     rhdf5::h5createGroup(hdf5_files[[i]], "matrix")
     rhdf5::h5write(current_matrix@Dimnames[[2]], file=hdf5_files[[i]], name="matrix/barcodes") # cell barcodes
