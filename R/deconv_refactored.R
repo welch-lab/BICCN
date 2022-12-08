@@ -241,16 +241,15 @@ sample_single_cell = function(
   
   message("Sampling from clusters")
   
+  liger_cells_combined = Reduce(c, liger_cells)
   
   sample.cells = Reduce(c, lapply(names(freq_cells), function(cell_type){
-    Reduce(c, lapply(1:length(rna_files), function(i){
-      cells = intersect(names(clusters[clusters == cell_type]), liger_cells[[i]])
-      if(length(cells)> 0){
-        return(sample(cells, min(length(cells), n.cells), replace =TRUE))
-      } else {
-        return(c())
-      }
-    }))
+    cells = intersect(names(clusters[clusters == cell_type]), liger_cells_combined)
+    if(length(cells)> 0){
+      return(sample(cells, min(length(cells), n.cells), replace =FALSE))
+    } else {
+      return(c())
+    }
   }))
   
   message("Sample summary -- ")
@@ -267,7 +266,7 @@ sample_single_cell = function(
   
   saveRDS(sample.cells, paste0(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/sampled_cells_", descriptor,".RDS")))
   
-  if(is.null(known.annotations){
+  if(is.null(known.annotations)){
      saveRDS(clusters, paste0(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/clusters_",descriptor,".RDS")))
   } else {
      saveRDS(clusters, paste0(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/user_defined_clusters_",descriptor,".RDS")))
@@ -321,7 +320,7 @@ select_defining_genes = function(
       
   norm.data = readRDS(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",descriptor,"_norm_data.RDS"))
   
-  if(is.null(known.annotations){
+  if(is.null(known.annotations)){
      clusters = readRDS(paste0(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/clusters_",descriptor,".RDS")))
   } else {
      clusters = readRDS(paste0(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/user_defined_clusters_",descriptor,".RDS")))
@@ -456,7 +455,7 @@ learn_gene_signatures =function(filepath,
   
   sample.cells = readRDS(paste0(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/sampled_cells_", descriptor,".RDS")))
   
-  if(is.null(known.annotations){
+  if(is.null(known.annotations)){
      clusters = readRDS(paste0(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/clusters_",descriptor,".RDS")))
   } else {
      clusters = readRDS(paste0(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/user_defined_clusters_",descriptor,".RDS")))
