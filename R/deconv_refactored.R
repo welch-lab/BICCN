@@ -588,7 +588,7 @@ learn_gene_signatures =function(filepath,
       W_m <- W
       V_m <- V
       best_obj <- obj
-      best_seed <- rand.seed + i - 1
+      best_seed <- rand.seed + rep_num - 1
     }
     
     
