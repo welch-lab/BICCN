@@ -668,7 +668,7 @@ deconvolve_spatial = function(filepath,
   spatial.data[spatial.data < 0 ] = 0
   spatial.data[is.nan(spatial.data)] = 0
   deconv_h = t(rliger:::solveNNLS(t(W),spatial.data))
-  colnames(deconv_h) = clust_levels
+  colnames(deconv_h) = rownames(W)
   deconv_frac = t(apply(deconv_h, MARGIN = 1, function(x){x/sum(x)}))
   rownames(deconv_frac) = rownames(deconv_h) = colnames(spatial.data)
   deconv_frac[is.nan(deconv_frac)] = 0
