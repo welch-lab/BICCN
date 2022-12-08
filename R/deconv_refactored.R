@@ -521,7 +521,7 @@ learn_gene_signatures =function(filepath,
   
   #E = lapply(E, t)
   for (rep_num in 1:nrep) {
-    set.seed(seed = rand.seed + i - 1)
+    set.seed(seed = rand.seed + rep_num - 1)
     start_time <- Sys.time()
     delta <- 1
     iters <- 0
