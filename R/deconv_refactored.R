@@ -455,7 +455,7 @@ learn_gene_signatures =function(filepath,
   
   sample.cells = readRDS(paste0(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/sampled_cells_", descriptor,".RDS")))
   
-  if(is.null(known.annotations)){
+  if(clusters.from.atlas){
      clusters = readRDS(paste0(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/clusters_",descriptor,".RDS")))
   } else {
      clusters = readRDS(paste0(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/user_defined_clusters_",descriptor,".RDS")))
