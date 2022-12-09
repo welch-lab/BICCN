@@ -1232,7 +1232,7 @@ analyze_spatial_correlation = function(filepath,
   cor_dist= as.dist(1- corr_sim_dist)
   hierarchical_clust_dist <- hclust(cor_dist, method = "ward.D2")
   
-  saveRDS(list(cos_sim_signature = cos_sim, dendro_sig = hierarchical_clust),
+  saveRDS(list(cos_sim_signature = corr_sim_dist, dendro_sig = hierarchical_clust_dist),
           paste0(dir_output,"/spatial_correlation_analysis_summary_",descriptor,".RDS"))
   
   if(plot){
