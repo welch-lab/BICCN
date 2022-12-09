@@ -333,7 +333,7 @@ select_defining_genes = function(
     chisq_list[[i]] = matrixTests::row_kruskalwallis(as.matrix(norm.data[[i]]),as.vector(clusters[names(clusters) %in%colnames(norm.data[[i]])]))$statistic
     names(chisq_list[[i]]) = rownames(norm.data[[i]])
   }
-  shared_genes = Reduce(c, lapply(norm.data, colnames))
+  shared_genes = Reduce(c, lapply(norm.data, rownames))
   
   
   var_thresh_start = 0.5
@@ -341,7 +341,7 @@ select_defining_genes = function(
   high = 1
   low = 0
   
-  gene_vec = rownames(norm.data[[1]])
+  gene_vec = shared_genes
   for(i in 1:length(chisq_list)){
     chisq_list[[i]][is.na(chisq_list[[i]])] = 0
     gene_vec = intersect(gene_vec, names(chisq_list[[i]][chisq_list[[i]] > quantile(chisq_list[[i]], var_thresh_start)]))
