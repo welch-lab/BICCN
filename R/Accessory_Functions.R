@@ -2253,3 +2253,66 @@ updateForLeiden = function(analysis_num = NA, region = NA, pathway = NA){
   writeData(wb, sheet = "Leiden", x = cluster_breakdowns_leiden)
   saveWorkbook(wb, output_filepath)
 }
+
+#' This function generates new, annotated UMAPs based on the latest annotations, and also returns an updated csv when desired
+#
+#' @param region The anatomical region with which the analysis is associated
+#' @param filepath Path to directory within which the atlas structure was generated
+#' 
+library(rliger)
+library(dplyr)
+library(openxlsx)
+library(stringr)
+
+#filepath = "/nfs/turbo/umms-welchjd/BRAIN_initiative/Final_integration_workflow/Analyses/"
+#analysis_num =  4
+#region = "HB" 
+#csv = TRUE
+#umapannotations =  "/nfs/turbo/umms-welchjd/BRAIN_initiative/Final_integration_workflow/SupportFiles/Full_annotations_Broad.rds"
+#csvannotations = "/nfs/turbo/umms-welchjd/BRAIN_initiative/Final_integration_workflow/SupportFiles/Full_annotations.rds"
+update_analysis =  function(filepath, analysis_num, region, umapannotations, csvannotations,csv = FALSE){
+  #LIGER object path
+  file.path = paste0(filepath, region, "/Analysis", analysis_num, "_", region, "/onlineINMF_", region, "_object.RDS")
+  #Read in LIGER Object
+  ligs = readRDS(file.path)
+  #Read in Annotations
+  annies = readRDS(umapannotations)
+  #For every modality present (excluding smartseq), get Annotations and generate a UMAP for each modality
+  mods = unique(names(ligs@raw.data))
+  mods = sub(paste0(region, "_"), "", mods)
+  mods = grep("smartseq", mods, value = TRUE, invert = TRUE)
+  cells = rownames(ligs@tsne.coords)
+  pdf.path = paste0(filepath,region, "/Analysis", analysis_num, "_", region, "/Images/New_Annotations_Analysis", analysis_num, "_", region, ".pdf" )
+  pdf(pdf.path, width = 12, height = 8)
+  for (mode in mods){
+    reduced = filter(annies, annies$Modality == mode)
+    labels = reduced$Annotation[match(cells, reduced$Barcode)]
+    names(labels) = cells
+    #Create ggplot object
+    gg.ob = plotByDatasetAndCluster(ligs,return.plots = TRUE, text.size = 6, clusters = labels, legend.fonts.size = 8, legend.size = 3)
+    print(gg.ob[[2]] + ggtitle(paste0(region, "_Analysis_", analysis_num, "_", mode)) + guides(shape = guide_legend(override.aes = list(size = 0.4))) + theme(legend.title = element_text(size = 5), 
+                                                                                                                                                              legend.text = element_text(size = 5)))
+  }
+  dev.off()
+  print("New graphs have been generated and saved!")
+  if(csv == TRUE){
+    ################### Now, recreate the csv with annotations
+    more_specific_annies = readRDS(csvannotations)
+    results.path = paste0(filepath, region, "/Analysis", analysis_num, "_", region, "/Analysis", analysis_num, "_", region, "_Results_Table.RDS")
+    results = readRDS(results.path)
+    results = select(results, -c(OG_Annotations))
+    results = left_join(results, more_specific_annies)
+    ###################### Stuff for generating CSV
+    print("Outputting Annotation CSV")
+    cluster_breakdowns_high = results %>% group_by(highRcluster, Modality, Annotation)  %>% tally()
+    cluster_breakdowns_low = results %>% group_by(lowRcluster, Modality, Annotation)  %>% tally()
+    output_filepath = paste0(filepath,"/",  region, "/Analysis", analysis_num, "_", region, "/Cluster_Breakdowns_",region, "_Analysis_", analysis_num, "Updated_Annotations.xlsx")
+    wb <- createWorkbook()
+    addWorksheet(wb = wb, sheetName = "LowRes")
+    writeData(wb, sheet = "LowRes", x = cluster_breakdowns_low)
+    addWorksheet(wb = wb, sheetName = "HighRes")
+    writeData(wb, sheet = "HighRes", x = cluster_breakdowns_high)
+    saveWorkbook(wb, output_filepath)
+  }
+}
+
