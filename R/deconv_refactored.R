@@ -1195,6 +1195,70 @@ analyze_gene_signatures = function(filepath,
   }
 }
 
+cell_type_loading_histogram = function(
+  filepath,
+  region,
+  spatial.data.name,
+  rand.seed = 123,
+  clusters.from.atlas = TRUE,
+  naive.clusters = FALSE,
+  mat.use = "proportions",
+  cell.types.plot = NULL,
+  print.plots = FALSE,
+  bin.num = 30){
+
+
+  set.seed(rand.seed)
+
+  descriptor = as.character(rand.seed)
+  if(clusters.from.atlas){
+    descriptor = paste0(descriptor, "_object_clusters")
+  }
+  if(naive.clusters){
+    descriptor = paste0(descriptor, "_naive")
+    spatial.data.name = paste0(spatial.data.name, "_naive")
+  }
+
+  dir_spatial = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
+  dir_output = paste0(dir_spatial,"/",descriptor,"_output")
+
+  dir_gifs = paste0(dir_output,"/plots")
+  if(!dir.exists(dir_gifs)){
+    dir.create(paste0(dir_gifs))
+    message("Created directory at ", dir_gifs)
+  }
+
+  loadings = readRDS(paste0(dir_spatial,"/deconvolution_output_",descriptor,".RDS"))[[mat.use]]
+  cell_types = colnames(loadings)
+
+  if(is.null(cell.types.plot)){
+    cell.types.plot = cell_types
+  } else {
+    cell.types.plot = intersect(cell.types.plot, cell_types)
+  }
+
+  loadings = as.data.frame(loadings[,cell.types.plot])
+  colnames(loadings) = gsub("-","_",colnames(loadings))
+
+  hist_plot = list()
+  for(cell_type in colnames(loadings)){
+    range = loadings[,cell_type][2]
+    hist_plot[[cell_type]] = ggplot(loadings, aes_string(x=cell_type)) + 
+      geom_histogram(bins = bin.num, fill = rainbow(bin.num)) +
+      labs(y = "Count", x = "",title = paste0("Histogram of ",cell_type, " loading by voxel"))
+    if(print.plots){
+      print(hist_plot[[cell_type]])
+    }
+  }
+
+
+  pdf(file = paste0(dir_gifs, "/",descriptor,"_",mat.use,"_hist.PDF"), width = 7,height = 4)
+  for(cell_type in cell.types.plot){
+    print(hist_plot[[cell_type]])
+  }
+  dev.off()
+}
+
 analyze_spatial_correlation = function(filepath,
                                        region,
                                        spatial.data.name,
