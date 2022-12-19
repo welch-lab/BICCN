@@ -288,10 +288,14 @@ sample_single_cell = function(
     out_mat = out_mat[liger_genes[[i]] %in% shared_genes, liger_cells[[i]] %in% sample.cells]
     gene_means = rhdf5::h5read(rna_files[i], "gene_means")[liger_genes[[i]] %in% shared_genes]
     gene_sum_sq = rhdf5::h5read(rna_files[i], "gene_sum_sq")[liger_genes[[i]] %in% shared_genes]
-    root_mean_sum_sq = sqrt(gene_sum_sq/(ncol(out_mat)-1))
-    out_mat= sweep(out_mat, 1, root_mean_sum_sq, "/") #liger_cells[[i]] %in% sample.cells
-    out_mat[is.na(out_mat)] = 0
-    out_mat[out_mat == Inf] = 0
+    if(is.vector(out_mat)){
+      out_mat = NULL
+    } else {
+      root_mean_sum_sq = sqrt(gene_sum_sq/(ncol(out_mat)-1))
+      out_mat= sweep(out_mat, 1, root_mean_sum_sq, "/") #liger_cells[[i]] %in% sample.cells
+      out_mat[is.na(out_mat)] = 0
+      out_mat[out_mat == Inf] = 0
+    }
     return(out_mat)
   })
   norm.data = norm.data[!sapply(norm.data, function(x){length(x) == 0})]
