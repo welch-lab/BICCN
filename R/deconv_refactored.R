@@ -1119,6 +1119,7 @@ analyze_gene_signatures = function(filepath,
                                    naive.clusters = FALSE,
                                    plot = FALSE,
                                    mat.use = "proportions",
+                                   cell.types.use = NULL,
                                    rand.seed = 123){
   
   library(ggplot2)
@@ -1143,6 +1144,10 @@ analyze_gene_signatures = function(filepath,
   
   signatures = gene_sigs$W
   signatures = signatures[rowSums(signatures) != 0 & rownames(signatures) != "",]
+  
+  if(!is.null(cell.types.use)){
+    signatures = signatures[intersect(rownames(signatures),cell.types.use),]
+  }
   
   cos_sim = lsa::cosine(t(signatures))
   
@@ -1270,6 +1275,7 @@ analyze_spatial_correlation = function(filepath,
                                        naive.clusters = FALSE,
                                        plot = FALSE,
                                        mat.use = "proportions",
+                                       cell.types.use = NULL,
                                        rand.seed = 123){
   
   library(ggplot2)
@@ -1292,6 +1298,10 @@ analyze_spatial_correlation = function(filepath,
   deconv_out = readRDS(paste0(dir_spatial,"/deconvolution_output_",descriptor,".RDS"))
   loadings = deconv_out[[mat.use]]
   loadings = loadings[, colSums(loadings) != 0 & colnames(loadings)!=""]
+  
+  if(!is.null(cell.types.use)){
+    loadings = loadings[,intersect(colnames(loadings),cell.types.use)]
+  }
   
   corr_sim_dist = cor(loadings)
   
