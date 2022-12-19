@@ -392,7 +392,17 @@ qc_spatial_data = function(
   }
   if(naive.clusters){
     descriptor = paste0(descriptor, "_naive")
-    spatial.data.name = paste0(spatial.data.name, "_naive")
+    
+    dir_spatial = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
+    dir_spatial_new = paste0(dir_spatial, "_naive")
+
+    dir.create(dir_spatial_new)
+    file.copy(paste0(dir_spatial,"/",spatial.data.name,"_exp.RDS"),dir_spatial_new)
+    file.copy(paste0(dir_spatial,"/",spatial.data.name,"_coords.RDS"),dir_spatial_new)
+    file.rename(from = paste0(dir_spatial_new,"/",spatial.data.name,"_exp.RDS"), to = paste0(dir_spatial_new,"/",spatial.data.name,"naive_exp.RDS"))
+    file.rename(from = paste0(dir_spatial_new,"/",spatial.data.name,"_coords.RDS"), to = paste0(dir_spatial_new,"/",spatial.data.name,"naive_coords.RDS"))
+
+    
   }
   
   dir_spatial = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
