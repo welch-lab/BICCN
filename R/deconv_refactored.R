@@ -836,6 +836,7 @@ generate_loading_gifs = function(
   naive.clusters = FALSE,
   mat.use = "proportions",#raw, proportions, or assignment
   cell.types.plot = NULL,
+  filter = NULL,
   dims = c(500, 500)
 ){
   set.seed(rand.seed)
@@ -865,6 +866,12 @@ generate_loading_gifs = function(
   } else {
     assignments = readRDS(paste0(dir_spatial,"/deconvolution_max_factor_assignment_",descriptor,".RDS"))
     cell_types = levels(assignments)
+  }
+  
+  if(!is.null(filter) & mat.use != "assignment"){
+    loadings[loadings < filter] = 0
+    loadings[loadings >= filter] = 1
+    descriptor = paste0(descriptor, "_filter_",filter)
   }
   
   
