@@ -1509,6 +1509,8 @@ refine_cluster_similarity = function(
     filepath,
     region,
     spatial.data.name,
+    clusters.from.atlas = TRUE,
+    naive.clusters = FALSE,
     rand.seed){
   library(ggplot2)
   
