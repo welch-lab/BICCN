@@ -393,7 +393,7 @@ qc_spatial_data = function(
   if(naive.clusters){
     descriptor = paste0(descriptor, "_naive")
     
-    dir_spatial = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name,"_naive")
+    dir_spatial = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
     dir_spatial_new = paste0(dir_spatial, "_naive")
 
     dir.create(dir_spatial_new)
