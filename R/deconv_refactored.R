@@ -435,7 +435,7 @@ qc_spatial_data = function(
   
   saveRDS(spatial.data, paste0(dir_spatial,"/",spatial.data.name,"_exp_qc_",descriptor,".RDS"))
   saveRDS(coords, paste0(dir_spatial,"/",spatial.data.name,"_coords_qc_",descriptor,".RDS"))
-  saveRDS(rownames(spatial.data), paste0(dir_spatial,"/gene_selection_qc_",descriptor,".RDS"))
+  saveRDS(rownames(spatial.data), paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/gene_selection_qc_",descriptor,".RDS"))
 }
 
 learn_gene_signatures =function(filepath,
