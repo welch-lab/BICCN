@@ -393,16 +393,16 @@ qc_spatial_data = function(
   if(naive.clusters){
     descriptor = paste0(descriptor, "_naive")
     
-    dir_spatial = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
+    dir_spatial = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name,"_naive")
     dir_spatial_new = paste0(dir_spatial, "_naive")
 
     dir.create(dir_spatial_new)
     file.copy(paste0(dir_spatial,"/",spatial.data.name,"_exp.RDS"),dir_spatial_new)
     file.copy(paste0(dir_spatial,"/",spatial.data.name,"_coords.RDS"),dir_spatial_new)
-    file.rename(from = paste0(dir_spatial_new,"/",spatial.data.name,"_exp.RDS"), to = paste0(dir_spatial_new,"/",spatial.data.name,"naive_exp.RDS"))
-    file.rename(from = paste0(dir_spatial_new,"/",spatial.data.name,"_coords.RDS"), to = paste0(dir_spatial_new,"/",spatial.data.name,"naive_coords.RDS"))
+    file.rename(from = paste0(dir_spatial_new,"/",spatial.data.name,"_exp.RDS"), to = paste0(dir_spatial_new,"/",spatial.data.name,"_naive_exp.RDS"))
+    file.rename(from = paste0(dir_spatial_new,"/",spatial.data.name,"_coords.RDS"), to = paste0(dir_spatial_new,"/",spatial.data.name,"_naive_coords.RDS"))
 
-    
+    spatial.data.name = paste0(spatial.data.name, "_naive")
   }
   
   dir_spatial = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
@@ -435,7 +435,7 @@ qc_spatial_data = function(
   
   saveRDS(spatial.data, paste0(dir_spatial,"/",spatial.data.name,"_exp_qc_",descriptor,".RDS"))
   saveRDS(coords, paste0(dir_spatial,"/",spatial.data.name,"_coords_qc_",descriptor,".RDS"))
-  saveRDS(rownames(spatial.data), paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/gene_selection_qc_",descriptor,".RDS"))
+  saveRDS(rownames(spatial.data), paste0(dir_spatial,"/gene_selection_qc_",descriptor,".RDS"))
 }
 
 learn_gene_signatures =function(filepath,
