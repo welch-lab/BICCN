@@ -2316,3 +2316,257 @@ update_analysis =  function(filepath, analysis_num, region, umapannotations, csv
   }
 }
 
+readSubset2 <- function(object,
+                        slot.use = "norm.data",
+                        balance = NULL,
+                        max.cells = 1000,
+                        chunk = 1000,
+                        datasets.use = NULL,
+                        genes.use = NULL,
+                        rand.seed = 1,
+                        verbose = TRUE) {
+  '%notin%' = Negate('%in%')
+  if (class(object@raw.data[[1]])[1] == "H5File") {
+    if (verbose) {
+      message("Start sampling")
+    }
+    if(is.null(datasets.use))
+    {
+      datasets.use=names(object@H)
+    }
+    cell_inds = downsample(object, balance = balance, max_cells = max.cells, datasets.use = datasets.use, seed = rand.seed, verbose = verbose)
+    
+    hdf5_files = names(object@raw.data)
+    #vargenes = object@var.genes
+    
+    # find the intersect of genes from each input datasets
+    genes = c()
+    if (slot.use != "scale.data"){
+      for (i in 1:length(hdf5_files)) {
+        if (object@h5file.info[[i]][["format.type"]] == "AnnData"){
+          genes_i = object@h5file.info[[i]][["genes"]][]$index
+        } else {
+          genes_i = object@h5file.info[[i]][["genes"]][]
+        }
+        if (i == 1) genes = genes_i else genes = intersect(genes, genes_i)
+      }
+    } else {
+      genes = object@var.genes
+    }
+    
+    if(is.null(genes.use))
+    {
+      genes.use = genes
+    }
+    
+    for (i in 1:length(hdf5_files)) {
+      if (verbose) {
+        message(hdf5_files[i])
+      }
+      if(hdf5_files[[i]] %notin% datasets.use){next}
+      if (slot.use == "scale.data") {
+        data.subset = c()
+      } else {
+        data.subset = Matrix(nrow=length(genes.use),ncol=0,sparse=TRUE)
+      }
+      chunk_size = chunk
+      if (object@h5file.info[[i]][["format.type"]] == "AnnData"){
+        barcodes = object@h5file.info[[i]][["barcodes"]][]$cell
+        genes = object@h5file.info[[i]][["genes"]][]$index
+      } else {
+        barcodes = object@h5file.info[[i]][["barcodes"]][]
+        genes = object@h5file.info[[i]][["genes"]][]
+      }
+      num_cells = length(barcodes)
+      num_genes = length(genes)
+      
+      prev_end_col = 1
+      prev_end_data = 1
+      prev_end_ind = 0
+      
+      
+      #gene_inds = which(genes %in% vargenes)
+      
+      num_chunks = ceiling(num_cells/chunk_size)
+      if (verbose) {
+        pb = txtProgressBar(0, num_chunks, style = 3)
+      }
+      ind = 0
+      
+      while (prev_end_col < num_cells) {
+        ind = ind + 1
+        if (num_cells - prev_end_col < chunk_size) {
+          chunk_size = num_cells - prev_end_col + 1
+        }
+        if (slot.use != "scale.data"){
+          start_inds = object@h5file.info[[i]][["indptr"]][prev_end_col:(prev_end_col+chunk_size)]
+          row_inds = object@h5file.info[[i]][["indices"]][(prev_end_ind+1):(tail(start_inds, 1))]
+          if (slot.use=="raw.data")
+          {
+            counts = object@h5file.info[[i]][["data"]][(prev_end_ind+1):(tail(start_inds, 1))]
+          }
+          if (slot.use=="norm.data")
+          {
+            counts = object@norm.data[[i]][(prev_end_ind+1):(tail(start_inds, 1))]
+          }
+          one_chunk = sparseMatrix(i=row_inds[1:length(counts)]+1,p=start_inds[1:(chunk_size+1)]-prev_end_ind,x=counts,dims=c(num_genes,chunk_size))
+          rownames(one_chunk) = genes
+          colnames(one_chunk) = barcodes[(prev_end_col):(prev_end_col+chunk_size-1)]
+          use_these = intersect(colnames(one_chunk),cell_inds[[i]])
+          one_chunk = one_chunk[genes.use,use_these]
+          data.subset = cbind(data.subset,one_chunk)
+          
+          num_read = length(counts)
+          prev_end_col = prev_end_col + chunk_size
+          prev_end_data = prev_end_data + num_read
+          prev_end_ind = tail(start_inds, 1)
+          setTxtProgressBar(pb, ind)
+        } else {
+          one_chunk = object@scale.data[[i]][,prev_end_col:(prev_end_col + chunk_size - 1)]
+          rownames(one_chunk) = object@var.genes
+          colnames(one_chunk) = barcodes[(prev_end_col):(prev_end_col+chunk_size-1)]
+          use_these = intersect(colnames(one_chunk),cell_inds[[i]])
+          one_chunk = one_chunk[genes.use,use_these]
+          data.subset = cbind(data.subset,one_chunk)
+          
+          prev_end_col = prev_end_col + chunk_size
+          if (verbose) {
+            setTxtProgressBar(pb, ind)
+          }
+        }
+        if (class(object@raw.data[[i]])[1] == "H5File") {
+          object@sample.data[[i]] = data.subset
+        } else if (class(object@raw.data[[i]])[1] != "H5File" & slot.use == "scale.data") {
+          object@sample.data[[i]] = t(data.subset)
+        }
+        object@h5file.info[[i]][["sample.data.type"]] = slot.use
+      }
+      if (verbose) {
+        setTxtProgressBar(pb, num_chunks)
+        cat("\n")
+      }
+    }
+  } else {
+    if (verbose) {
+      message("Start sampling")
+    }
+    if(is.null(datasets.use))
+    {
+      datasets.use = names(object@H)
+    }
+    cell_inds = downsample(object, balance = balance, max_cells = max.cells, datasets.use = datasets.use, verbose = verbose)
+    
+    files = names(object@raw.data)
+    # find the intersect of genes from each input datasets
+    genes = c()
+    for (i in 1:length(files)) {
+      genes_i = rownames(object@raw.data[[i]])
+      if (i == 1) genes = genes_i else genes = intersect(genes, genes_i)
+    }
+    if(is.null(genes.use))
+    {
+      genes.use = genes
+    }
+    if (verbose) {
+      pb = txtProgressBar(0, length(files), style = 3)
+    }
+    for (i in 1:length(files)){
+      if (slot.use=="raw.data")
+      {
+        data.subset_i = object@raw.data[[i]][genes.use, cell_inds[[i]]]
+      }
+      if (slot.use=="norm.data")
+      {
+        data.subset_i = object@norm.data[[i]][genes.use, cell_inds[[i]]]
+      }
+      if(slot.use=="scale.data")
+      {
+        data.subset_i = t(object@scale.data[[i]][cell_inds[[i]], genes.use])
+      }
+      if (verbose) {
+        setTxtProgressBar(pb, i)
+      }
+    }
+    if (verbose){
+      cat("\n")
+    }
+    object@sample.data[[i]] = data.subset_i
+    object@h5file.info[[i]][["sample.data.type"]] = slot.use
+  }
+  names(object@sample.data) = names(object@raw.data)
+  return(object)
+}
+
+
+
+
+
+
+
+downsample <- function(object,balance=NULL,max_cells=1000,datasets.use=NULL,seed=1, verbose = TRUE)
+{
+  set.seed(seed)
+  if(is.null(datasets.use))
+  {
+    datasets.use = names(object@H)
+    if (verbose) {
+      message(datasets.use)
+    }
+  }
+  inds = c()
+  inds_ds = list()
+  if (is.null(balance))
+  {
+    
+    #For every dataset, check to see if it is the dataset.use list
+    # if it is, add cell barcodes from that dataset to the list. If it is not, do not add any barcodes
+    hdf5_files = names(object@raw.data)
+    for(ds in 1:length(hdf5_files)){ 
+      if(hdf5_files[ds] %in% datasets.use){ 
+        inds = c(inds,rownames(object@H[[ds]]))}
+    }
+    
+    num_to_samp = min(max_cells,length(inds))
+    inds = sample(inds,num_to_samp)
+    for (ds in 1:length(hdf5_files))
+    {
+      inds_ds[[ds]] = intersect(inds, rownames(object@H[[ds]]))
+    }
+  }
+  else if (balance == "dataset")
+  {
+    hdf5_files = names(object@raw.data)
+    for(ds in 1:length(hdf5_files)){ 
+      if(hdf5_files[ds] %in% datasets.use){
+        num_to_samp = min(max_cells,nrow(object@H[[ds]]))
+        inds_ds[[ds]] = rownames(object@H[[ds]])[sample(1:nrow(object@H[[ds]]),num_to_samp)]} else {inds_ds[[ds]] = ""}}
+  }
+  else #balance clusters
+  {
+    if (nrow(object@cell.data)==0)
+    {
+      dataset <- unlist(lapply(seq_along(object@H), function(i) {
+        rep(names(object@H)[i], nrow(object@H[[i]]))
+      }), use.names = FALSE)
+      object@cell.data <- data.frame(dataset)
+      rownames(object@cell.data) <- unlist(lapply(object@H,
+                                                  function(x) {
+                                                    rownames(x)
+                                                  }), use.names = FALSE)
+    }
+    
+    hdf5_files = names(object@raw.data)
+    for(ds in 1:length(hdf5_files)){ 
+      if(hdf5_files[ds] %in% datasets.use){
+        cell_bars = c()
+        for (i in levels(object@clusters))
+        {
+          inds_to_samp = names(object@clusters)[object@clusters==i & object@cell.data[["dataset"]] == hdf5_files[[ds]]]
+          num_to_samp = min(max_cells,length(inds_to_samp))
+          cell_bars = c(unlist(cell_bars), sample(inds_to_samp,num_to_samp))
+        }
+        inds_ds[[ds]] = cell_bars
+      } else { inds_ds[[ds]] = ""}}
+  }
+  return(inds_ds)
+}
