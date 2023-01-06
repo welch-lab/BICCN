@@ -173,7 +173,7 @@ subset_spatial_data = function(filepath,
   } else {
     new_dir = paste0(deconv_dir,new_spatial.data.name)
     dir.create(new_dir)
-    message("Created directory at ", plots_dir)
+    message("Created directory at ", new_dir)
     saveRDS(spatial.data, paste0(new_dir,"/",new_spatial.data.name,"_exp.RDS"))
     saveRDS(coords, paste0(new_dir,"/",new_spatial.data.name,"_coords.RDS"))
     message("Saved expression and coordinates to ", new_dir)
