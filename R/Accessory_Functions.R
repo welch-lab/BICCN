@@ -2570,3 +2570,108 @@ downsample <- function(object,balance=NULL,max_cells=1000,datasets.use=NULL,seed
   }
   return(inds_ds)
 }
+
+#' Run Leiden Community Detection Algorithm on H.norm matrix
+#' @description This function wraps KNN calculation implemented by RANN, and
+#' constructs SNN graph after that. Finally, the graph is sent to Python to run
+#' method implemented in "leidenalg" module.
+#' @param H.norm Quantile normalized cell factor loading matrix. Rows for cells
+#' columns for factors
+#' @param prune Filtering threshold. SNN linkage with weight lower than `prune`
+#' will be removed prior to community detection. Default \code{1/15}.
+#' @param dims.use Which factors to use for SNN construction. A numeric scalar
+#' specifies the number of top factors while a vector explicitly specifies the
+#' exact factors. Default \code{seq(ncol(H.norm))}.
+#' @param k Number of nearest neighbors to look for. Default \code{20},
+#' @param eps Error bound. \code{0} implies exact nearest neighbour search.
+#' Default \code{0.1}.
+#' @param resolution A parameter value controlling the coarseness of the
+#' clustering. Higher values lead to more clusters. Default \code{0.3}.
+#' @param nStarts Run leiden algorithm this many times and pick the result with
+#' the highest quality. Default \code{10}.
+#' @param nIterations How many iterations of the Leiden clustering algorithm to
+#' perform. Positive values above \code{2} define the total number of iterations
+#' to perform, \code{-1} has the algorithm run until it reaches its optimal
+#' clustering. Default \code{-1}
+#' @param randomSeed Set seed for random state. Default \code{1}
+#' @return A \code{factor} of community membership for the cells from
+#' \code{H.norm}
+#' @examples
+#' \dontrun{
+#' H.norm <- readRDS("path/to/hnorm_HPF.rds")
+#' cluster <- runLeidenCluster(H.norm, resolution = 0.3, nStarts = 1)
+#' }
+runLeidenCluster <- function(
+    H.norm,
+    prune = 1/15,
+    dims.use = seq(ncol(H.norm)),
+    k = 20,
+    eps = 0.1,
+    resolution = 0.3,
+    nStarts = 10,
+    nIterations = -1,
+    randomSeed = 1)
+{
+  la <- reticulate::import("leidenalg", delay_load = TRUE)
+  if (is.null(dims.use)) dims.use <- seq(ncol(H.norm))
+  if (length(dims.use) == 1) dims.use <- seq(min(dims.use, ncol(H.norm)))
+  snn <- .computeSNN.H.norm(H.norm, dims.use, k, eps, prune)
+  # .buildPyGraph returns a Python igraph Graph object
+  g <- .buildPyGraph(snn)
+  set.seed(randomSeed)
+  maxQuality <- -1
+  for (i in seq(nStarts)) {
+    message(date(), " ... Running Leiden, start ", i)
+    seed <- sample(1000, 1)
+    part <- la$find_partition(g, la$RBConfigurationVertexPartition,
+                              n_iterations = nIterations,
+                              resolution_parameter = resolution,
+                              seed = as.integer(randomSeed),
+                              weights = g$es[["weight"]])
+    if (part$quality() > maxQuality) {
+      cluster <- part$membership
+      maxQuality <- part$quality()
+    }
+  }
+  message(date(), " ... Leiden clustering done")
+  return(factor(cluster))
+}
+
+.computeSNN.H.norm <- function(H.norm, dims.use, k, eps, prune) {
+  message(date(), " ... Calculating KNN")
+  knn <- RANN::nn2(H.norm[, dims.use], k = k, eps = eps)
+  knn <- knn$nn.idx
+  message(date(), " ... Calculating SNN")
+  numCells <- nrow(knn)
+  rows <- rep(seq(numCells), rep(k, numCells))
+  columns <- as.integer(t(knn))
+  data <- rep(1, numCells*k)
+  snn <- Matrix::sparseMatrix(i = rows, j = columns, x = data)
+  snn <- snn %*% t(snn)
+  data <- snn@x/(k + (k - snn@x))
+  filter <- data > prune
+  snnSummary <- summary(snn)
+  snnSummary <- snnSummary[filter,]
+  data <- data[filter]
+  Matrix::sparseMatrix(i = snnSummary[,1], j = snnSummary[,2], x = data)
+}
+
+.buildPyGraph <- function(snn) {
+  message(date(), " ... Constructing SNN Graph")
+  snnSummary <- summary(snn)
+  # Since it is impossible to let reticulate convert an R igraph object to
+  # Python igraph object, we directly build a Python object using the
+  # information we have.
+  ig <- reticulate::import("igraph", delay_load = TRUE)
+  pyBlt <- reticulate::import_builtins(convert = FALSE)
+  # Python zero-base
+  sources <- as.integer(snnSummary[,1] - 1)
+  targets <- as.integer(snnSummary[,2] - 1)
+  weights <- snnSummary[,3]
+  g <- ig$Graph()
+  g$add_vertices(nrow(snn))
+  g$add_edges(pyBlt$list(pyBlt$zip(sources, targets)))
+  reticulate::py_set_item(g$es, "weight", weights)
+  g
+}
+
