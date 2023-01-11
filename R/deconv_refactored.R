@@ -1210,13 +1210,13 @@ analyze_gene_signatures = function(filepath,
    
     ggplot2::ggsave(paste0(dir_plots, "/cell_type_signature_heatmap_",descriptor,".PNG"),
                     heatmap_plot,
-                    width = 1000,
-                    height = 800,
+                    width = 1500,
+                    height = 1200,
                     units = "px")
     ggplot2::ggsave(paste0(dir_plots, "/cell_type_signature_dendrogram_",descriptor,".PNG"),
                     dendro_plot,
-                    width = 500,
-                    height = 400,
+                    width = 1000,
+                    height = 800,
                     units = "px")
   }
 }
@@ -1367,13 +1367,13 @@ analyze_spatial_correlation = function(filepath,
     
     ggplot2::ggsave(paste0(dir_plots, "/spatial_correlation_heatmap_",descriptor,".PNG"),
                     heatmap_dist_plot,
-                    width = 1000,
-                    height = 800,
+                    width = 1500,
+                    height = 1200,
                     units = "px")
     ggplot2::ggsave(paste0(dir_plots, "/spatial_correlation_dendrogram_",descriptor,".PNG"),
                     dendro_dist_plot,
-                    width = 500,
-                    height = 400,
+                    width = 1000,
+                    height = 800,
                     units = "px")
   }
 }
@@ -1498,8 +1498,8 @@ calculate_wasserstein = function(
     
     ggplot2::ggsave(paste0(dir_plots, "/wasserstein_heatmap_",descriptor,".PNG"),
                     heatmap_wasserstein_plot,
-                    width = 1000,
-                    height = 800,
+                    width = 1500,
+                    height = 1200,
                     units = "px")
   }
   
