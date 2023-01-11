@@ -1233,7 +1233,8 @@ cell_type_loading_histogram = function(
   print.plots = FALSE,
   bin.num = 30){
 
-
+  library(ggplot2)
+  
   set.seed(rand.seed)
 
   descriptor = as.character(rand.seed)
@@ -1257,14 +1258,13 @@ cell_type_loading_histogram = function(
   loadings = readRDS(paste0(dir_spatial,"/deconvolution_output_",descriptor,".RDS"))[[mat.use]]
   cell_types = colnames(loadings)
 
-  if(is.null(cell.types.plot)){
-    cell.types.plot = cell_types
-  } else {
+  if(!is.null(cell.types.plot)){
     cell.types.plot = intersect(cell.types.plot, cell_types)
-  }
+  } 
+  cell.types.plot = gsub(" ", ".", gsub("-","_",cell.types.plot))
+  colnames(loadings) = gsub(" ", ".", gsub("-","_",colnames(loadings)))
 
   loadings = as.data.frame(loadings[,cell.types.plot])
-  colnames(loadings) = gsub("-","_",colnames(loadings))
 
   hist_plot = list()
   for(cell_type in colnames(loadings)){
@@ -1279,7 +1279,7 @@ cell_type_loading_histogram = function(
 
 
   pdf(file = paste0(dir_gifs, "/",descriptor,"_",mat.use,"_hist.PDF"), width = 7,height = 4)
-  for(cell_type in cell.types.plot){
+  for(cell_type in names(hist_plot)){
     print(hist_plot[[cell_type]])
   }
   dev.off()
