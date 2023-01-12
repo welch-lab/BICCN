@@ -1,6 +1,6 @@
 library(magrittr)
 library(stringr)
-
+library(varhandle)
 
 '%notin%' = Negate('%in%')
 
@@ -2674,4 +2674,35 @@ runLeidenCluster <- function(
   reticulate::py_set_item(g$es, "weight", weights)
   g
 }
+
+LeidenResolutions = function(file.path, analysis_num, region){
+  resolutions = c(0.1,0.2,0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0)
+  ligs = readRDS(paste0(file.path, region, "/Analysis", analysis_num, "_", region, "/onlineINMF_", region, "_object.RDS"))
+  h_norm = ligs@H.norm
+  k_size = dim(h_norm)[2]
+  for(x in resolutions){
+    leiden_clusters = runLeidenCluster(h_norm, nStarts = 1, resolution = x)
+    leiden_clusters = unfactor(leiden_clusters)
+    leiden_clusters = data.frame(leiden_clusters)
+    leiden_clusters$Barcode = rownames(h_norm)
+    #Read in Old Results table
+    results = readRDS(paste0(file.path, region, "/Analysis", analysis_num, "_", region, "/Analysis", analysis_num, "_", region, "_Results_Table.RDS"))
+    #Generate A New Results table
+    results = select(results, -c("lowRcluster"))
+    joint = left_join(results, leiden_clusters)
+    colnames(joint)[7] = "lowRcluster"
+    joint$ClusterType = "Leiden"
+    joint$resolution = x
+    saveRDS(joint, paste0(file.path, region, "/Analysis", analysis_num, "_", region, "/Analysis", analysis_num, "_", region, "_Results_Table_Resolution_", x, ".RDS"))
+    #Save a new UMAP map
+    clusterings = as.factor(joint$lowRcluster)
+    names(clusterings) = joint$Barcode
+    new_map = plotByDatasetAndCluster(ligs, cluster = clusterings, return.plots = TRUE)
+    png(paste0(file.path, region, "/Analysis", analysis_num, "_", region, "/Images/Leiden_ClusteringResults_", region, "_Analysis", analysis_num, "_K", k_size, "_Resolution_", x, ".png", width = 1000, height = 800 ))
+    print(new_map[[2]] + ggtitle(paste0("Resolution: ", x, " , K = ", k_size)))
+    dev.off()
+  }
+}
+
+
 
