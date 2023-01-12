@@ -2676,6 +2676,9 @@ runLeidenCluster <- function(
 }
 
 LeidenResolutions = function(file.path, analysis_num, region){
+  dir.create(paste0(file.path, region, "/Analysis", analysis_num, "_", region,"/LeidenResolutions"))
+  dir.create(paste0(file.path, region, "/Analysis", analysis_num, "_", region,"/LeidenResolutions/Images"))
+  
   resolutions = c(0.1,0.2,0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0)
   ligs = readRDS(paste0(file.path, region, "/Analysis", analysis_num, "_", region, "/onlineINMF_", region, "_object.RDS"))
   h_norm = ligs@H.norm
@@ -2693,12 +2696,12 @@ LeidenResolutions = function(file.path, analysis_num, region){
     colnames(joint)[7] = "lowRcluster"
     joint$ClusterType = "Leiden"
     joint$resolution = x
-    saveRDS(joint, paste0(file.path, region, "/Analysis", analysis_num, "_", region, "/Analysis", analysis_num, "_", region, "_Results_Table_Resolution_", x, ".RDS"))
+    saveRDS(joint, paste0(file.path, region, "/Analysis", analysis_num, "_", region, "/LeidenResolutions/Analysis", analysis_num, "_", region, "_Results_Table_Resolution_", x, ".RDS"))
     #Save a new UMAP map
     clusterings = as.factor(joint$lowRcluster)
     names(clusterings) = joint$Barcode
     new_map = plotByDatasetAndCluster(ligs, cluster = clusterings, return.plots = TRUE)
-    png(paste0(file.path, region, "/Analysis", analysis_num, "_", region, "/Images/Leiden_ClusteringResults_", region, "_Analysis", analysis_num, "_K", k_size, "_Resolution_", x, ".png", width = 1000, height = 800 ))
+    png(paste0(file.path, region, "/Analysis", analysis_num, "_", region, "/LeidenResolutions/Images/Leiden_ClusteringResults_", region, "_Analysis", analysis_num, "_K", k_size, "_Resolution_", x, ".png", width = 1000, height = 800 ))
     print(new_map[[2]] + ggtitle(paste0("Resolution: ", x, " , K = ", k_size)))
     dev.off()
   }
