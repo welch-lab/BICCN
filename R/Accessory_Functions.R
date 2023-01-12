@@ -2701,7 +2701,7 @@ LeidenResolutions = function(file.path, analysis_num, region){
     clusterings = as.factor(joint$lowRcluster)
     names(clusterings) = joint$Barcode
     new_map = plotByDatasetAndCluster(ligs, cluster = clusterings, return.plots = TRUE)
-    png(paste0(file.path, region, "/Analysis", analysis_num, "_", region, "/LeidenResolutions/Images/Leiden_ClusteringResults_", region, "_Analysis", analysis_num, "_K", k_size, "_Resolution_", x, ".png", width = 1000, height = 800 ))
+    png(paste0(file.path, region, "/Analysis", analysis_num, "_", region, "/LeidenResolutions/Images/Leiden_ClusteringResults_", region, "_Analysis", analysis_num, "_K", k_size, "_Resolution_", x, ".png"), width = 1000, height = 800)
     print(new_map[[2]] + ggtitle(paste0("Resolution: ", x, " , K = ", k_size)))
     dev.off()
   }
