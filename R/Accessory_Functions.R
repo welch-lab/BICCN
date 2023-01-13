@@ -2773,7 +2773,7 @@ RunLeiden = function(analysis_num = NA, region = NA, pathway = NA, leidenRes = 0
   
   #Update Annotations table
   clusterBreakdownLeiden = FinalResults %>% group_by(lowRcluster, dataset, GeneratingLabsAnnotation)  %>% tally()
-  output_filepath = paste0(pathway,"/",  region, "/Analysis", analysis_num, "_", region, "/Cluster_Breakdowns_",region, "_Analysis_", analysis_num, "LeidenResults.xlsx")
+  output_filepath = paste0(pathway,"/",  region, "/Analysis", analysis_num, "_", region, "/Cluster_Breakdowns_",region, "_Analysis_", analysis_num, "_LeidenResults_Resolution_", leidenRes, ".xlsx")
   wb <- createWorkbook()
   addWorksheet(wb = wb, sheetName = paste0("Leiden, Resolution ", leidenRes))
   writeData(wb, sheet = paste0("Leiden, Resolution ", leidenRes), x = clusterBreakdownLeiden)
