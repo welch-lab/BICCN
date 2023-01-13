@@ -2675,11 +2675,9 @@ runLeidenCluster <- function(
   g
 }
 
-LeidenResolutions = function(file.path, analysis_num, region){
+LeidenResolutions = function(file.path, analysis_num, region, resolutions = c(0.1,0.2,0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0)){
   dir.create(paste0(file.path, region, "/Analysis", analysis_num, "_", region,"/LeidenResolutions"))
   dir.create(paste0(file.path, region, "/Analysis", analysis_num, "_", region,"/LeidenResolutions/Images"))
-  
-  resolutions = c(0.1,0.2,0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0)
   ligs = readRDS(paste0(file.path, region, "/Analysis", analysis_num, "_", region, "/onlineINMF_", region, "_object.RDS"))
   h_norm = ligs@H.norm
   k_size = dim(h_norm)[2]
