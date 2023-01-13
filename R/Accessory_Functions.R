@@ -2205,54 +2205,54 @@ generate_markergenes = function(region, analysis_num, filepath  ="/nfs/turbo/umm
   }
 }
 
-updateForLeiden = function(analysis_num = NA, region = NA, pathway = NA){
-  #Read in results object
-  results_path = paste0(pathway, region, "/Analysis", analysis_num, "_", region,"/Analysis", analysis_num, "_", region, "_Results_Table.RDS" )
-  results = readRDS(results_path)
-  #Save version with max.factor clustering
-  old_results_path = paste0(pathway, region, "/Analysis", analysis_num, "_", region,"/Analysis", analysis_num, "_", region, "_Results_Table_OLD.RDS" )
-  saveRDS(results, old_results_path)
-  #Dispose of clusters and high r annotations column
-  results = select(results, -c("lowRcluster", "highRcluster", "highRAnnotations"))
-  #Read in online LIGER object
-  liger_path = paste0(pathway, region, "/Analysis", analysis_num, "_", region,"/onlineINMF_", region, "_object.RDS")
-  ligs = readRDS(liger_path)
-  #Confirm the order is the same
-  if(!identical(names(ligs@clusters), rownames(ligs@H.norm))){
-    warning("Order of Barcodes has become scrambled")
-  }
-  #Read in new Leiden Clusters
-  leiden_path = paste0(pathway, region, "/Analysis", analysis_num, "_", region,"/",region, "_A", analysis_num, "_Leiden_cluster.txt")
-  leiden_clusters = read.csv(leiden_path, header = FALSE)
-  leiden_clusters$Barcode = rownames(ligs@H.norm)
-  colnames(leiden_clusters)[1] = "Leiden_Clustering"
-  #Update Results Table
-  results = left_join(results, leiden_clusters)
-  #Save new results table
-  saveRDS(results, results_path)
-  
-  #Make newest UMAP
-  leiden_clusters = leiden_clusters$Leiden_Clustering
-  leiden_clusters = as.factor(leiden_clusters)
-  names(leiden_clusters) = rownames(ligs@H.norm)
-  
-  ligs@clusters = leiden_clusters
-  plots_low = plotByDatasetAndCluster(ligs, return.plots = TRUE, text.size = 6)
-  
-  #Graph newest UMAP
-  leiden_umap =paste0(pathway,"/",  region, "/Analysis", analysis_num, "_", region, "/Images/Umap_", region, "_Analysis_", analysis_num, "LeidenClustering.png")
-  png(leiden_umap, 1000, 800)
-  print(plots_low[[2]])
-  dev.off()
-  
-  #Update Annotations table
-  cluster_breakdowns_leiden = results %>% group_by(Leiden_Clustering, dataset, OG_Annotations)  %>% tally()
-  output_filepath = paste0(pathway,"/",  region, "/Analysis", analysis_num, "_", region, "/Cluster_Breakdowns_",region, "_Analysis_", analysis_num, "LeidenResults.xlsx")
-  wb <- createWorkbook()
-  addWorksheet(wb = wb, sheetName = "Leiden")
-  writeData(wb, sheet = "Leiden", x = cluster_breakdowns_leiden)
-  saveWorkbook(wb, output_filepath)
-}
+#updateForLeiden = function(analysis_num = NA, region = NA, pathway = NA){
+#   #Read in results object
+#   results_path = paste0(pathway, region, "/Analysis", analysis_num, "_", region,"/Analysis", analysis_num, "_", region, "_Results_Table.RDS" )
+#   results = readRDS(results_path)
+#   #Save version with max.factor clustering
+#   old_results_path = paste0(pathway, region, "/Analysis", analysis_num, "_", region,"/Analysis", analysis_num, "_", region, "_Results_Table_OLD.RDS" )
+#   saveRDS(results, old_results_path)
+#   #Dispose of clusters and high r annotations column
+#   results = select(results, -c("lowRcluster", "highRcluster", "highRAnnotations"))
+#   #Read in online LIGER object
+#   liger_path = paste0(pathway, region, "/Analysis", analysis_num, "_", region,"/onlineINMF_", region, "_object.RDS")
+#   ligs = readRDS(liger_path)
+#   #Confirm the order is the same
+#   if(!identical(names(ligs@clusters), rownames(ligs@H.norm))){
+#     warning("Order of Barcodes has become scrambled")
+#   }
+#   #Read in new Leiden Clusters
+#   leiden_path = paste0(pathway, region, "/Analysis", analysis_num, "_", region,"/",region, "_A", analysis_num, "_Leiden_cluster.txt")
+#   leiden_clusters = read.csv(leiden_path, header = FALSE)
+#   leiden_clusters$Barcode = rownames(ligs@H.norm)
+#   colnames(leiden_clusters)[1] = "Leiden_Clustering"
+#   #Update Results Table
+#   results = left_join(results, leiden_clusters)
+#   #Save new results table
+#   saveRDS(results, results_path)
+#   
+#   #Make newest UMAP
+#   leiden_clusters = leiden_clusters$Leiden_Clustering
+#   leiden_clusters = as.factor(leiden_clusters)
+#   names(leiden_clusters) = rownames(ligs@H.norm)
+#   
+#   ligs@clusters = leiden_clusters
+#   plots_low = plotByDatasetAndCluster(ligs, return.plots = TRUE, text.size = 6)
+#   
+#   #Graph newest UMAP
+#   leiden_umap =paste0(pathway,"/",  region, "/Analysis", analysis_num, "_", region, "/Images/Umap_", region, "_Analysis_", analysis_num, "LeidenClustering.png")
+#   png(leiden_umap, 1000, 800)
+#   print(plots_low[[2]])
+#   dev.off()
+#   
+#   #Update Annotations table
+#   cluster_breakdowns_leiden = results %>% group_by(Leiden_Clustering, dataset, OG_Annotations)  %>% tally()
+#   output_filepath = paste0(pathway,"/",  region, "/Analysis", analysis_num, "_", region, "/Cluster_Breakdowns_",region, "_Analysis_", analysis_num, "LeidenResults.xlsx")
+#   wb <- createWorkbook()
+#   addWorksheet(wb = wb, sheetName = "Leiden")
+#   writeData(wb, sheet = "Leiden", x = cluster_breakdowns_leiden)
+#   saveWorkbook(wb, output_filepath)
+# }
 
 #' This function generates new, annotated UMAPs based on the latest annotations, and also returns an updated csv when desired
 #
@@ -2705,5 +2705,108 @@ LeidenResolutions = function(file.path, analysis_num, region, resolutions = c(0.
   }
 }
 
-
+RunLeiden = function(analysis_num = NA, region = NA, pathway = NA, leidenRes = 0.5){
+  #Read in RLIGER object
+  ligs = readRDS(paste0(pathway, region, "/Analysis", analysis_num, "_", region, "/onlineINMF_", region, "_object.RDS"))
+  leidenPath = paste0(pathway, region, "/Analysis", analysis_num, "_", region, "/LeidenResolutions/")
+  #Check to see if the Leiden directory exists
+  if (file.exists(leidenPath)){
+    #If it does, move on
+    print("Directory already exists, checking for desired resolution")
+  } else {
+    #If it doesn't, create it
+    print("Directory does not exist, creating LeidenResolutions directory")
+    dir.create(file.path(leidenPath))
+  }
+  #Check to see if the Leiden object of desired resolution has already been generated
+  desiredLeiden = paste0(pathway, region, "/Analysis", analysis_num, "_", region, "/LeidenResolutions/Analysis", analysis_num, "_", region, "_Results_Table_Resolution_", leidenRes, ".RDS")
+  if(file.exists(desiredLeiden)){
+    #If it has, move to the next step
+    print("Desired Leiden Resolution has already been calculated, updating the main result object")
+  } else{
+    #If it hasn't, run leiden and save results 
+    hNorm = ligs@H.norm
+    #Run Leiden
+    leiden_clusters = runLeidenCluster(hNorm, nStarts = 1, resolution = leidenRes)
+    leiden_clusters = unfactor(leiden_clusters)
+    leiden_clusters = data.frame(leiden_clusters)
+    leiden_clusters$Barcode = rownames(hNorm)
+    #Read in Old Results table
+    results = readRDS(paste0(pathway, region, "/Analysis", analysis_num, "_", region, "/Analysis", analysis_num, "_", region, "_Results_Table.RDS"))
+    #Generate A New Results table
+    results = select(results, c("UMAP1", "UMAP2", "dataset", "Barcode"))
+    joint = left_join(results, leiden_clusters)
+    colnames(joint)[5] = "lowRcluster"
+    joint$ClusterType = "Leiden"
+    joint$resolution = leidenRes
+    saveRDS(joint, paste0(pathway, region, "/Analysis", analysis_num, "_", region, "/LeidenResolutions/Analysis", analysis_num, "_", region, "_Results_Table_Resolution_", leidenRes, ".RDS"))
+  }
+  
+  #Load in the old results table and save it
+  FinalResultsPath = paste0(pathway, region, "/Analysis", analysis_num, "_", region,"/Analysis", analysis_num, "_", region, "_Results_Table.RDS" )
+  FinalResults = readRDS(FinalResultsPath)
+  #If the old copy does not yet exist, save it
+  FinalResultsPathOld = paste0(pathway, region, "/Analysis", analysis_num, "_", region,"/Analysis", analysis_num, "_", region, "_Results_Table_OLD.RDS" )
+  if (!file.exists(FinalResultsPathOld)){
+    print("Old results are safely saved!")
+    saveRDS(results, FinalResultsPathOld)
+  } else{
+    print("Old results are not disturbed")
+  }
+  
+  #Dispose of unnecessary columns 
+  FinalResults = select(FinalResults, c("UMAP1", "UMAP2", "dataset", "Barcode"))
+  #Read in Leiden Clusters
+  leiden_clusters = readRDS(desiredLeiden)
+  #Merge them
+  FinalResults = left_join(FinalResults, leiden_clusters)
+  #Read in newest Annotations
+  newAnnotations = readRDS("/nfs/turbo/umms-welchjd/BRAIN_initiative/Final_integration_workflow/SupportFiles/Full_annotations_Broad.rds")
+  newAnnotations = select(newAnnotations, c("Barcode", "Annotation"))
+  #Add newest Annotations
+  FinalResults = left_join(FinalResults, newAnnotations)
+  colnames(FinalResults)[8] = "GeneratingLabsAnnotation"
+  #Save FinalResults object
+  saveRDS(FinalResults, FinalResultsPath)
+  print("The Results table has been updated!")
+  #Update Cluster Breakdowns CSV
+  
+  #Update Annotations table
+  clusterBreakdownLeiden = FinalResults %>% group_by(lowRcluster, dataset, GeneratingLabsAnnotation)  %>% tally()
+  output_filepath = paste0(pathway,"/",  region, "/Analysis", analysis_num, "_", region, "/Cluster_Breakdowns_",region, "_Analysis_", analysis_num, "LeidenResults.xlsx")
+  wb <- createWorkbook()
+  addWorksheet(wb = wb, sheetName = paste0("Leiden, Resolution ", leidenRes))
+  writeData(wb, sheet = paste0("Leiden, Resolution ", leidenRes), x = clusterBreakdownLeiden)
+  saveWorkbook(wb, output_filepath)
+  print("New cluster breakdown csv has been generated!")
+  
+  #Add an updated UMAP to the images
+  #Check to make sure cluster barcodes and results table match
+  if(!identical(names(ligs@clusters), FinalResults$Barcode)){
+    FinalResults = FinalResults[match(names(ligs@clusters), FinalResults$Barcode),]
+  }
+  #Make Newest UMAP
+  leidenFactors = FinalResults$lowRcluster
+  leidenFactors = as.factor(leidenFactors)
+  names(leidenFactors) = FinalResults$Barcode
+  ligs@clusters = leidenFactors
+  #Graph newest UMAP
+  LeidenPlots = plotByDatasetAndCluster(ligs, return.plots = TRUE, text.size = 6)
+  #PNG version
+  pngFile  = paste0(pathway,"/",  region, "/Analysis", analysis_num, "_", region, "/Images/Umap_", region, "_Analysis_", analysis_num, "LeidenClustering_Resolution_",leidenRes, ".png")
+  png(pngFile, 1000, 800)
+  print(LeidenPlots[[2]])
+  dev.off() 
+  
+  #PDF version
+  pdfFile = paste0(pathway,"/",  region, "/Analysis", analysis_num, "_", region, "/Images/Umap_", region, "_Analysis_", analysis_num, "LeidenClustering_Resolution_", leidenRes, ".pdf")
+  pdf(pdfFile, width = 10, height = 8)
+  print(LeidenPlots[[2]])
+  dev.off()
+  
+  print("New UMAPS generated in Images Directory")
+  #Save an updated Liger object
+  leidenLig = paste0(pathway, region, "/Analysis", analysis_num, "_", region, "/onlineINMF_", region, "_object_withLeidenClustering_Resolution_", leidenRes, ".RDS")
+  saveRDS(ligs, leidenLig)
+}
 
