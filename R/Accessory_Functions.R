@@ -2810,3 +2810,49 @@ RunLeiden = function(analysis_num = NA, region = NA, pathway = NA, leidenRes = 0
   saveRDS(ligs, leidenLig)
 }
 
+
+
+runVaryNN = function(filepath, analysis_num, region, num_neighbors, leidenLab = 0.5){
+  varyNNFilepath = paste0(filepath, region, "/Analysis", analysis_num, "_", region, "/VaryNN")
+  #If the VaryNN directory already exists, don't create it. 
+  if(file.exists(varyNNFilepath)){
+    print("Directory Already Exists. Do not create it")
+  } else {
+    print("Create Directory")
+    dir.create(varyNNFilepath)
+    dir.create(paste0(varyNNFilepath, "/Images"))
+  }
+  
+  #For each desired num_neighbors, 
+  for (x in num_neighbors){
+    print(paste0("Running Nearest Neighbors ", x, "!"))
+    #Read in LIGER
+    rligs = readRDS(paste0(filepath, region, "/Analysis", analysis_num, "_", region, "/onlineINMF_", region, "_object.RDS"))
+    #Rerun with different UMAP
+    rligs = runUMAP(rligs, n_neighbors=x, min_dist=0.3, distance ="cosine")
+    
+    #Read in desired Leiden resolution
+    leidenPath = paste0(filepath, region, "/Analysis", analysis_num, "_", region, "/LeidenResolutions/Analysis", analysis_num , "_", region, "_Results_Table_Resolution_", leidenLab, ".RDS")
+    leiden = readRDS(leidenPath)
+    
+    rligsClusters = leiden[match(names(rligs@clusters), leiden$Barcode),]
+    clusterFactor = as.factor(rligsClusters$lowRcluster)
+    names(clusterFactor) = rligsClusters$Barcode
+    rligs@clusters = clusterFactor
+    
+    newLigPath = paste0(filepath, region, "/Analysis", analysis_num, "_", region, "/VaryNN/onlineINMF_", region, "_objectumapNN_", x, "_LeidenRes_", leidenLab, ".RDS")
+    #Save new LIGER object
+    saveRDS(rligs, newLigPath)
+    #Create a new UMAP
+    plots = plotByDatasetAndCluster(rligs, return.plots = TRUE, text.size = 6)
+    pdf_plot =paste0(varyNNFilepath, "/Images/Umap2_", region, "_Analysis_", analysis_num, "_UMAPNN_", x, "_LeidenRes_", leidenLab, ".pdf")
+    png_plot =paste0(varyNNFilepath, "/Images/Umap2_", region, "_Analysis_", analysis_num, "_UMAPNN_", x, "_LeidenRes_", leidenLab, ".png")
+    png(png_plot, 1000, 800)
+    print(plots[[2]])
+    dev.off()
+    pdf(pdf_plot, width = 10, height = 8)
+    print(plots[[2]])
+    dev.off()
+  }
+}
+
