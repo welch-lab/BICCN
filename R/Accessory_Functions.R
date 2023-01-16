@@ -2856,3 +2856,72 @@ runVaryNN = function(filepath, analysis_num, region, num_neighbors, leidenLab = 
   }
 }
 
+
+runARIandPurity = function(filepath, region, analysis_num, resolutions = c(0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0)){
+  #Read in LIGER object
+  rligsPathway = paste0(filepath, region, "/Analysis", analysis_num, "_", region, "/onlineINMF_", region, "_object.RDS")
+  rligs = readRDS(rligsPathway)
+  
+  high_10Xv3 = readRDS("/nfs/turbo/umms-welchjd/BRAIN_initiative/Final_integration_workflow/SupportFiles/HighResolution_10Xv3_labels.RDS")
+  mod_10Xv3 = readRDS("/nfs/turbo/umms-welchjd/BRAIN_initiative/Final_integration_workflow/SupportFiles/ModerateResolution_10Xv3_labels.RDS")
+  low_10Xv3 = readRDS("/nfs/turbo/umms-welchjd/BRAIN_initiative/Final_integration_workflow/SupportFiles/LowResolution_10Xv3_labels.RDS")
+  high_10Xv2 = readRDS("/nfs/turbo/umms-welchjd/BRAIN_initiative/Final_integration_workflow/SupportFiles/HighResolution_10Xv2_labels.RDS")
+  mod_10Xv2 = readRDS("/nfs/turbo/umms-welchjd/BRAIN_initiative/Final_integration_workflow/SupportFiles/ModerateResolution_10Xv2_labels.RDS")
+  low_10Xv2 = readRDS("/nfs/turbo/umms-welchjd/BRAIN_initiative/Final_integration_workflow/SupportFiles/LowResolution_10Xv2_labels.RDS")
+  macosko_high = readRDS("/nfs/turbo/umms-welchjd/BRAIN_initiative/Final_integration_workflow/SupportFiles/HighResolution_Macosko_labels.RDS")
+  macosko_low = readRDS("/nfs/turbo/umms-welchjd/BRAIN_initiative/Final_integration_workflow/SupportFiles/LowResolution_Macosko_labels.RDS")
+  #Create an empty dataframe
+  df_purity = data.frame()
+  df_ARI = data.frame()
+  for (res in resolutions){
+    print(paste0("Processing ", res))
+    #Read in Leiden Clusters
+    leidenPathway = paste0(filepath, region, "/Analysis", analysis_num, "_", region, "/LeidenResolutions/Analysis", analysis_num, "_", region, "_Results_Table_Resolution_", res, ".RDS")
+    leiden = readRDS(leidenPathway)
+    #Replace RLIGER clusters
+    leiden = leiden[match(names(rligs@clusters), leiden$Barcode),]
+    leidenClusters = as.factor(leiden$lowRcluster)
+    names(leidenClusters) = leiden$Barcode
+    rligs@clusters = leidenClusters
+    #Calculate Purity scores
+    purity_scv2_low = round(calcPurity(rligs, low_10Xv2), digits = 3)
+    purity_scv2_mod = round(calcPurity(rligs, mod_10Xv2), digits = 3)
+    purity_scv2_high = round(calcPurity(rligs, high_10Xv2), digits = 3)
+    
+    purity_scv3_low = round(calcPurity(rligs, low_10Xv3), digits = 3)
+    purity_scv3_mod = round(calcPurity(rligs, mod_10Xv3), digits = 3)
+    purity_scv3_high = round(calcPurity(rligs, high_10Xv3), digits = 3)
+    
+    purity_macosko_low = round(calcPurity(rligs, macosko_low), digits = 3)
+    purity_macosko_high = round(calcPurity(rligs, macosko_high), digits = 3)
+    
+    
+    nextPurity = c(res, purity_scv2_low , purity_scv2_mod, purity_scv2_high ,purity_scv3_low ,purity_scv3_mod ,purity_scv3_high,purity_macosko_low,purity_macosko_high)
+    df_purity = rbind(df_purity, nextPurity)
+    colnames(df_purity) = c("Leiden Resolutions", "sc10Xv2_Low", "sc10Xv2_Moderate", "sc10Xv2_High", "sc10Xv3_Low", "sc10Xv3_Moderate", "sc10Xv3_High", "Macosko_Low", "Macosko_High")
+    
+    #Calculate ARI scores
+    ARI_scv2_low = round(calcARI(rligs, low_10Xv2), digits = 3)
+    ARI_scv2_mod = round(calcARI(rligs, mod_10Xv2), digits = 3)
+    ARI_scv2_high = round(calcARI(rligs, high_10Xv2), digits = 3)
+    
+    ARI_scv3_low = round(calcARI(rligs, low_10Xv3), digits = 3)
+    ARI_scv3_mod = round(calcARI(rligs, mod_10Xv3), digits = 3)
+    ARI_scv3_high = round(calcARI(rligs, high_10Xv3), digits = 3)
+    
+    ARI_macosko_low = round(calcARI(rligs, macosko_low), digits = 3)
+    ARI_macosko_high = round(calcARI(rligs, macosko_high), digits = 3)
+    
+    
+    nextARI = c(res, ARI_scv2_low , ARI_scv2_mod, ARI_scv2_high ,ARI_scv3_low ,ARI_scv3_mod ,ARI_scv3_high,ARI_macosko_low,ARI_macosko_high)
+    df_ARI = rbind(df_ARI, nextARI)
+    colnames(df_ARI) = c("Leiden Resolutions", "sc10Xv2_Low", "sc10Xv2_Moderate", "sc10Xv2_High", "sc10Xv3_Low", "sc10Xv3_Moderate", "sc10Xv3_High", "Macosko_Low", "Macosko_High")
+  }
+  if(!file.exists(paste0(filepath, region, "/Analysis", analysis_num, "_", region, "/Metrics"))){
+    dir.create(paste0(filepath, region, "/Analysis", analysis_num, "_", region, "/Metrics"))
+  }
+  #Save Purity
+  saveRDS(df_purity, paste0(filepath, region, "/Analysis", analysis_num, "_", region, "/Metrics/Purity_", region, "_Analysis_", analysis_num, ".RDS"))
+  #Save ARI
+  saveRDS(df_ARI, paste0(filepath, region, "/Analysis", analysis_num, "_", region, "/Metrics/ARI_", region, "_Analysis_", analysis_num, ".RDS"))
+}
