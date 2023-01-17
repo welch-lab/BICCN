@@ -1014,6 +1014,11 @@ generate_markersobject = function(datasets, region, analysis_num, filepath, adde
       
     } 
     if (datasets[[i]] != "meth_1" & datasets[[i]] != "meth_2" ){
+      mat_rownames = rownames(matrix)
+      mat_colnames = colnames(matrix)
+      matrix = matrix(as.numeric(matrix), ncol = ncol(matrix))
+      colnames(matrix) = mat_colnames
+      rownames(matrix) = mat_rownames
       ligs = createLiger(list(newdata = matrix), remove.missing = FALSE)
       ligs = normalize(ligs)
       ligs = selectGenes(ligs, var.thresh = 0.0)
