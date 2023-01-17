@@ -2863,13 +2863,22 @@ runARIandPurity = function(filepath, region, analysis_num, resolutions = c(0.1, 
   rligs = readRDS(rligsPathway)
   
   high_10Xv3 = readRDS("/nfs/turbo/umms-welchjd/BRAIN_initiative/Final_integration_workflow/SupportFiles/HighResolution_10Xv3_labels.RDS")
+  high_10Xv3 = subset(high_10Xv3, names(high_10Xv3) %in% names(rligs@clusters))
   mod_10Xv3 = readRDS("/nfs/turbo/umms-welchjd/BRAIN_initiative/Final_integration_workflow/SupportFiles/ModerateResolution_10Xv3_labels.RDS")
+  mod_10Xv3 = subset(mod_10Xv3, names(mod_10Xv3) %in% names(rligs@clusters))
   low_10Xv3 = readRDS("/nfs/turbo/umms-welchjd/BRAIN_initiative/Final_integration_workflow/SupportFiles/LowResolution_10Xv3_labels.RDS")
+  low_10Xv3 = subset(low_10Xv3, names(low_10Xv3) %in% names(rligs@clusters))
   high_10Xv2 = readRDS("/nfs/turbo/umms-welchjd/BRAIN_initiative/Final_integration_workflow/SupportFiles/HighResolution_10Xv2_labels.RDS")
+  high_10Xv2 = subset(high_10Xv2, names(high_10Xv2) %in% names(rligs@clusters))
   mod_10Xv2 = readRDS("/nfs/turbo/umms-welchjd/BRAIN_initiative/Final_integration_workflow/SupportFiles/ModerateResolution_10Xv2_labels.RDS")
+  mod_10Xv2 = subset(mod_10Xv2, names(mod_10Xv2) %in% names(rligs@clusters))
   low_10Xv2 = readRDS("/nfs/turbo/umms-welchjd/BRAIN_initiative/Final_integration_workflow/SupportFiles/LowResolution_10Xv2_labels.RDS")
+  low_10Xv2 = subset(low_10Xv2, names(low_10Xv2) %in% names(rligs@clusters))
   macosko_high = readRDS("/nfs/turbo/umms-welchjd/BRAIN_initiative/Final_integration_workflow/SupportFiles/HighResolution_Macosko_labels.RDS")
+  macosko_high = subset(macosko_high, names(macosko_high) %in% names(rligs@clusters))
   macosko_low = readRDS("/nfs/turbo/umms-welchjd/BRAIN_initiative/Final_integration_workflow/SupportFiles/LowResolution_Macosko_labels.RDS")
+  macosko_low = subset(macosko_low, names(macosko_low) %in% names(rligs@clusters))
+  
   #Create an empty dataframe
   df_purity = data.frame()
   df_ARI = data.frame()
