@@ -2982,5 +2982,44 @@ runVaryDist = function(filepath, analysis_num, region, min_distances, leidenLab 
   }
 }
 
-
+runVaryDist = function(filepath, analysis_num, region, min_distances, leidenLab = 0.5){
+  varyDistFilepath = paste0(filepath, region, "/Analysis", analysis_num, "_", region, "/VaryDist")
+  #If the VaryNN directory already exists, don't create it. 
+  if(file.exists(varyDistFilepath)){
+    print("Directory Already Exists. Do not create it")
+  } else {
+    print("Create Directory")
+    dir.create(varyDistFilepath)
+    dir.create(paste0(varyDistFilepath, "/Images"))
+  }
+  
+  #For each desired num_neighbors, 
+  for (x in min_distances){
+    print(paste0("Running Minimum Distance ", x, "!"))
+    #Read in LIGER
+    rligs = readRDS(paste0(filepath, region, "/Analysis", analysis_num, "_", region, "/onlineINMF_", region, "_object.RDS"))
+    #Rerun with different UMAP
+    rligs = runUMAP(rligs, n_neighbors=30, min_dist=x, distance ="cosine")
+    
+    #Read in desired Leiden resolution
+    leidenPath = paste0(filepath, region, "/Analysis", analysis_num, "_", region, "/LeidenResolutions/Analysis", analysis_num , "_", region, "_Results_Table_Resolution_", leidenLab, ".RDS")
+    leiden = readRDS(leidenPath)
+    
+    rligsClusters = leiden[match(names(rligs@clusters), leiden$Barcode),]
+    clusterFactor = as.factor(rligsClusters$lowRcluster)
+    names(clusterFactor) = rligsClusters$Barcode
+    rligs@clusters = clusterFactor
+    
+    #Create a new UMAP
+    plots = plotByDatasetAndCluster(rligs, return.plots = TRUE, text.size = 6)
+    pdf_plot =paste0(varyDistFilepath, "/Images/Umap2_", region, "_Analysis_", analysis_num, "_UMAPNN_30_MinDist", x, "_LeidenRes_", leidenLab, ".pdf")
+    png_plot =paste0(varyDistFilepath, "/Images/Umap2_", region, "_Analysis_", analysis_num, "_UMAPNN_30_MinDist", x, "_LeidenRes_", leidenLab, ".png")
+    png(png_plot, 1000, 800)
+    print(plots[[2]]+ggtitle(paste0("Analysis ", analysis_num, " ", region, ", Nearest Neigbors: 30, Minimum Distance ", x)))
+    dev.off()
+    pdf(pdf_plot, width = 10, height = 8)
+    print(plots[[2]] + ggtitle(paste0("Analysis ", analysis_num, " ", region, ", Nearest Neigbors: 30, Minimum Distance ", x)))
+    dev.off()
+  }
+}
 
