@@ -2862,27 +2862,63 @@ runVaryNN = function(filepath, analysis_num, region, num_neighbors, leidenLab = 
 }
 
 
+numClusters = function(availableCells){
+  availableCells = data.frame(availableCells)
+  type_counts = availableCells %>% group_by(availableCells) %>% tally()
+  num_types = dim(type_counts)[1]
+  type_counts = filter(type_counts, type_counts$n > 25)
+  num_types_sig = dim(type_counts)[1]
+  return(list(num_types, num_types_sig))
+}
+
+
+
+
 runARIandPurity = function(filepath, region, analysis_num, resolutions = c(0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0)){
   #Read in LIGER object
   rligsPathway = paste0(filepath, region, "/Analysis", analysis_num, "_", region, "/onlineINMF_", region, "_object.RDS")
   rligs = readRDS(rligsPathway)
   
+  lowResATAC = readRDS("/nfs/turbo/umms-welchjd/BRAIN_initiative/Final_integration_workflow/SupportFiles/LowResolution_ATAC_labels.RDS")
+  lowResATAC = subset(lowResATAC, names(lowResATAC) %in% names(rligs@clusters))
+  lowResATAC_table = numClusters(lowResATAC) 
+  highResATAC = readRDS("/nfs/turbo/umms-welchjd/BRAIN_initiative/Final_integration_workflow/SupportFiles/HighResolution_ATAC_labels.RDS")
+  highResATAC = subset(highResATAC, names(highResATAC) %in% names(rligs@clusters))
+  highResATAC_table = numClusters(highResATAC) 
+  meth_low = readRDS("/nfs/turbo/umms-welchjd/BRAIN_initiative/Final_integration_workflow/SupportFiles/LowResolution_snmC_labels.RDS")
+  meth_low = subset(meth_low, names(meth_low) %in% names(rligs@clusters))
+  meth_low_table = numClusters(meth_low) 
+  meth_high = readRDS("/nfs/turbo/umms-welchjd/BRAIN_initiative/Final_integration_workflow/SupportFiles/HighResolution_snmC_labels.RDS")
+  meth_high = subset(meth_high, names(meth_high) %in% names(rligs@clusters))
+  meth_high_table = numClusters(meth_high) 
+  meth_mod = readRDS("/nfs/turbo/umms-welchjd/BRAIN_initiative/Final_integration_workflow/SupportFiles/ModerateResolution_snmC_labels.RDS")
+  meth_mod = subset(meth_mod, names(meth_mod) %in% names(rligs@clusters))
+  meth_mod_table = numClusters(meth_mod) 
   high_10Xv3 = readRDS("/nfs/turbo/umms-welchjd/BRAIN_initiative/Final_integration_workflow/SupportFiles/HighResolution_10Xv3_labels.RDS")
   high_10Xv3 = subset(high_10Xv3, names(high_10Xv3) %in% names(rligs@clusters))
+  high_10Xv3_table = numClusters(high_10Xv3) 
   mod_10Xv3 = readRDS("/nfs/turbo/umms-welchjd/BRAIN_initiative/Final_integration_workflow/SupportFiles/ModerateResolution_10Xv3_labels.RDS")
   mod_10Xv3 = subset(mod_10Xv3, names(mod_10Xv3) %in% names(rligs@clusters))
+  mod_10Xv3_table = numClusters(mod_10Xv3) 
   low_10Xv3 = readRDS("/nfs/turbo/umms-welchjd/BRAIN_initiative/Final_integration_workflow/SupportFiles/LowResolution_10Xv3_labels.RDS")
   low_10Xv3 = subset(low_10Xv3, names(low_10Xv3) %in% names(rligs@clusters))
+  low_10Xv3_table = numClusters(low_10Xv3) 
   high_10Xv2 = readRDS("/nfs/turbo/umms-welchjd/BRAIN_initiative/Final_integration_workflow/SupportFiles/HighResolution_10Xv2_labels.RDS")
   high_10Xv2 = subset(high_10Xv2, names(high_10Xv2) %in% names(rligs@clusters))
+  high_10Xv2_table = numClusters(high_10Xv2) 
   mod_10Xv2 = readRDS("/nfs/turbo/umms-welchjd/BRAIN_initiative/Final_integration_workflow/SupportFiles/ModerateResolution_10Xv2_labels.RDS")
   mod_10Xv2 = subset(mod_10Xv2, names(mod_10Xv2) %in% names(rligs@clusters))
+  mod_10Xv2_table = numClusters(mod_10Xv2) 
   low_10Xv2 = readRDS("/nfs/turbo/umms-welchjd/BRAIN_initiative/Final_integration_workflow/SupportFiles/LowResolution_10Xv2_labels.RDS")
   low_10Xv2 = subset(low_10Xv2, names(low_10Xv2) %in% names(rligs@clusters))
+  low_10Xv2_table = numClusters(low_10Xv2) 
   macosko_high = readRDS("/nfs/turbo/umms-welchjd/BRAIN_initiative/Final_integration_workflow/SupportFiles/HighResolution_Macosko_labels.RDS")
   macosko_high = subset(macosko_high, names(macosko_high) %in% names(rligs@clusters))
+  macosko_high_table = numClusters(macosko_high) 
   macosko_low = readRDS("/nfs/turbo/umms-welchjd/BRAIN_initiative/Final_integration_workflow/SupportFiles/LowResolution_Macosko_labels.RDS")
   macosko_low = subset(macosko_low, names(macosko_low) %in% names(rligs@clusters))
+  macosko_low_table = numClusters(macosko_low) 
+  
   
   #Create an empty dataframe
   df_purity = data.frame()
@@ -2897,6 +2933,7 @@ runARIandPurity = function(filepath, region, analysis_num, resolutions = c(0.1, 
     leidenClusters = as.factor(leiden$lowRcluster)
     names(leidenClusters) = leiden$Barcode
     rligs@clusters = leidenClusters
+    numLeidenClusters = length(unique(leidenClusters))
     #Calculate Purity scores
     purity_scv2_low = round(calcPurity(rligs, low_10Xv2), digits = 3)
     purity_scv2_mod = round(calcPurity(rligs, mod_10Xv2), digits = 3)
@@ -2909,10 +2946,16 @@ runARIandPurity = function(filepath, region, analysis_num, resolutions = c(0.1, 
     purity_macosko_low = round(calcPurity(rligs, macosko_low), digits = 3)
     purity_macosko_high = round(calcPurity(rligs, macosko_high), digits = 3)
     
+    purity_atac_low = round(calcPurity(rligs, lowResATAC), digits = 3)
+    purity_atac_high = round(calcPurity(rligs, highResATAC), digits = 3)
     
-    nextPurity = c(res, purity_scv2_low , purity_scv2_mod, purity_scv2_high ,purity_scv3_low ,purity_scv3_mod ,purity_scv3_high,purity_macosko_low,purity_macosko_high)
+    purity_meth_low = round(calcPurity(rligs, meth_low), digits = 3)
+    purity_meth_mod = round(calcPurity(rligs, meth_mod), digits = 3)
+    purity_meth_high = round(calcPurity(rligs, meth_high), digits = 3)
+    
+    nextPurity = c(res,  purity_scv2_low , purity_scv2_mod, purity_scv2_high ,purity_scv3_low ,purity_scv3_mod ,purity_scv3_high,purity_macosko_low,purity_macosko_high, purity_atac_low, purity_atac_high ,purity_meth_low ,purity_meth_mod,purity_meth_high)
     df_purity = rbind(df_purity, nextPurity)
-    colnames(df_purity) = c("Leiden Resolutions", "sc10Xv2_Low", "sc10Xv2_Moderate", "sc10Xv2_High", "sc10Xv3_Low", "sc10Xv3_Moderate", "sc10Xv3_High", "Macosko_Low", "Macosko_High")
+    colnames(df_purity) = c("Leiden Resolutions",  "sc10Xv2_Low", "sc10Xv2_Moderate", "sc10Xv2_High", "sc10Xv3_Low", "sc10Xv3_Moderate", "sc10Xv3_High", "Macosko_Low", "Macosko_High", "ATAC_low", "ATAC_high", "Meth_Low", "Meth_Mod", "Meth_High")
     
     #Calculate ARI scores
     ARI_scv2_low = round(calcARI(rligs, low_10Xv2), digits = 3)
@@ -2926,20 +2969,31 @@ runARIandPurity = function(filepath, region, analysis_num, resolutions = c(0.1, 
     ARI_macosko_low = round(calcARI(rligs, macosko_low), digits = 3)
     ARI_macosko_high = round(calcARI(rligs, macosko_high), digits = 3)
     
+    ARI_atac_low = round(calcARI(rligs, lowResATAC), digits = 3)
+    ARI_atac_high = round(calcARI(rligs, highResATAC), digits = 3)
     
-    nextARI = c(res, ARI_scv2_low , ARI_scv2_mod, ARI_scv2_high ,ARI_scv3_low ,ARI_scv3_mod ,ARI_scv3_high,ARI_macosko_low,ARI_macosko_high)
+    ARI_meth_low = round(calcARI(rligs, meth_low), digits = 3)
+    ARI_meth_mod = round(calcARI(rligs, meth_mod), digits = 3)
+    ARI_meth_high = round(calcARI(rligs, meth_high), digits = 3)
+    
+    nextARI = c(res,ARI_scv2_low , ARI_scv2_mod, ARI_scv2_high ,ARI_scv3_low ,ARI_scv3_mod ,ARI_scv3_high,ARI_macosko_low,ARI_macosko_high,  ARI_atac_low, ARI_atac_high ,ARI_meth_low ,ARI_meth_mod,ARI_meth_high )
     df_ARI = rbind(df_ARI, nextARI)
-    colnames(df_ARI) = c("Leiden Resolutions", "sc10Xv2_Low", "sc10Xv2_Moderate", "sc10Xv2_High", "sc10Xv3_Low", "sc10Xv3_Moderate", "sc10Xv3_High", "Macosko_Low", "Macosko_High")
+    colnames(df_ARI) = c("Leiden Resolutions",  "sc10Xv2_Low", "sc10Xv2_Moderate", "sc10Xv2_High", "sc10Xv3_Low", "sc10Xv3_Moderate", "sc10Xv3_High", "Macosko_Low", "Macosko_High", "ATAC_low", "ATAC_high", "Meth_Low", "Meth_Mod", "Meth_High")
   }
   if(!file.exists(paste0(filepath, region, "/Analysis", analysis_num, "_", region, "/Metrics"))){
     dir.create(paste0(filepath, region, "/Analysis", analysis_num, "_", region, "/Metrics"))
   }
+  
+  ClusterCounts = c(numLeidenClusters,  lowResATAC_table[[1]],  lowResATAC_table[[2]], highResATAC_table[[1]], highResATAC_table[[2]], meth_low_table[[1]], meth_low_table[[2]], meth_high_table[[1]], meth_high_table[[2]], meth_mod_table[[1]], meth_mod_table[[2]], mod_10Xv2_table[[1]], mod_10Xv2_table[[2]], low_10Xv2_table[[1]], low_10Xv2_table[[2]], macosko_high_table[[1]], macosko_high_table[[2]], macosko_low_table[[1]], macosko_low_table[[2]], meth_mod_table[[1]], meth_mod_table[[2]], mod_10Xv3_table[[1]], mod_10Xv3_table[[2]], low_10Xv3_table[[1]], low_10Xv3_table[[2]], high_10Xv2_table[[1]], high_10Xv2_table[[2]])
+  ClusterCountsName = c("Num_Leiden_Clusters", "Num_lowRes_ATAC", "Num_lowRes_ATAC_Sig", "Num_highRes_ATAC", "Num_highRes_ATAC_Sig", "Num_methLow", "Num_methLow_Sig", "Num_methHigh", "Num_methHigh_Sig", "Num_methMod", "Num_methMod_Sig", "Num_10Xv2_mod", "Num_10Xv2_mod_Sig", "Num_10Xv2_low", "Num_10Xv2_low_Sig", "Num_Macosko_High", "Num_Macosko_High_Sig", "Num_Macosko_Low", "Num_Macosko_Low_Sig", "Num_ModMeth", "Num_ModMeth_Sig", "Num_10XV3_Mod", "Num_10Xv3_Mod_Sig", "Num_10Xv3_Low", "Num_10Xv3_Low_Sig", "Num_10Xv2_High", "Num_10Xv2_High_Sig")
+  
+  names(ClusterCounts) = ClusterCountsName
+  saveRDS(ClusterCounts, paste0(filepath, region, "/Analysis", analysis_num, "_", region, "/Metrics/Analysis_", analysis_num, "_", region, "_ClusterCounts.rds"))
   #Save Purity
   saveRDS(df_purity, paste0(filepath, region, "/Analysis", analysis_num, "_", region, "/Metrics/Purity_", region, "_Analysis_", analysis_num, ".RDS"))
   #Save ARI
   saveRDS(df_ARI, paste0(filepath, region, "/Analysis", analysis_num, "_", region, "/Metrics/ARI_", region, "_Analysis_", analysis_num, ".RDS"))
 }
-
 
 runVaryDist = function(filepath, analysis_num, region, min_distances, leidenLab = 0.5){
   varyDistFilepath = paste0(filepath, region, "/Analysis", analysis_num, "_", region, "/VaryDist")
