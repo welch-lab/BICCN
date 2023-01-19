@@ -996,7 +996,7 @@ generate_markersobject = function(datasets, region, analysis_num, filepath, adde
     matrix = readRDS(matrix_filename)
     results_dataset = paste0(region, "_", datasets[[i]])
     filtered_results = filter(results, results$dataset == results_dataset)
-    if (datasets[[i]] == "meth_1" | datasets[[i]] == "meth_2" ){
+    if (grepl("meth", datasets[[i]], fixed = TRUE)){
       genes_needed = subset(rownames(matrix), rownames(matrix) %in% genes_oi)
       current_matrix = matrix[genes_needed,]
       current_matrix = as.matrix(max(current_matrix) - current_matrix)
@@ -1013,7 +1013,7 @@ generate_markersobject = function(datasets, region, analysis_num, filepath, adde
       
       
     } 
-    if (datasets[[i]] != "meth_1" & datasets[[i]] != "meth_2" ){
+    if (!grepl("meth", datasets[[i]], fixed = TRUE)){
       mat_rownames = rownames(matrix)
       mat_colnames = colnames(matrix)
       matrix = matrix(as.numeric(matrix), ncol = ncol(matrix))
@@ -2871,7 +2871,10 @@ numClusters = function(availableCells){
   return(list(num_types, num_types_sig))
 }
 
-
+library(dplyr)
+library(ggplot2)
+library(gridExtra)
+library(data.table)
 
 
 runARIandPurity = function(filepath, region, analysis_num, resolutions = c(0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0)){
@@ -2953,9 +2956,9 @@ runARIandPurity = function(filepath, region, analysis_num, resolutions = c(0.1, 
     purity_meth_mod = round(calcPurity(rligs, meth_mod), digits = 3)
     purity_meth_high = round(calcPurity(rligs, meth_high), digits = 3)
     
-    nextPurity = c(res,  purity_scv2_low , purity_scv2_mod, purity_scv2_high ,purity_scv3_low ,purity_scv3_mod ,purity_scv3_high,purity_macosko_low,purity_macosko_high, purity_atac_low, purity_atac_high ,purity_meth_low ,purity_meth_mod,purity_meth_high)
+    nextPurity = c(res,  numLeidenClusters, purity_scv2_low , purity_scv2_mod, purity_scv2_high ,purity_scv3_low ,purity_scv3_mod ,purity_scv3_high,purity_macosko_low,purity_macosko_high, purity_atac_low, purity_atac_high ,purity_meth_low ,purity_meth_mod,purity_meth_high)
     df_purity = rbind(df_purity, nextPurity)
-    colnames(df_purity) = c("Leiden Resolutions",  "sc10Xv2_Low", "sc10Xv2_Moderate", "sc10Xv2_High", "sc10Xv3_Low", "sc10Xv3_Moderate", "sc10Xv3_High", "Macosko_Low", "Macosko_High", "ATAC_low", "ATAC_high", "Meth_Low", "Meth_Mod", "Meth_High")
+    colnames(df_purity) = c("Leiden Resolutions", "Number of Leiden Clusters", "sc10Xv2_Low", "sc10Xv2_Moderate", "sc10Xv2_High", "sc10Xv3_Low", "sc10Xv3_Moderate", "sc10Xv3_High", "Macosko_Low", "Macosko_High", "ATAC_low", "ATAC_high", "Meth_Low", "Meth_Mod", "Meth_High")
     
     #Calculate ARI scores
     ARI_scv2_low = round(calcARI(rligs, low_10Xv2), digits = 3)
@@ -2976,16 +2979,16 @@ runARIandPurity = function(filepath, region, analysis_num, resolutions = c(0.1, 
     ARI_meth_mod = round(calcARI(rligs, meth_mod), digits = 3)
     ARI_meth_high = round(calcARI(rligs, meth_high), digits = 3)
     
-    nextARI = c(res,ARI_scv2_low , ARI_scv2_mod, ARI_scv2_high ,ARI_scv3_low ,ARI_scv3_mod ,ARI_scv3_high,ARI_macosko_low,ARI_macosko_high,  ARI_atac_low, ARI_atac_high ,ARI_meth_low ,ARI_meth_mod,ARI_meth_high )
+    nextARI = c(res, numLeidenClusters, ARI_scv2_low , ARI_scv2_mod, ARI_scv2_high ,ARI_scv3_low ,ARI_scv3_mod ,ARI_scv3_high,ARI_macosko_low,ARI_macosko_high,  ARI_atac_low, ARI_atac_high ,ARI_meth_low ,ARI_meth_mod,ARI_meth_high )
     df_ARI = rbind(df_ARI, nextARI)
-    colnames(df_ARI) = c("Leiden Resolutions",  "sc10Xv2_Low", "sc10Xv2_Moderate", "sc10Xv2_High", "sc10Xv3_Low", "sc10Xv3_Moderate", "sc10Xv3_High", "Macosko_Low", "Macosko_High", "ATAC_low", "ATAC_high", "Meth_Low", "Meth_Mod", "Meth_High")
+    colnames(df_ARI) = c("Leiden Resolutions", "Number of Leiden Clusters", "sc10Xv2_Low", "sc10Xv2_Moderate", "sc10Xv2_High", "sc10Xv3_Low", "sc10Xv3_Moderate", "sc10Xv3_High", "Macosko_Low", "Macosko_High", "ATAC_low", "ATAC_high", "Meth_Low", "Meth_Mod", "Meth_High")
   }
   if(!file.exists(paste0(filepath, region, "/Analysis", analysis_num, "_", region, "/Metrics"))){
     dir.create(paste0(filepath, region, "/Analysis", analysis_num, "_", region, "/Metrics"))
   }
   
-  ClusterCounts = c(numLeidenClusters,  lowResATAC_table[[1]],  lowResATAC_table[[2]], highResATAC_table[[1]], highResATAC_table[[2]], meth_low_table[[1]], meth_low_table[[2]], meth_high_table[[1]], meth_high_table[[2]], meth_mod_table[[1]], meth_mod_table[[2]], mod_10Xv2_table[[1]], mod_10Xv2_table[[2]], low_10Xv2_table[[1]], low_10Xv2_table[[2]], macosko_high_table[[1]], macosko_high_table[[2]], macosko_low_table[[1]], macosko_low_table[[2]], meth_mod_table[[1]], meth_mod_table[[2]], mod_10Xv3_table[[1]], mod_10Xv3_table[[2]], low_10Xv3_table[[1]], low_10Xv3_table[[2]], high_10Xv3_table[[1]], high_10Xv3_table[[2]])
-  ClusterCountsName = c("Num_Leiden_Clusters", "Num_lowRes_ATAC", "Num_lowRes_ATAC_Sig", "Num_highRes_ATAC", "Num_highRes_ATAC_Sig", "Num_methLow", "Num_methLow_Sig", "Num_methHigh", "Num_methHigh_Sig", "Num_methMod", "Num_methMod_Sig", "Num_10Xv2_mod", "Num_10Xv2_mod_Sig", "Num_10Xv2_low", "Num_10Xv2_low_Sig", "Num_Macosko_High", "Num_Macosko_High_Sig", "Num_Macosko_Low", "Num_Macosko_Low_Sig", "Num_ModMeth", "Num_ModMeth_Sig", "Num_10XV3_Mod", "Num_10Xv3_Mod_Sig", "Num_10Xv3_Low", "Num_10Xv3_Low_Sig", "Num_10Xv3_High", "Num_10Xv3_High_Sig")
+  ClusterCounts = c(lowResATAC_table[[1]],  lowResATAC_table[[2]], highResATAC_table[[1]], highResATAC_table[[2]], meth_low_table[[1]], meth_low_table[[2]], meth_high_table[[1]], meth_high_table[[2]], meth_mod_table[[1]], meth_mod_table[[2]], high_10Xv2_table[[1]], high_10Xv2_table[[2]],mod_10Xv2_table[[1]], mod_10Xv2_table[[2]], low_10Xv2_table[[1]], low_10Xv2_table[[2]], macosko_high_table[[1]], macosko_high_table[[2]], macosko_low_table[[1]], macosko_low_table[[2]],  mod_10Xv3_table[[1]], mod_10Xv3_table[[2]], low_10Xv3_table[[1]], low_10Xv3_table[[2]], high_10Xv3_table[[1]], high_10Xv3_table[[2]])
+  ClusterCountsName = c("Num_lowRes_ATAC", "Num_lowRes_ATAC_Sig", "Num_highRes_ATAC", "Num_highRes_ATAC_Sig", "Num_methLow", "Num_methLow_Sig", "Num_methHigh", "Num_methHigh_Sig", "Num_methMod", "Num_methMod_Sig", "Num_10Xv2_High", "Num_10Xv2_High_Sig", "Num_10Xv2_mod", "Num_10Xv2_mod_Sig", "Num_10Xv2_low", "Num_10Xv2_low_Sig", "Num_Macosko_High", "Num_Macosko_High_Sig", "Num_Macosko_Low", "Num_Macosko_Low_Sig",  "Num_10XV3_Mod", "Num_10Xv3_Mod_Sig", "Num_10Xv3_Low", "Num_10Xv3_Low_Sig", "Num_10Xv3_High", "Num_10Xv3_High_Sig")
   
   names(ClusterCounts) = ClusterCountsName
   saveRDS(ClusterCounts, paste0(filepath, region, "/Analysis", analysis_num, "_", region, "/Metrics/Analysis_", analysis_num, "_", region, "_ClusterCounts.rds"))
@@ -2993,6 +2996,31 @@ runARIandPurity = function(filepath, region, analysis_num, resolutions = c(0.1, 
   saveRDS(df_purity, paste0(filepath, region, "/Analysis", analysis_num, "_", region, "/Metrics/Purity_", region, "_Analysis_", analysis_num, ".RDS"))
   #Save ARI
   saveRDS(df_ARI, paste0(filepath, region, "/Analysis", analysis_num, "_", region, "/Metrics/ARI_", region, "_Analysis_", analysis_num, ".RDS"))
+  #Make it easy to generate an image of each graph
+  puritypng = paste0(filepath, region, "/Analysis", analysis_num, "_", region, "/Metrics/Purity_", region, "_Analysis_", analysis_num, ".png")
+  df_purity[sapply(df_purity, is.infinite)] <- NA
+  df_purity  = df_purity %>% select_if(~ !any(is.na(.)))
+  png(puritypng, height=800, width=1600)
+  p <- tableGrob(df_purity)
+  grid.arrange(p)
+  dev.off()
+  #Read in ARI
+  aripng = paste0(filepath, region, "/Analysis", analysis_num, "_", region, "/Metrics/ARI_", region, "_Analysis_", analysis_num, ".png")
+  df_ARI[sapply(df_ARI, is.infinite)] <- NA
+  df_ARI  = df_ARI %>% select_if(~ !any(is.na(.)))
+  png(aripng, height=800, width=1600)
+  a <- tableGrob(df_ARI)
+  grid.arrange(a)
+  dev.off()
+  #Read in Cluster types, etc.
+  clusterpng = paste0(filepath, region, "/Analysis", analysis_num, "_", region, "/Metrics/Analysis_", analysis_num, "_", region, "_ClusterCounts.png")
+  cluster = data.frame(ClusterCounts)
+  colnames(cluster) = "Num_Clusters"
+  cluster = filter(cluster, cluster$Num_Clusters !=  0)
+  png(clusterpng, height=600, width=300)
+  c <- tableGrob(cluster)
+  grid.arrange(c)
+  dev.off()
 }
 
 runVaryDist = function(filepath, analysis_num, region, min_distances, leidenLab = 0.5){
