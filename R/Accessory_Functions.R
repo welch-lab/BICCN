@@ -2757,6 +2757,7 @@ RunLeiden = function(analysis_num = NA, region = NA, pathway = NA, leidenRes = 0
     saveRDS(results, FinalResultsPathOld)
   } else{
     print("Old results are not disturbed")
+    FinalResults = readRDS(FinalResultsPathOld)
   }
   
   #Dispose of unnecessary columns 
@@ -2779,6 +2780,9 @@ RunLeiden = function(analysis_num = NA, region = NA, pathway = NA, leidenRes = 0
   #Update Annotations table
   clusterBreakdownLeiden = FinalResults %>% group_by(lowRcluster, dataset, GeneratingLabsAnnotation)  %>% tally()
   output_filepath = paste0(pathway,"/",  region, "/Analysis", analysis_num, "_", region, "/Cluster_Breakdowns_",region, "_Analysis_", analysis_num, "_LeidenResults_Resolution_", leidenRes, ".xlsx")
+  if(file.exists(output_filepath)){
+    file.remove(output_filepath)
+  }
   wb <- createWorkbook()
   addWorksheet(wb = wb, sheetName = paste0("Leiden, Resolution ", leidenRes))
   writeData(wb, sheet = paste0("Leiden, Resolution ", leidenRes), x = clusterBreakdownLeiden)
@@ -3156,7 +3160,7 @@ updateUmaps = function(pathway, analysis_num, region){
   results = right_join(newCoords, results)
   results$MinDist = 0.1 
   #Save new results table
-  saveRDS(results, paste0(pathway, region, "/Analysis", analysis_num, "_", region, "/", leidenLigs))
+  saveRDS(results, paste0(pathway, region, "/Analysis", analysis_num, "_", region, "/Analysis", analysis_num, "_", region, "_Results_Table.RDS"))
   #Create the new UMAPS
   
   print("Plotting unlabeled UMAPS....")
