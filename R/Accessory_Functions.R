@@ -3104,4 +3104,102 @@ runVaryDist = function(filepath, analysis_num, region, min_distances, leidenLab 
     dev.off()
   }
 }
+library(dplyr)
+library(rliger)
+library(stringr)
+library(varhandle)
+
+updateUmaps = function(pathway, analysis_num, region){
+  imageArchive = paste0(pathway, region, "/Analysis", analysis_num, "_", region, "/Images/Archived_Images")
+  if(dir.exists(imageArchive)){
+    print("Exists!")
+  } else{
+    dir.create(imageArchive)
+  }
+  #Get a list of the old images
+  imagesPathway = paste0(pathway, region, "/Analysis", analysis_num, "_", region, "/Images/")
+  currentImages = list.files(imagesPathway)
+  currentImages = grep("Archived_Images", currentImages, value = TRUE, invert = TRUE)
+  changedName = c()
+  for(files in currentImages){
+    files = paste0("runUMAP_MinDist_0.3_", files)
+    changedName = c(unlist(changedName), files)
+    
+  }
+  #Move the old UMAPS to archive
+  file.copy(from = paste0(imagesPathway, currentImages), to = paste0(imageArchive,"/" ,changedName))
+  file.remove(from = paste0(imagesPathway, currentImages))
+  #Search for the appropriate liger object 
+  currentFiles = list.files(paste0(pathway, region, "/Analysis", analysis_num, "_", region))
+  leidenLigs = grep("object_withLeidenClustering", currentFiles, value = TRUE)
+  #Read in relevant RLiger object 
+  rligs = readRDS(paste0(pathway, region, "/Analysis", analysis_num, "_", region, "/", leidenLigs))
+  rligs = runUMAP(rligs,n_neighbors=30, min_dist=0.1, distance ="cosine")
+  leidenLigs = paste0("runUMAP_MinDist_0.1_", leidenLigs)
+  #Save new liger object
+  saveRDS(rligs, paste0(pathway, region, "/Analysis", analysis_num, "_", region, "/", leidenLigs))
+  #Find the results table
+  resultsObject = grep("Results_Table", currentFiles, value = TRUE)
+  resultsObject = grep("OLD", resultsObject, value = TRUE, invert = TRUE)
+  results= readRDS(paste0(pathway, region, "/Analysis", analysis_num, "_", region, "/",resultsObject))
+  clusterType = results$ClusterType[1]
+  clusterResolution = results$resolution[1]
+  results$MinDist = 0.3
+  saveRDS(results,paste0(pathway, region, "/Analysis", analysis_num, "_", region, "/Analysis", analysis_num, "_", region, "_Results_Table_" ,clusterType, "_", clusterResolution, "_MinDist_0.3.RDS"))
+  if(results$ClusterType[1] != "Leiden"){
+    stop("The results table has not been updated for leiden clustering")
+  }
+  results = select(results, -c("UMAP1", "UMAP2"))
+  newCoords = data.frame(rligs@tsne.coords)
+  colnames(newCoords) = c("UMAP1", "UMAP2")
+  newCoords$Barcode = rownames(newCoords)
+  results = right_join(newCoords, results)
+  results$MinDist = 0.1 
+  #Save new results table
+  saveRDS(results, paste0(pathway, region, "/Analysis", analysis_num, "_", region, "/", leidenLigs))
+  #Create the new UMAPS
+  
+  print("Plotting unlabeled UMAPS....")
+  if(!identical(results$lowRcluster, unfactor(rligs@clusters))){
+    stop("Leiden is not being used")
+  }
+  plots = plotByDatasetAndCluster(rligs, return.plots = TRUE, text.size = 6)
+  umap1_pdf =paste0(pathway, "/",  region, "/Analysis", analysis_num, "_", region, "/Images/Umap1_", region, "_Analysis_", analysis_num, "_", clusterType, "_Res_", clusterResolution, "_MinDist_0.1.pdf")
+  umap2_pdf =paste0(pathway, "/", region, "/Analysis", analysis_num, "_", region, "/Images/Umap2_", region, "_Analysis_", analysis_num, "_", clusterType, "_Res_", clusterResolution, "_MinDist_0.1.pdf")
+  umap1_png =paste0(pathway, "/",  region, "/Analysis", analysis_num, "_", region, "/Images/Umap1_", region, "_Analysis_", analysis_num, "_", clusterType, "_Res_", clusterResolution, "_MinDist_0.1.png")
+  umap2_png =paste0(pathway, "/", region, "/Analysis", analysis_num, "_", region, "/Images/Umap2_", region, "_Analysis_", analysis_num, "_", clusterType, "_Res_", clusterResolution, "_MinDist_0.1.png")
+  png(umap1_png, 1000, 800)
+  print(plots[[1]])
+  dev.off()
+  png(umap2_png, 1000, 800)
+  print(plots[[2]])
+  dev.off()
+  pdf(umap1_pdf, width = 10, height = 8)
+  print(plots[[1]])
+  dev.off()
+  pdf(umap2_pdf, width = 10, height = 8)
+  print(plots[[2]])
+  dev.off()
+  #Regenerate the New_Annotations_Analysis*_Region.pdf
+  #Read in Annotations
+  annies = readRDS("/nfs/turbo/umms-welchjd/BRAIN_initiative/Final_integration_workflow/SupportFiles/Full_annotations_Broad.rds")
+  #For every modality present (excluding smartseq), get Annotations and generate a UMAP for each modality
+  mods = unique(names(rligs@raw.data))
+  mods = sub(paste0(region, "_"), "", mods)
+  mods = grep("smartseq", mods, value = TRUE, invert = TRUE)
+  cells = rownames(rligs@tsne.coords)
+  pdf.path = paste0(pathway,region, "/Analysis", analysis_num, "_", region, "/Images/New_Annotations_Analysis", analysis_num, "_", region, "MinDist_0.3.pdf" )
+  pdf(pdf.path, width = 12, height = 8)
+  for (mode in mods){
+    reduced = filter(annies, annies$Modality == mode)
+    labels = reduced$Annotation[match(cells, reduced$Barcode)]
+    names(labels) = cells
+    #Create ggplot object
+    gg.ob = plotByDatasetAndCluster(rligs,return.plots = TRUE, text.size = 6, clusters = labels, legend.fonts.size = 8, legend.size = 3)
+    print(gg.ob[[2]] + ggtitle(paste0(region, "_Analysis_", analysis_num, "_", mode, " MinDist 0.3")) + guides(shape = guide_legend(override.aes = list(size = 0.4))) + theme(legend.title = element_text(size = 5), 
+                                                                                                                                                                              legend.text = element_text(size = 5)))
+  }
+  dev.off()
+  print("New graphs have been generated and saved!")
+}
 
