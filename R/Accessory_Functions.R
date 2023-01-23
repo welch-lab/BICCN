@@ -3192,7 +3192,7 @@ updateUmaps = function(pathway, analysis_num, region){
   mods = sub(paste0(region, "_"), "", mods)
   mods = grep("smartseq", mods, value = TRUE, invert = TRUE)
   cells = rownames(rligs@tsne.coords)
-  pdf.path = paste0(pathway,region, "/Analysis", analysis_num, "_", region, "/Images/New_Annotations_Analysis", analysis_num, "_", region, "MinDist_0.3.pdf" )
+  pdf.path = paste0(pathway,region, "/Analysis", analysis_num, "_", region, "/Images/New_Annotations_Analysis", analysis_num, "_", region, "MinDist_0.1.pdf" )
   pdf(pdf.path, width = 12, height = 8)
   for (mode in mods){
     reduced = filter(annies, annies$Modality == mode)
@@ -3200,7 +3200,7 @@ updateUmaps = function(pathway, analysis_num, region){
     names(labels) = cells
     #Create ggplot object
     gg.ob = plotByDatasetAndCluster(rligs,return.plots = TRUE, text.size = 6, clusters = labels, legend.fonts.size = 8, legend.size = 3)
-    print(gg.ob[[2]] + ggtitle(paste0(region, "_Analysis_", analysis_num, "_", mode, " MinDist 0.3")) + guides(shape = guide_legend(override.aes = list(size = 0.4))) + theme(legend.title = element_text(size = 5), 
+    print(gg.ob[[2]] + ggtitle(paste0(region, "_Analysis_", analysis_num, "_", mode, " MinDist 0.1")) + guides(shape = guide_legend(override.aes = list(size = 0.4))) + theme(legend.title = element_text(size = 5), 
                                                                                                                                                                               legend.text = element_text(size = 5)))
   }
   dev.off()
