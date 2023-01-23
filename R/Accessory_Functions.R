@@ -2754,7 +2754,7 @@ RunLeiden = function(analysis_num = NA, region = NA, pathway = NA, leidenRes = 0
   FinalResultsPathOld = paste0(pathway, region, "/Analysis", analysis_num, "_", region,"/Analysis", analysis_num, "_", region, "_Results_Table_OLD.RDS" )
   if (!file.exists(FinalResultsPathOld)){
     print("Old results are safely saved!")
-    saveRDS(results, FinalResultsPathOld)
+    saveRDS(FinalResults, FinalResultsPathOld)
   } else{
     print("Old results are not disturbed")
     FinalResults = readRDS(FinalResultsPathOld)
