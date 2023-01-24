@@ -798,7 +798,7 @@ voxelize_single_cells = function(
 
 
   if(is.null(out.filepath)){
-    new_dir = paste0(spatial_dir, "_", voxel.size)
+    new_dir = paste0(dir_spatial, "_", voxel.size)
     dir.create(new_dir)
     message("Saving to new spatial data folder - " , new_dir)
     out.filepath = new_dir
