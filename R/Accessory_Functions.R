@@ -2146,6 +2146,11 @@ generate_markergenes = function(region, analysis_num, filepath  ="/nfs/turbo/umm
   for (rfile in 1:length(dirfiles)){
     fn = paste0(direc, "/", dirfiles[[rfile]])
     mm = readRDS(fn)
+    cnames = colnames(mm)
+    rnames = rownames(mm)
+    mm = matrix(as.numeric(mm), ncol = ncol(mm))
+    colnames(mm) = cnames
+    rownames(mm) = rnames
     mm = as(mm, "dgCMatrix")
     matrix_list[[rfile]] = mm
     mname = sub("_qc.RDS", "", dirfiles[[rfile]])
