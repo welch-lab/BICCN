@@ -3212,3 +3212,58 @@ updateUmaps = function(pathway, analysis_num, region){
   print("New graphs have been generated and saved!")
 }
 
+
+library(dplyr)
+library(stringr)
+'%notin%' = Negate('%in%')
+#Examples of 'broad'
+#broad = c(0:30)
+#names(broad) = c("Astro", "Oligos", "Astro", "Oligos","Oligos","Astro","Astro","OPC", "Microglia","Astro","Oligos","Endo","Oligos", "Oligos","Oligos","Pericyte","Fibro","Fibro", "Fibro","Astro","Ependymal", "Macrophage","Astro","Macrophage","Oligos","LQ", "Macrophage","Astro","Macrophage","Oligos","LQ")
+PrioritizeVariants = function(region, analysis_num, pathway, broad){
+  wil = readRDS(paste0(pathway, region, "Analysis", analysis_num, "_", region, "/Analysis", analysis_num, "_", region, "_Wilcoxon_results.RDS"))
+  wil = filter(wil, wil$padj < 0.05)
+  #Get genes that are specifically DE to a single cluster
+  GenesSpecificToSingleCluster = SingleClusterDE(wil)
+  #Get genes that are specifically DE to a single cell type
+  GenesSpecificToSingleCellType = SingleCellTypeDE(wil, broad)
+  #Get genes of interest because they are markers in their human ortholog form
+  MarkersToHuman = MarkersHuman(wil)
+}
+
+SingleClusterDE = function(wilcoxon){
+  SingleClusterGenes = c()
+  #Get the number of clusters
+  Clusts = unique(wilcoxon$group)
+  Clusts = as.numeric(Clusts)
+  Clusts = sort(Clusts)
+  for(Individual in Clusts){
+    InIndividual = filter(wilcoxon, wilcoxon$group == Individual)
+    RestOfClusters = filter(wilcoxon, wilcoxon$group != Individual)
+    UniqueToCluster = filter(InIndividual, InIndividual$feature %notin% RestOfClusters$feature)
+    SingleClusterGenes[[Individual]] = UniqueToCluster
+  }
+  return(SingleClusterGenes)
+}
+SingleCellTypeDE = function(wilcoxon, Annotations){
+  CellTypes = unique(names(Annotations))
+  FeaturesExclusiveToType = c()
+  for(CellKind in CellTypes){
+    SingleCellType = subset(Annotations, names(Annotations) == CellKind)
+    OtherCellTypes = subset(Annotations, names(Annotations) != CellKind)
+    FeaturesCellType = filter(wilcoxon, wilcoxon$group %in% SingleCellType)
+    FeaturesOtherCellTypes = filter(wilcoxon, wilcoxon$group %in% OtherCellTypes)
+    ExclusiveFeatures = filter(FeaturesCellType, FeaturesCellType$feature %notin% FeaturesOtherCellTypes$feature)
+    FeaturesExclusiveToType[[CellKind]] = ExclusiveFeatures
+  }
+  return(FeaturesExclusiveToType)
+}
+MarkersHuman = function(wilcoxon){
+  HumanMarkers = readRDS("/nfs/turbo/umms-welchjd/BRAIN_initiative/Final_integration_workflow/SupportFiles/StenL_Human_Whole_Brain_Atlas_Clusters_and_Corresponding_1to1_Mouse_Orthologs.RDS")
+  MouseOrthologs = HumanMarkers$Differentially_Expressed_Mouse
+  MouseOrthologs = unlist(MouseOrthologs)
+  MouseOrthologs = strsplit(MouseOrthologs, " ,")
+  MouseOrthologs = unlist(MouseOrthologs)
+  MouseOrthologs = unique(MouseOrthologs)
+  wilcoxonHuman = filter(wilcoxon, wilcoxon$feature %in% MouseOrthologs)
+  return(wilcoxonHuman)
+}
