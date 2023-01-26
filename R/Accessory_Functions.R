@@ -3250,7 +3250,8 @@ SingleClusterDE = function(wilcoxon){
     InIndividual = filter(wilcoxon, wilcoxon$group == Individual)
     RestOfClusters = filter(wilcoxon, wilcoxon$group != Individual)
     UniqueToCluster = filter(InIndividual, InIndividual$feature %notin% RestOfClusters$feature)
-    SingleClusterGenes[[Individual]] = UniqueToCluster
+    SingleClusterGenes[[Individual+1]] = UniqueToCluster
+    names(SingleClusterGenes[[Individual+1]]) = paste0("Cluster_", Individual)
   }
   return(SingleClusterGenes)
 }
