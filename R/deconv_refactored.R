@@ -942,16 +942,23 @@ generate_label_gifs = function(
   if(is.vector(labels.plot)){
     coords = coords[names(labels.plot),]
     labels_use = unique(labels.plot)
-    for(label_unique in labels_use){
+  } else {
+    coords = coords[rownames(labels.plot),]
+    labels_use = colnames(labels.plot)
+  }
+  for(label_unique in labels_use){
+    if(is.vector(labels.plot)){
       colors_view = (labels.plot == label_unique)*20 + 1
-      try(rgl.close(), silent = TRUE)
-      open3d(windowRect = c(0,0, dims[1], dims[2]));
-      plot3d(coords[,1],coords[,2],coords[,3],col = colors_view,aspect=c(67,41,58),xlab="Anterior-Posterior",ylab="Inferior-Superior",zlab="Left-Right",size=1, type = "p", add = TRUE)
-      decorate3d(xlab = colnames(coords)[1], ylab = colnames(coords)[2],zlab = colnames(coords)[3], box = FALSE, axes = FALSE)
-      axes3d(c("x--","y--","z--"))#axes3d(c("x--","y--","z--"))
-      label_unique = sub("/", ".",sub(" ", "_",label_unique))
-      movie3d(spin3d(axis = c(0, 0, 1)), duration = 20, movie = paste0(dir_gifs, "/", region, "_",label_unique,"_spatial_summary"))
+    } else {
+      colors_view = labels.plot[,label_unique]*20 + 1
     }
+    try(rgl.close(), silent = TRUE)
+    open3d(windowRect = c(0,0, dims[1], dims[2]));
+    plot3d(coords[,1],coords[,2],coords[,3],col = colors_view,aspect=c(67,41,58),xlab="Anterior-Posterior",ylab="Inferior-Superior",zlab="Left-Right",size=1, type = "p", add = TRUE)
+    decorate3d(xlab = colnames(coords)[1], ylab = colnames(coords)[2],zlab = colnames(coords)[3], box = FALSE, axes = FALSE)
+    axes3d(c("x--","y--","z--"))#axes3d(c("x--","y--","z--"))
+    label_unique = sub("/", ".",sub(" ", "_",label_unique))
+    movie3d(spin3d(axis = c(0, 0, 1)), duration = 20, movie = paste0(dir_gifs, "/", region, "_",label_unique,"_spatial_summary"))
   }
 }
 
