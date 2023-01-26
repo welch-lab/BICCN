@@ -918,6 +918,43 @@ generate_loading_gifs = function(
   }
 }
 
+generate_label_gifs = function(
+  filepath,
+  region,
+  spatial.data.name,
+  labels.plot,
+  dims = c(500, 500)
+){
+  set.seed(rand.seed)
+  library(rgl)
+  
+  dir_spatial = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
+  
+  dir_gifs = paste0(dir_spatial,"/plots")
+  if(!dir.exists(dir_gifs)){
+    dir.create(paste0(dir_gifs))
+    message("Created directory at ", dir_gifs)
+  }
+  
+  grDevices::palette(viridis::viridis(option="A",n=50,direction = -1))
+  coords = readRDS(paste0(dir_spatial,"/",spatial.data.name,"_coords.RDS"))
+  
+  if(is.vector(labels.plot)){
+    coords = coords[names(labels.plot),]
+    labels_use = unique(labels.plot)
+    for(label_unique in labels_use){
+      colors_view = (labels.plot == label_unique)*20 + 1
+      try(rgl.close(), silent = TRUE)
+      open3d(windowRect = c(0,0, dims[1], dims[2]));
+      plot3d(coords[,1],coords[,2],coords[,3],col = colors_view,aspect=c(67,41,58),xlab="Anterior-Posterior",ylab="Inferior-Superior",zlab="Left-Right",size=1, type = "p", add = TRUE)
+      decorate3d(xlab = colnames(coords)[1], ylab = colnames(coords)[2],zlab = colnames(coords)[3], box = FALSE, axes = FALSE)
+      axes3d(c("x--","y--","z--"))#axes3d(c("x--","y--","z--"))
+      label_unique = sub("/", ".",sub(" ", "_",label_unique))
+      movie3d(spin3d(axis = c(0, 0, 1)), duration = 20, movie = paste0(dir_gifs, "/", region, "_",label_unique,"_spatial_summary"))
+    }
+  }
+}
+
 
 #' Convert proportions generated during the deconvolution into cell-type
 #' assignments, for use with single cell spatial modalities (i.e. slideseq)
