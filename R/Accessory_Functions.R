@@ -3225,7 +3225,7 @@ library(stringr)
 #broad = c(0:30)
 #names(broad) = c("Astro", "Oligos", "Astro", "Oligos","Oligos","Astro","Astro","OPC", "Microglia","Astro","Oligos","Endo","Oligos", "Oligos","Oligos","Pericyte","Fibro","Fibro", "Fibro","Astro","Ependymal", "Macrophage","Astro","Macrophage","Oligos","LQ", "Macrophage","Astro","Macrophage","Oligos","LQ")
 PrioritizeVariants = function(region, analysis_num, pathway, broad){
-  wil = readRDS(paste0(pathway, region, "Analysis", analysis_num, "_", region, "/Analysis", analysis_num, "_", region, "_Wilcoxon_results.RDS"))
+  wil = readRDS(paste0(pathway, region, "/Analysis", analysis_num, "_", region, "/Wilcoxon.by.cluster.", region, ".", analysis_num, ".RDS"))
   wil = filter(wil, wil$padj < 0.05)
   #Get genes that are specifically DE to a single cluster
   GenesSpecificToSingleCluster = SingleClusterDE(wil)
