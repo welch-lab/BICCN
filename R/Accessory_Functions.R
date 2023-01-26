@@ -2160,6 +2160,8 @@ generate_markergenes = function(region, analysis_num, filepath  ="/nfs/turbo/umm
   potential_ligs = list.files(direc)
   potential_ligs = grep("onlineINMF", potential_ligs, value = TRUE)
   potential_ligs = grep("Leiden", potential_ligs, value = TRUE)
+  potential_ligs = grep("runUMAP", potential_ligs, value = TRUE)
+  
   obj = readRDS(paste0(direc, "/" , potential_ligs))
   #Create a useable LIGER object
   ligs = createLiger(matrix_list, remove.missing = FALSE)
