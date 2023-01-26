@@ -3224,15 +3224,20 @@ library(stringr)
 #Examples of 'broad'
 #broad = c(0:30)
 #names(broad) = c("Astro", "Oligos", "Astro", "Oligos","Oligos","Astro","Astro","OPC", "Microglia","Astro","Oligos","Endo","Oligos", "Oligos","Oligos","Pericyte","Fibro","Fibro", "Fibro","Astro","Ependymal", "Macrophage","Astro","Macrophage","Oligos","LQ", "Macrophage","Astro","Macrophage","Oligos","LQ")
-PrioritizeVariants = function(region, analysis_num, pathway, broad){
+PrioritizeVariants = function(region, analysis_num, pathway, broad, Annotated = FALSE){
   wil = readRDS(paste0(pathway, region, "/Analysis", analysis_num, "_", region, "/Wilcoxon.by.cluster.", region, ".", analysis_num, ".RDS"))
   wil = filter(wil, wil$padj < 0.05)
   #Get genes that are specifically DE to a single cluster
   GenesSpecificToSingleCluster = SingleClusterDE(wil)
   #Get genes that are specifically DE to a single cell type
+  if (Annotated == TRUE){
   GenesSpecificToSingleCellType = SingleCellTypeDE(wil, broad)
+  } else {GenesSpecificToSingleCellType = c()}
   #Get genes of interest because they are markers in their human ortholog form
   MarkersToHuman = MarkersHuman(wil)
+  Variants = c(GenesSpecificToSingleCluster, GenesSpecificToSingleCellType, MarkersToHuman)
+  names(Variants) = c("GenesSpecificToSingleCluster", "GenesSpecificToSingleCellType", "MarkersToHuman")
+  return(Variants)
 }
 
 SingleClusterDE = function(wilcoxon){
