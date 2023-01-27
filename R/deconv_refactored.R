@@ -1652,3 +1652,51 @@ threshold_similar_clusts = function(
     saveRDS(thresh_list, thresh_file)
   }
 }
+
+
+describe_voxelized_loading_by_label = function(filepath,
+                              region,
+                              spatial.data.name,
+                              rand.seed = 123,
+                              clusters.from.atlas = TRUE,
+                              naive.clusters = FALSE,
+                              labels.use){
+  set.seed(rand.seed)
+
+  descriptor = as.character(rand.seed)
+  if(clusters.from.atlas){
+    descriptor = paste0(descriptor, "_object_clusters")
+  }
+  if(naive.clusters){
+    descriptor = paste0(descriptor, "_naive")
+    spatial.data.name = paste0(spatial.data.name, "_naive")
+  }
+  
+  dir_spatial = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
+  
+  
+  voxels_to_samples = readRDS(paste0(dir_spatial, "/",spatial.data.name,"_voxels_to_samples.RDS"))
+  raw_loadings = readRDS(paste0(dir_spatial, "/deconvolution_output_",descriptor,".RDS"))[[1]]
+  
+  unique_labels = unique(labels.use)
+  
+  voxel_in_subregion = sapply(unique_labels, function(unique_label){
+    sapply(names(voxels_to_samples), function(voxel_to_sample){
+      any(unique_labels[voxel_to_sample] %in% unique_label)
+    })
+  })
+  
+  colnames(voxel_in_subregion) = unique_labels
+  rownames(voxel_in_subregion) = names(voxels_to_samples)
+  
+  voxel_in_subregion = voxel_in_subregion[rownames(voxel_in_subregion) %in% rownames(raw_loadings),]
+  
+  
+  proportion_loading_in_subregion = sapply(unique_subregions, function(subregion){
+    sapply(colnames(raw_loadings), function(cell_type){
+      sum(raw_loadings[voxel_in_subregion[,subregion]==1,cell_type])/sum(raw_loadings[,cell_type])
+    })
+  })
+  
+  saveRDS(proportion_loading_in_subregion, paste0(dir_spatial, "/",descriptor,"_output/cell_type_loading_by_label.RDS"))
+}
