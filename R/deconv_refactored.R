@@ -1699,5 +1699,5 @@ describe_voxelized_loading_by_label = function(filepath,
     })
   })
   
-  saveRDS(proportion_loading_in_subregion, paste0(dir_spatial, "/",descriptor,"_output/cell_type_loading_by_label",mat.use,".RDS"))
+  saveRDS(proportion_loading_in_subregion, paste0(dir_spatial, "/",descriptor,"_output/cell_type_loading_by_label_",mat.use,".RDS"))
 }
