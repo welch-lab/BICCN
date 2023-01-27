@@ -1693,7 +1693,7 @@ describe_voxelized_loading_by_label = function(filepath,
   voxel_in_subregion = voxel_in_subregion[rownames(voxel_in_subregion) %in% rownames(raw_loadings),]
   
   
-  proportion_loading_in_subregion = sapply(unique_subregions, function(subregion){
+  proportion_loading_in_subregion = sapply(unique_labels, function(subregion){
     sapply(colnames(raw_loadings), function(cell_type){
       sum(raw_loadings[voxel_in_subregion[,subregion],cell_type])/sum(raw_loadings[,cell_type])
     })
