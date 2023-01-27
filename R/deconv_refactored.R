@@ -1660,6 +1660,7 @@ describe_voxelized_loading_by_label = function(filepath,
                               rand.seed = 123,
                               clusters.from.atlas = TRUE,
                               naive.clusters = FALSE,
+                              mat.use = "raw",
                               labels.use){
   set.seed(rand.seed)
 
@@ -1676,13 +1677,13 @@ describe_voxelized_loading_by_label = function(filepath,
   
   
   voxels_to_samples = readRDS(paste0(dir_spatial, "/",spatial.data.name,"_voxels_to_samples.RDS"))
-  raw_loadings = readRDS(paste0(dir_spatial, "/deconvolution_output_",descriptor,".RDS"))[[1]]
+  raw_loadings = readRDS(paste0(dir_spatial, "/deconvolution_output_",descriptor,".RDS"))[[mat.use]]
   
   unique_labels = unique(labels.use)
   
   voxel_in_subregion = sapply(unique_labels, function(unique_label){
     sapply(names(voxels_to_samples), function(voxel_to_sample){
-      any(unique_labels[voxel_to_sample] %in% unique_label)
+      any(labels.use[voxels_to_samples[[voxel_to_sample]]] %in% unique_label)
     })
   })
   
@@ -1694,9 +1695,9 @@ describe_voxelized_loading_by_label = function(filepath,
   
   proportion_loading_in_subregion = sapply(unique_subregions, function(subregion){
     sapply(colnames(raw_loadings), function(cell_type){
-      sum(raw_loadings[voxel_in_subregion[,subregion]==1,cell_type])/sum(raw_loadings[,cell_type])
+      sum(raw_loadings[voxel_in_subregion[,subregion],cell_type])/sum(raw_loadings[,cell_type])
     })
   })
   
-  saveRDS(proportion_loading_in_subregion, paste0(dir_spatial, "/",descriptor,"_output/cell_type_loading_by_label.RDS"))
+  saveRDS(proportion_loading_in_subregion, paste0(dir_spatial, "/",descriptor,"_output/cell_type_loading_by_label",mat.use,".RDS"))
 }
