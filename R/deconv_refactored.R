@@ -1724,5 +1724,5 @@ register_voxel_to_label = function(filepath,
   
     names(voxel_to_subregion) = names(voxels_to_samples)
   
-    saveRDS(proportion_loading_in_subregion, paste0(dir_spatial, "/voxel_assignment_by_label_",label.name,".RDS")
+    saveRDS(proportion_loading_in_subregion, paste0(dir_spatial, "/voxel_assignment_by_label_",label.name,".RDS"))
   }
