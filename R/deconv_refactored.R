@@ -1701,4 +1701,28 @@ describe_voxelized_loading_by_label = function(filepath,
   
   saveRDS(proportion_loading_in_subregion, paste0(dir_spatial, "/",descriptor,"_output/cell_type_loading_by_label_",mat.use,".RDS"))
 }
+register_voxel_to_label = function(filepath,
+                              region,
+                              spatial.data.name,
+                              labels.use,
+                              label.name){
+
+    dir_spatial = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
+
+
+    voxels_to_samples = readRDS(paste0(dir_spatial, "/",spatial.data.name,"_voxels_to_samples.RDS"))
+  
+    unique_labels = unique(labels.use)
+
+    voxel_to_subregion = sapply(unique_labels, function(unique_label){
+      label_counts = sapply(names(voxels_to_samples), function(voxel_to_sample){
+        sum(labels.use[voxels_to_samples[[voxel_to_sample]]] %in% unique_label)
+      })
+      return(unique_label[which.max(label_counts)])
+    })
+  
+    names(voxel_to_subregion) = names(voxels_to_samples)
+  
+    saveRDS(proportion_loading_in_subregion, paste0(dir_spatial, "/voxel_assignment_by_label_",label.name,".RDS"))
+  }
 
