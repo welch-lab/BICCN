@@ -1784,3 +1784,24 @@ find_common_coords = function(filepath,
                       paste0(spatial.data.name.2,"_aligned"))
   }
 }
+
+transform_coords_to_ccf = function(
+    filepath,
+    region,
+    spatial.data.name,
+    ish = T,
+    overwrite = T){
+  scale_factor = if(ish){200}else{25}
+  deconv_dir = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/")
+  coords = readRDS(paste0(deconv_dir,spatial.data.name,"/",spatial.data.name,"_coords.RDS"))
+  coords = coords*scale_factor
+  coords[,2] = -coords[,2]+min(coords[,2])+max(coords[,2])+3000
+  if(ish){
+    coords[,3] = -coords[,3]+min(coords[,3])+max(coords[,3])+4250
+  }
+  if(overwrite){
+    saveRDS(coords, paste0(deconv_dir,spatial.data.name,"/",spatial.data.name,"_coords.RDS"))
+  } else {
+    saveRDS(coords, paste0("~/",region, "_",spatial.data.name, "_in_ccf.RDS"))
+  }
+}
