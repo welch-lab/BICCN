@@ -1726,6 +1726,37 @@ register_voxel_to_label = function(filepath,
     saveRDS(proportion_loading_in_subregion, paste0(dir_spatial, "/voxel_assignment_by_label_",label.name,".RDS"))
   }
 
+mirror_spatial_coords = function(filepath,
+                              region,
+                              spatial.data.name,
+                              axes.flip = c(FALSE,FALSE,FALSE),
+                              overwrite = T){
+  deconv_dir = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/")
+  coords = readRDS(paste0(deconv_dir,spatial.data.name,"/",spatial.data.name,"_coords.RDS"))
+  
+  descriptor = "mirror"
+  axis_des = c("_x","_y", "_z")
+
+  for(i in 1:3){
+    if(axes.flip[i]){
+      coords_range = range(coords[,i])
+      coords[,i] = -1*(coords[,i]-coords_range[1])+coords_range[2]
+      descriptor = paste0(descriptor, axis_des[i])
+    }
+  }
+  
+  if(overwrite){
+    saveRDS(coords, paste0(deconv_dir,spatial.data.name,"/",spatial.data.name,"_coords.RDS"))
+  } else {
+    save_spatial_data(filepath,
+                      region,
+                      paste0(deconv_dir,spatial.data.name,"/",spatial.data.name,"_exp.RDS"),
+                      coords,
+                      paste0(spatial.data.name,"_",descriptor))
+  }
+  
+}
+
 find_common_coords = function(filepath,
                                  region,
                                  spatial.data.name.1,
@@ -1739,6 +1770,9 @@ find_common_coords = function(filepath,
   coords_2_realigned = sapply(1:3, function(i){
     return((coords_1_range[2,i]-coords_1_range[1,i])*(coords_2[,i]-coords_2_range[1,i])/(coords_2_range[2,i]-coords_2_range[1,i])+coords_1_range[1,i])
   })
+  
+  rownames(coords_2_realigned) = rownames(coords_2)
+  colnames(coords_2_realigned) = colnames(coords_2)
   
   if(overwrite){
     saveRDS(coords_2_realigned, paste0(deconv_dir,spatial.data.name.2,"/",spatial.data.name.2,"_coords.RDS"))
