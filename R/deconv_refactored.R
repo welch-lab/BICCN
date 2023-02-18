@@ -1801,6 +1801,8 @@ transform_coords_to_ccf = function(
   }
   if(overwrite){
     saveRDS(coords, paste0(deconv_dir,spatial.data.name,"/",spatial.data.name,"_coords.RDS"))
+    
+    if(file.exists()
   } else {
     saveRDS(coords, paste0("~/",region, "_",spatial.data.name, "_in_ccf.RDS"))
   }
