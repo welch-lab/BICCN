@@ -1800,9 +1800,13 @@ transform_coords_to_ccf = function(
     coords[,3] = -coords[,3]+min(coords[,3])+max(coords[,3])+4250
   }
   if(overwrite){
-    saveRDS(coords, paste0(deconv_dir,spatial.data.name,"/",spatial.data.name,"_coords.RDS"))
-    
-    if(file.exists()
+    files_dir = list.files(paste0(deconv_dir,spatial.data.name), full.names = T) 
+    files_coords = files_dir[grep("coords", files_dir)]
+    for(file_coord in files_coords){
+      coords_file = readRDS(file_coord)
+      saveRDS(coords[rownames(coords) %in% rownames(coords_file),], paste0(deconv_dir,spatial.data.name,"/",spatial.data.name,"_coords.RDS"))
+    }
+    message("Rerun downstream plotting functions (generate_loading_gifs, calculate_wasserstein, etc.) to update with transformed coordinates")
   } else {
     saveRDS(coords, paste0("~/",region, "_",spatial.data.name, "_in_ccf.RDS"))
   }
