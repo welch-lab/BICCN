@@ -1811,3 +1811,42 @@ transform_coords_to_ccf = function(
     saveRDS(coords, paste0("~/",region, "_",spatial.data.name, "_in_ccf.RDS"))
   }
 }
+
+summarize_subregions = function(regions, ontology.file = "Downloads/allen_structure_ontology.csv", return = F){
+  allen_structure = read.csv(ontology.file,header=T)
+  allen_structure_list = lapply(allen_structure$structure_id_path, function(x){strsplit(x, "/")}[[1]])
+  
+  subregion_vec = vector(mode = "character")
+  for(region in regions){
+    message(region)
+    id = allen_structure[allen_structure$acronym == region, ]$id
+    if(length(id) != 0){
+      subregions = allen_structure[sapply(allen_structure_list, function(x){id %in% x}),]
+      print(subregions[,c("acronym","name")])
+      subregion_vec = c(subregion_vec, subregions[,"acronym"])
+    } else {
+      message("No subregions!")
+    }
+  }
+  if(return){
+    return(unique(subregion_vec))
+  }
+}
+
+summarize_clusters = function(filepath,
+                             region,
+                             rand.seed,
+                             naive = FALSE,
+                             return = FALSE){
+  deconv_dir = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/")
+  if(naive){
+    clusts = readRDS(paste0(deconv_dir, "clusters_", rand.seed,"_object_clusters_naive.RDS"))
+  } else {
+    clusts = readRDS(paste0(deconv_dir, "clusters_", rand.seed,"_object_clusters.RDS"))
+  }
+  message(paste0(region, " cluster frequency"))
+  print(table(clusts))
+  if(return){
+    return(levels(clusts))
+  }
+}
