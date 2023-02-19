@@ -1819,9 +1819,14 @@ summarize_subregions = function(regions, ontology.file = "Downloads/allen_struct
   subregion_vec = vector(mode = "character")
   for(region in regions){
     message(region)
-    id = allen_structure[allen_structure$acronym == region, ]$id
+    sub_allen = allen_structure[allen_structure$acronym == region, ]
+    if(nrow(sub_allen)>1){
+      id = sub_allen$id[which.max(sub_allen$depth)]
+    } else {
+      id = sub_allen$id[1]
+    }
     if(length(id) != 0){
-      subregions = allen_structure[sapply(allen_structure_list, function(x){id %in% x}),]
+      subregions = allen_structure[sapply(allen_structure_list, function(x){id %in% x}) & grepl(region, allen_structure$acronym),]
       print(subregions[,c("acronym","name")])
       subregion_vec = c(subregion_vec, subregions[,"acronym"])
     } else {
