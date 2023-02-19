@@ -64,8 +64,8 @@ reference_3d_coordinates = function(filepath,
     geom_tile(aes(alpha = .1)) +
     coord_fixed(ratio = 1) +
     theme_minimal_grid() +
-    scale_y_continuous(minor_breaks = seq(minmax[1,2] , minmax[2,2], 1), breaks = seq(minmax[1,2] , minmax[2,2], 5)) +
-    scale_x_continuous(minor_breaks = seq(minmax[1,1] , minmax[2,1], 1), breaks = seq(minmax[1,1] , minmax[2,1], 5)) +
+    #scale_y_continuous(minor_breaks = seq(minmax[1,2] , minmax[2,2], 1), breaks = seq(minmax[1,2] , minmax[2,2], 5)) +
+    #scale_x_continuous(minor_breaks = seq(minmax[1,1] , minmax[2,1], 1), breaks = seq(minmax[1,1] , minmax[2,1], 5)) +
     xlab(colnames(coords)[1]) +
     ylab(colnames(coords)[2]) +
     ggtitle(paste0("X-Y silhouette of ",region))+
@@ -79,8 +79,8 @@ reference_3d_coordinates = function(filepath,
     geom_tile(aes(alpha = .1)) +
     coord_fixed(ratio = 1) +
     theme_minimal_grid() +
-    scale_y_continuous(minor_breaks = seq(minmax[1,3] , minmax[2,3], 1), breaks = seq(minmax[1,3] , minmax[2,3], 5)) +
-    scale_x_continuous(minor_breaks = seq(minmax[1,1] , minmax[2,1], 1), breaks = seq(minmax[1,1] , minmax[2,1], 5)) +
+    #scale_y_continuous(minor_breaks = seq(minmax[1,3] , minmax[2,3], 1), breaks = seq(minmax[1,3] , minmax[2,3], 5)) +
+    #scale_x_continuous(minor_breaks = seq(minmax[1,1] , minmax[2,1], 1), breaks = seq(minmax[1,1] , minmax[2,1], 5)) +
     xlab(colnames(coords)[1]) +
     ylab(colnames(coords)[3]) +
     ggtitle(paste0("X-Z silhouette of ",region))+
@@ -94,8 +94,8 @@ reference_3d_coordinates = function(filepath,
     geom_tile(aes(alpha = .1)) +
     coord_fixed(ratio = 1) +
     theme_minimal_grid() +
-    scale_y_continuous(minor_breaks = seq(minmax[1,3] , minmax[2,3], 1), breaks = seq(minmax[1,3] , minmax[2,3], 5)) +
-    scale_x_continuous(minor_breaks = seq(minmax[1,2] , minmax[2,2], 1), breaks = seq(minmax[1,2] , minmax[2,2], 5)) +
+    #scale_y_continuous(minor_breaks = seq(minmax[1,3] , minmax[2,3], 1), breaks = seq(minmax[1,3] , minmax[2,3], 5)) +
+    #scale_x_continuous(minor_breaks = seq(minmax[1,2] , minmax[2,2], 1), breaks = seq(minmax[1,2] , minmax[2,2], 5)) +
     xlab(colnames(coords)[2]) +
     ylab(colnames(coords)[3]) +
     ggtitle(paste0("Y-Z silhouette of ",region))+
@@ -1804,7 +1804,7 @@ transform_coords_to_ccf = function(
     files_coords = files_dir[grep("coords", files_dir)]
     for(file_coord in files_coords){
       coords_file = readRDS(file_coord)
-      saveRDS(coords[rownames(coords) %in% rownames(coords_file),], paste0(deconv_dir,spatial.data.name,"/",spatial.data.name,"_coords.RDS"))
+      saveRDS(coords[rownames(coords) %in% rownames(coords_file),], file_coord)
     }
     message("Rerun downstream plotting functions (generate_loading_gifs, calculate_wasserstein, etc.) to update with transformed coordinates")
   } else {
