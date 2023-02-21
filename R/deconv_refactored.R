@@ -168,7 +168,7 @@ subset_spatial_data = function(filepath,
   new_spatial.data.name = paste0(spatial.data.name,"_subset_",nrow(coords))
   if(!is.null(out.filepath)){
     saveRDS(spatial.data, paste0(out.filepath, "/", new_spatial.data.name,"_exp.RDS"))
-    saveRDS(coords, paste0(out.filepath, "/", spatial.data.name,"_coords.RDS"))
+    saveRDS(coords, paste0(out.filepath, "/", new_spatial.data.name,"_coords.RDS"))
     message("Saved expression and coordinates to ", out.filepath)
   } else {
     new_dir = paste0(deconv_dir,new_spatial.data.name)
