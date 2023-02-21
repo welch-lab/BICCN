@@ -1792,6 +1792,7 @@ find_common_coords = function(filepath,
   }
 }
 
+
 transform_coords_to_ccf = function(
     filepath,
     region,
@@ -1802,9 +1803,11 @@ transform_coords_to_ccf = function(
   deconv_dir = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/")
   coords = readRDS(paste0(deconv_dir,spatial.data.name,"/",spatial.data.name,"_coords.RDS"))
   coords = coords*scale_factor
-  coords[,2] = -coords[,2]+min(coords[,2])+max(coords[,2])+3000
   if(ish){
-    coords[,3] = -coords[,3]+min(coords[,3])+max(coords[,3])+4250
+    coords[,3] = -coords[,3]+min(coords[,3])+max(coords[,3])+2400
+    coords[,2] = -coords[,2]+min(coords[,2])+max(coords[,2])+5500
+  } else {
+    coords[,2] = -coords[,2]+min(coords[,2])+max(coords[,2])+3000
   }
   if(overwrite){
     files_dir = list.files(paste0(deconv_dir,spatial.data.name), full.names = T) 
@@ -1818,6 +1821,7 @@ transform_coords_to_ccf = function(
     saveRDS(coords, paste0("~/",region, "_",spatial.data.name, "_in_ccf.RDS"))
   }
 }
+
 
 summarize_subregions = function(regions, ontology.file = "Downloads/allen_structure_ontology.csv", return = F){
   allen_structure = read.csv(ontology.file,header=T)
