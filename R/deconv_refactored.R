@@ -1866,3 +1866,96 @@ summarize_clusters = function(filepath,
     return(levels(clusts))
   }
 }
+
+
+overlay_subregion_gifs = function(
+    filepath,
+    region,
+    spatial.data.name,
+    rand.seed = 123,
+    clusters.from.atlas = TRUE,
+    naive.clusters = FALSE,
+    mat.use = "proportions",#raw, proportions, or assignment
+    cell.types.plot = NULL,
+    subregions.plot = NULL,
+    filter = NULL,
+    dims = c(500, 500)
+){
+  set.seed(rand.seed)
+  library(rgl)
+  
+  descriptor = as.character(rand.seed)
+  if(clusters.from.atlas){
+    descriptor = paste0(descriptor, "_object_clusters")
+  }
+  if(naive.clusters){
+    descriptor = paste0(descriptor, "_naive")
+    spatial.data.name = paste0(spatial.data.name, "_naive")
+  }
+  
+  dir_spatial = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
+  dir_output = paste0(dir_spatial,"/",descriptor,"_output")
+  
+  dir_gifs = paste0(dir_output,"/plots")
+  if(!dir.exists(dir_gifs)){
+    dir.create(paste0(dir_gifs))
+    message("Created directory at ", dir_gifs)
+  }
+  
+  if(mat.use != "assignment"){
+    loadings = readRDS(paste0(dir_spatial,"/deconvolution_output_",descriptor,".RDS"))
+    cell_types = colnames(loadings[[1]])
+  } else {
+    assignments = readRDS(paste0(dir_spatial,"/deconvolution_max_factor_assignment_",descriptor,".RDS"))
+    cell_types = levels(assignments)
+  }
+  
+  if(!is.null(filter) & mat.use != "assignment"){
+    loadings[loadings < filter] = 0
+    loadings[loadings >= filter] = 1
+    descriptor = paste0(descriptor, "_filter_",filter)
+  }
+  
+  
+  grDevices::palette(viridis::viridis(option="A",n=50,direction = -1))
+  if(is.null(cell.types.plot)){
+    cell.types.plot = cell_types
+  } else {
+    cell.types.plot = intersect(cell.types.plot, cell_types)
+  }
+  coords = readRDS(paste0(dir_spatial,"/",spatial.data.name,"_coords_qc_",descriptor,".RDS"))
+  
+  
+  region_mesh = lapply(subregions.plot, function(x){try(ccf_2017_mesh(x), silent = T)})
+  names(region_mesh) = subregions.plot
+  region_mesh = region_mesh[sapply(region_mesh, function(x){!any(class(x) == "try-error")})]
+  
+  for(subregion in names(region_mesh)){
+    region_mesh[[subregion]]$material$alpha = .1
+    region_mesh[[subregion]]$material$color = "gray"
+    
+    for(cell_type in cell.types.plot){
+      cell_type_consistent = sub("/", ".",sub(" ", "_",cell_type))
+      if(mat.use != "assignment"){
+        colors_view = as.numeric(cut(loadings[[mat.use]][,cell_type],breaks=50))
+        try(rgl.close(), silent = TRUE)
+        open3d(windowRect = c(0,0, dims[1], dims[2]));
+        plot3d(coords[,1],coords[,2],coords[,3],col = colors_view,aspect=c(67,41,58),xlab="Anterior-Posterior",ylab="Inferior-Superior",zlab="Left-Right",size=5, add = TRUE)
+        shade3d(region_mesh[[subregion]])
+        decorate3d(xlab = colnames(coords)[1], ylab = colnames(coords)[2],zlab = colnames(coords)[3], box = FALSE, axes = FALSE)
+        axes3d(c("x--","y--","z--"))#axes3d(c("x--","y--","z--"))
+        movie3d(spin3d(axis = c(0, 0, 1)), duration = 20, movie = paste0(dir_gifs,"/", region, "_", subregion,"_",cell_type_consistent,"_spatial_summary_",descriptor))
+      } else {
+        colors_view = (assignments == cell_type)*20 + 1
+        try(rgl.close(), silent = TRUE)
+        open3d(windowRect = c(0,0, dims[1], dims[2]));
+        plot3d(coords[,1],coords[,2],coords[,3],col = colors_view,aspect=c(67,41,58),xlab="Anterior-Posterior",ylab="Inferior-Superior",zlab="Left-Right",size=1, type = "p", add = TRUE)
+        shade3d(region_mesh[[subregion]])
+        decorate3d(xlab = colnames(coords)[1], ylab = colnames(coords)[2],zlab = colnames(coords)[3], box = FALSE, axes = FALSE)
+        axes3d(c("x--","y--","z--"))#axes3d(c("x--","y--","z--"))
+        movie3d(spin3d(axis = c(0, 0, 1)), duration = 20, movie = paste0(dir_gifs,"/", region, "_", subregion,"_",cell_type_consistent,"_spatial_summary_",descriptor))
+      }
+      
+    }
+  }
+}
