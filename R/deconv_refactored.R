@@ -209,16 +209,17 @@ sample_single_cell = function(
   })
   
   
-  if("highRcluster" %in% colnames(analysis_results)){
-    clust.use = "highRcluster"
-  } else {
-    clust.use = "lowRcluster"
-  }
+  
   
   if(is.null(known.annotations)){
     clusters = c()
     for(analysis_num in c(2,4,5)){
       analysis_results = readRDS(paste0(filepath,"/",  region, "/Analysis", analysis_num, "_", region, "/Analysis", analysis_num, "_", region,"_Results_Table.RDS"))
+      if("highRcluster" %in% colnames(analysis_results)){
+        clust.use = "highRcluster"
+      } else {
+        clust.use = "lowRcluster"
+      }
       if(naive.clusters){
         analysis_clusters = paste0(analysis_num ,"_",analysis_results[,clust.use])
         analysis_clusters[analysis_clusters %in% paste0(analysis_num, "_", naive.clusters.remove[[as.character(analysis_num)]])] = ""
