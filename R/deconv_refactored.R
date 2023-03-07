@@ -651,15 +651,94 @@ learn_gene_signatures =function(filepath,
   saveRDS(out, paste0(dir_spatial, "/gene_signature_output_",descriptor,".RDS"))
 }
 
-deconvolve_spatial = function(filepath,
-                             region,
-                             spatial.data.name,
-                             rand.seed = 123,
-                             clusters.from.atlas = TRUE,
-                             naive.clusters = FALSE,
-                             W = NULL){
-  set.seed(rand.seed)
+calculate_cell_sizes = function(
+    filepath,
+    region,
+    naive.clusters = FALSE,
+    rand.seed = 123,
+    plot.hist = F
+    ){
+      
+    object_paths = paste0(filepath,"/", region, "/Analysis",c(2,4,5),"_", region, "/onlineINMF_",region, "_object.RDS" )
+    objects = lapply(object_paths, function(object_path){readRDS(object_path)})
     
+    h5_files = Reduce(c, lapply(objects, function(object){sapply(1:length(object@norm.data), function(i){object@h5file.info[[i]]$file.path})}))
+    rna_files = grep(paste0("_(sc10Xv3_|smartseq_|sn10Xv3_|sc10Xv2_)"), h5_files, value = TRUE)
+    
+    liger_cells = lapply(rna_files, function(i){
+      rhdf5::h5read(i, "/matrix/barcodes")#change, extract from H5
+    })
+     
+    liger_genes = lapply(rna_files, function(i){
+      rhdf5::h5read(i, "/matrix/features")[[1]] #change, extract from H5
+    })
+    
+    if(naive.clusters){
+      clusters = readRDS(paste0(filepath,"/", region, "/", region, "_Deconvolution_Output/clusters_",rand.seed,"_object_clusters_naive.RDS"))
+    } else {
+      clusters = readRDS(paste0(filepath,"/", region, "/", region, "_Deconvolution_Output/clusters_",rand.seed,"_object_clusters.RDS"))
+    }
+    
+    size_list = lapply(1:nlevels(clusters),function(x){vector(mode = "integer")})
+    names(size_list) = levels(clusters)
+    
+    for(i in 1:length(rna_files)){
+      
+      n = rna_files[i]
+      raw_data = Matrix::sparseMatrix(
+        dims = c(length(liger_genes[[i]]), length(liger_cells[[i]])),
+        i = as.numeric(rhdf5::h5read(n, "/matrix/indices")+1),
+        p = as.numeric(rhdf5::h5read(n, "/matrix/indptr")),
+        x = as.numeric(rhdf5::h5read(n, "/matrix/data"))
+      )
+      
+      colnames(raw_data) = liger_cells[[i]]
+      
+      for(cell_type in names(size_list)){
+       cells_subset = intersect(liger_cells[[i]], names(clusters)[clusters == cell_type])
+       if(length(cells_subset)>1){
+         size_list[[cell_type]]  = c(size_list[[cell_type]],Matrix::colSums(raw_data[,cells_subset]))
+       } else if(length(cells_subset) == 1){
+         size_list[[cell_type]] = c(size_list[[cell_type]],sum(raw_data[,cells_subset]))
+       }
+      }
+    }
+    
+    cell_type_mean = sapply(size_list, mean)
+    
+    if(plot.hist){
+      if(naive.clusters){
+        pdf(file = paste0(filepath,"/", region, "/", region, "_Deconvolution_Output/histogram_size_",rand.seed,"_object_clusters_naive.PDF"), width = 6, height = 4)
+      } else {
+        pdf(file = paste0(filepath,"/", region, "/", region, "_Deconvolution_Output/histogram_size_",rand.seed,"_object_clusters.PDF"), width = 6, height = 4)
+      }
+      for(i in 1:length(size_list)){
+        hist(size_list[[i]],main = paste0("Distribution of cell sizes for ",names(size_list)[i]), xlab = "Counts")
+        abline(v = cell_type_mean[i], col = "red")
+      }
+      dev.off()
+    }
+    
+    if(naive.clusters){
+      saveRDS(cell_type_mean, paste0(filepath,"/", region, "/", region, "_Deconvolution_Output/cell_size_",rand.seed,"_object_clusters_naive.RDS"))
+    } else {
+      saveRDS(cell_type_mean, paste0(filepath,"/",region,"/", region, "_Deconvolution_Output/cell_size_",rand.seed,"_object_clusters.RDS"))
+    }
+}
+
+
+
+
+deconvolve_spatial = function(filepath,
+                              region,
+                              spatial.data.name,
+                              rand.seed = 123,
+                              clusters.from.atlas = TRUE,
+                              naive.clusters = FALSE,
+                              cell.size = F,
+                              W = NULL){
+  set.seed(rand.seed)
+  
   descriptor = as.character(rand.seed)
   
   if(clusters.from.atlas){
@@ -685,7 +764,18 @@ deconvolve_spatial = function(filepath,
   gene_vec = intersect(colnames(W), rownames(spatial.data))
   spatial.data = spatial.data[gene_vec,]
   W = W[,gene_vec]
-
+  
+  if(cell.size){
+    if(naive.clusters){
+      cell_size_mean = readRDS(paste0(filepath,"/",region, "/", region, "_Deconvolution_Output/cell_size_",rand.seed,"_object_clusters_naive.RDS"))
+    } else {
+      cell_size_mean = readRDS(paste0(filepath, "/", region, "/", region, "_Deconvolution_Output/cell_size_",rand.seed,"_object_clusters.RDS"))
+    }
+    W = t(sapply(1:nrow(W), function(i){return(cell_size_mean[i]*W[i,])}))
+    rownames(W) = names(cell_size_mean)
+    descriptor = paste0(descriptor, "_size_scaled")
+  }
+  
   message("Deconvolving spatial data")
   spatial.data = t(scale(t(as.matrix(spatial.data)), center = FALSE))
   spatial.data[spatial.data < 0 ] = 0
@@ -699,7 +789,7 @@ deconvolve_spatial = function(filepath,
   message("Deconvolution completed")
   
   dir.create(paste0(dir_spatial,"/",descriptor,"_output"))
-
+  
 }
 
 #' Convert proportions generated during the deconvolution into cell-type
@@ -852,6 +942,7 @@ generate_loading_gifs = function(
   rand.seed = 123,
   clusters.from.atlas = TRUE,
   naive.clusters = FALSE,
+  cell.size = F
   mat.use = "proportions",#raw, proportions, or assignment
   cell.types.plot = NULL,
   filter = NULL,
@@ -860,6 +951,8 @@ generate_loading_gifs = function(
   set.seed(rand.seed)
   library(rgl)
   
+  
+  
   descriptor = as.character(rand.seed)
   if(clusters.from.atlas){
     descriptor = paste0(descriptor, "_object_clusters")
@@ -867,6 +960,12 @@ generate_loading_gifs = function(
   if(naive.clusters){
     descriptor = paste0(descriptor, "_naive")
     spatial.data.name = paste0(spatial.data.name, "_naive")
+  }
+  
+  coords = readRDS(paste0(dir_spatial,"/",spatial.data.name,"_coords_qc_",descriptor,".RDS"))
+
+  if(cell.size){
+     descriptor = paste0(descriptor, "_size_scaled")
   }
   
   dir_spatial = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
@@ -899,7 +998,6 @@ generate_loading_gifs = function(
   } else {
     cell.types.plot = intersect(cell.types.plot, cell_types)
   }
-  coords = readRDS(paste0(dir_spatial,"/",spatial.data.name,"_coords_qc_",descriptor,".RDS"))
   
 
 
