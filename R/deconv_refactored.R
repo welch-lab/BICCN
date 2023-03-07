@@ -1109,6 +1109,7 @@ summarize_by_layer = function(
   mat.use = "proportions",#"assignment
   use.cell.types = TRUE,
   cell.types.use = NULL,
+  cell.size = FALSE,
   genes.use = NULL,
   rand.seed = 123){
   
@@ -1121,6 +1122,10 @@ summarize_by_layer = function(
   if(naive.clusters){
     descriptor = paste0(descriptor, "_naive")
     spatial.data.name = paste0(spatial.data.name, "_naive")
+  }
+  
+  if(cell.size){
+     descriptor = paste0(descriptor, "_size_scaled")
   }
   
   dir_spatial = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
@@ -1287,6 +1292,7 @@ analyze_gene_signatures = function(filepath,
                                    plot = FALSE,
                                    mat.use = "proportions",
                                    cell.types.use = NULL,
+                                   cell.size = FALSE,
                                    rand.seed = 123){
   
   library(ggplot2)
@@ -1301,6 +1307,10 @@ analyze_gene_signatures = function(filepath,
   if(naive.clusters){
     descriptor = paste0(descriptor, "_naive")
     spatial.data.name = paste0(spatial.data.name, "_naive")
+  }
+  
+  if(cell.size){
+     descriptor = paste0(descriptor, "_size_scaled")
   }
   
   dir_spatial = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
@@ -1378,6 +1388,7 @@ cell_type_loading_histogram = function(
   rand.seed = 123,
   clusters.from.atlas = TRUE,
   naive.clusters = FALSE,
+  cell.size = FALSE,
   mat.use = "proportions",
   cell.types.plot = NULL,
   print.plots = FALSE,
@@ -1394,6 +1405,9 @@ cell_type_loading_histogram = function(
   if(naive.clusters){
     descriptor = paste0(descriptor, "_naive")
     spatial.data.name = paste0(spatial.data.name, "_naive")
+  }
+  if(cell.size){
+     descriptor = paste0(descriptor, "_size_scaled")
   }
 
   dir_spatial = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
@@ -1440,6 +1454,7 @@ analyze_spatial_correlation = function(filepath,
                                        spatial.data.name,
                                        clusters.from.atlas = TRUE,
                                        naive.clusters = FALSE,
+                                       cell.size = FALSE,
                                        plot = FALSE,
                                        mat.use = "proportions",
                                        cell.types.use = NULL,
@@ -1457,6 +1472,10 @@ analyze_spatial_correlation = function(filepath,
   if(naive.clusters){
     descriptor = paste0(descriptor, "_naive")
     spatial.data.name = paste0(spatial.data.name, "_naive")
+  }
+  
+  if(cell.size){
+     descriptor = paste0(descriptor, "_size_scaled")
   }
   
   dir_spatial = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
@@ -1535,6 +1554,7 @@ calculate_wasserstein = function(
     spatial.data.name,
     clusters.from.atlas = TRUE,
     naive.clusters = FALSE,
+    cell.size = FALSE,
     mat.use = "proportions",
     use.cell.types = TRUE,
     cell.types.use = NULL,
@@ -1558,6 +1578,12 @@ calculate_wasserstein = function(
     spatial.data.name = paste0(spatial.data.name, "_naive")
   }
   
+  coords = readRDS(paste0(dir_spatial,"/",spatial.data.name,"_coords_qc_",descriptor,".RDS"))
+  
+  if(cell.size){
+     descriptor = paste0(descriptor, "_size_scaled")
+  }
+  
   dir_spatial = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
   dir_output = paste0(dir_spatial,"/",descriptor,"_output")
   
@@ -1565,7 +1591,6 @@ calculate_wasserstein = function(
   loadings = deconv_out[[mat.use]]
   loadings = loadings[, colSums(loadings) != 0 & colnames(loadings)!=""]
   
-  coords = readRDS(paste0(dir_spatial,"/",spatial.data.name,"_coords_qc_",descriptor,".RDS"))
   
   loadings = loadings[, colSums(loadings) != 0]
   if(use.cell.types){
@@ -1661,6 +1686,7 @@ refine_cluster_similarity = function(
     spatial.data.name,
     clusters.from.atlas = TRUE,
     naive.clusters = FALSE,
+    cell.size = FALSE,
     rand.seed){
   library(ggplot2)
   
@@ -1674,6 +1700,10 @@ refine_cluster_similarity = function(
   if(naive.clusters){
     descriptor = paste0(descriptor, "_naive")
     spatial.data.name = paste0(spatial.data.name, "_naive")
+  }
+  
+  if(cell.size){
+     descriptor = paste0(descriptor, "_size_scaled")
   }
   
   dir_spatial = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
@@ -1974,6 +2004,7 @@ overlay_subregion_gifs = function(
     rand.seed = 123,
     clusters.from.atlas = TRUE,
     naive.clusters = FALSE,
+    cell.size = FALSE,
     mat.use = "proportions",#raw, proportions, or assignment
     cell.types.plot = NULL,
     subregions.plot = NULL,
@@ -1990,6 +2021,12 @@ overlay_subregion_gifs = function(
   if(naive.clusters){
     descriptor = paste0(descriptor, "_naive")
     spatial.data.name = paste0(spatial.data.name, "_naive")
+  }
+  
+  coords = readRDS(paste0(dir_spatial,"/",spatial.data.name,"_coords_qc_",descriptor,".RDS"))
+  
+  if(cell.size){
+     descriptor = paste0(descriptor, "_size_scaled")
   }
   
   dir_spatial = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
@@ -2021,9 +2058,7 @@ overlay_subregion_gifs = function(
     cell.types.plot = cell_types
   } else {
     cell.types.plot = intersect(cell.types.plot, cell_types)
-  }
-  coords = readRDS(paste0(dir_spatial,"/",spatial.data.name,"_coords_qc_",descriptor,".RDS"))
-  
+  }  
   
   region_mesh = lapply(subregions.plot, function(x){try(ccf_2017_mesh(x), silent = T)})
   names(region_mesh) = subregions.plot
