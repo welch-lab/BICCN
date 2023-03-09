@@ -1309,15 +1309,19 @@ analyze_gene_signatures = function(filepath,
     spatial.data.name = paste0(spatial.data.name, "_naive")
   }
   
+  
+  dir_spatial = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
+    
+  gene_sigs = readRDS(paste0(dir_spatial, "/gene_signature_output_",descriptor,".RDS"))
+  genes = readRDS(paste0(dir_spatial,"/gene_selection_qc_",descriptor,".RDS"))
+  
   if(cell.size){
      descriptor = paste0(descriptor, "_size_scaled")
   }
   
-  dir_spatial = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
-  dir_output = paste0(dir_spatial,"/",descriptor,"_output")
+    dir_output = paste0(dir_spatial,"/",descriptor,"_output")
+
   
-  gene_sigs = readRDS(paste0(dir_spatial, "/gene_signature_output_",descriptor,".RDS"))
-  genes = readRDS(paste0(dir_spatial,"/gene_selection_qc_",descriptor,".RDS"))
   
   signatures = gene_sigs$W
   signatures = signatures[rowSums(signatures) != 0 & rownames(signatures) != "",]
