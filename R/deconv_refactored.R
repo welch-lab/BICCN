@@ -962,7 +962,7 @@ generate_loading_gifs = function(
     spatial.data.name = paste0(spatial.data.name, "_naive")
   }
   
-  coords = readRDS(paste0(dir_spatial,"/",spatial.data.name,"_coords_qc_",descriptor,".RDS"))
+  coords = readRDS(paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name,"/",spatial.data.name,"_coords_qc_",descriptor,".RDS"))
 
   if(cell.size){
      descriptor = paste0(descriptor, "_size_scaled")
