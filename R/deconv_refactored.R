@@ -1031,7 +1031,6 @@ generate_label_gifs = function(
   labels.plot,
   dims = c(500, 500)
 ){
-  set.seed(rand.seed)
   library(rgl)
   
   dir_spatial = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
