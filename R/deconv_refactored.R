@@ -1106,6 +1106,7 @@ summarize_by_layer = function(
   plot = FALSE,
   type = "mean",
   mat.use = "proportions",#"assignment
+  clusters.from.atlas = F,
   use.cell.types = TRUE,
   cell.types.use = NULL,
   cell.size = FALSE,
