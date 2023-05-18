@@ -2027,14 +2027,15 @@ overlay_subregion_gifs = function(
     descriptor = paste0(descriptor, "_naive")
     spatial.data.name = paste0(spatial.data.name, "_naive")
   }
-  
-  coords = readRDS(paste0(dir_spatial,"/",spatial.data.name,"_coords_qc_",descriptor,".RDS"))
-  
+    
   if(cell.size){
      descriptor = paste0(descriptor, "_size_scaled")
   }
   
   dir_spatial = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
+  
+  coords = readRDS(paste0(dir_spatial,"/",spatial.data.name,"_coords_qc_",descriptor,".RDS"))
+  
   dir_output = paste0(dir_spatial,"/",descriptor,"_output")
   
   dir_gifs = paste0(dir_output,"/plots")
