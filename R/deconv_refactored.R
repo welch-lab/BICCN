@@ -2018,6 +2018,7 @@ overlay_subregion_gifs = function(
 ){
   set.seed(rand.seed)
   library(rgl)
+  library(cocoframer)
   
   descriptor = as.character(rand.seed)
   if(clusters.from.atlas){
