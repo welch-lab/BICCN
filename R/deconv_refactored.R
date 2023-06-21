@@ -1152,7 +1152,8 @@ summarize_by_layer = function(
     rownames(cell.type.matrix) = names(layer.list)
     colnames(cell.type.matrix) = cell.types.use
     for(i in 1:length(layer.list)){
-      sub_loadings = loadings[rownames(loadings) %in% as.character(layer.list[[i]]), ]
+      sub_loadings = as.matrix(loadings[rownames(loadings) %in% as.character(layer.list[[i]]), ])
+      if(ncol(sub_loadings) == 1){sub_loadings = t(sub_loadings)}
       for(j in 1:length(cell.types.use)){
         if(type == "mean"){
           cell.type.matrix[i,j] = mean(sub_loadings[ ,cell.types.use[j]])
@@ -1173,7 +1174,8 @@ summarize_by_layer = function(
     rownames(gene.matrix) = names(layer.list)
     colnames(gene.matrix) = genes.use
     for(i in 1:length(layer.list)){
-      sub_loadings = spatial.data[ ,colnames(spatial.data) %in% as.character(layer.list[[i]])]
+      sub_loadings = as.matrix(spatial.data[ ,colnames(spatial.data) %in% as.character(layer.list[[i]])])
+      if(ncol(sub_loadings) == 1){sub_loadings = t(sub_loadings)}
       for(j in 1:length(genes.use)){
         if(type == "mean"){
           gene.matrix[i,j] = mean(sub_loadings[genes.use[j],])
