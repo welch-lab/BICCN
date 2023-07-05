@@ -2102,3 +2102,72 @@ overlay_subregion_gifs = function(
     }
   }
 }
+
+wasserstein_test  = function(
+    filepath,
+    region,
+    spatial.data.name,
+    n_samples = 200,
+    rand.seed = 123,
+    clusters.from.atlas = TRUE,
+    naive.clusters = FALSE,
+    cell.size = FALSE,
+    mat.use = "proportions",#raw, proportions, or assignment
+){
+  set.seed(rand.seed)
+  library(transport)
+  
+  descriptor = as.character(rand.seed)
+  if(clusters.from.atlas){
+    descriptor = paste0(descriptor, "_object_clusters")
+  }
+  if(naive.clusters){
+    descriptor = paste0(descriptor, "_naive")
+    spatial.data.name = paste0(spatial.data.name, "_naive")
+  }
+    
+  if(cell.size){
+     descriptor = paste0(descriptor, "_size_scaled")
+  }
+  
+  dir_spatial = paste0(filepath,"/",  region, "/", region,"_Deconvolution_Output/",spatial.data.name)
+  
+  coords = readRDS(paste0(dir_spatial,"/",spatial.data.name,"_coords_qc_",descriptor,".RDS"))
+  
+  dir_output = paste0(dir_spatial,"/",descriptor,"_output")
+
+  deconv_out = readRDS(paste0(dir_spatial,"/deconvolution_output_",descriptor,".RDS"))
+  loadings = deconv_out[[mat.use]]
+  loadings = loadings[, colSums(loadings) != 0 & colnames(loadings)!=""]
+  raw_deconv_vals = as.vector(loadings)
+
+  bootstrapped_cell_types = sapply(1:n_samples, function(x){vals = sample(raw_deconv_vals, nrow(loadings));return(vals/sum(vals))})
+  normalized_deconv = apply(loadings, MARGIN = 2, function(x){x/sum(x)})
+
+  dist_list = list()
+  for(var_1 in colnames(loadings)){
+    mass_1 =  normalized_deconv[,var_1]
+    distribution_1 = wpp(coords,mass_1)
+    dist_list[[var_1]] = vector(length = n_samples)
+    for(i in 1:n_samples){
+      mass_2 =  bootstrapped_cell_types[,i]
+      distribution_2 = wpp(coords,mass_2)
+      dist_list[[var_1]][i] = wasserstein(distribution_1, distribution_2)
+    }
+  }
+  
+  param_list = lapply(dist_list, function(x){return(c(mean(x), sd(x)))})
+  wasserstein_distance_mat <- readRDS(paste0(dir_output,"/wasserstein_distance_mat_",descriptor,".RDS"))
+
+  t_score_mat = sapply(1:length(param_list), function(x){
+    (wasserstein_distance_mat[,x]-param_list[[x]][1])/param_list[[x]][2]
+  })
+  colnames(t_score_mat) = rownames(t_score_mat)
+  p_val_mat = sapply(1:length(param_list), function(x){
+    p = pt(t_score_mat[,x], n_samples-1)
+    return(2*(pmin(p, 1-p)))
+  })
+  colnames(p_val_mat) = rownames(p_val_mat)
+  log_p_val_mat = log1p(p_val_mat)
+}
+  
