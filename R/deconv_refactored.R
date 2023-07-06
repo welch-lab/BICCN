@@ -2112,7 +2112,7 @@ wasserstein_test  = function(
     clusters.from.atlas = TRUE,
     naive.clusters = FALSE,
     cell.size = FALSE,
-    mat.use = "proportions",#raw, proportions, or assignment
+    mat.use = "proportions"#raw, proportions, or assignment
 ){
   set.seed(rand.seed)
   library(transport)
