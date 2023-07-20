@@ -1015,7 +1015,7 @@ generate_loading_gifs = function(
       colors_view = (assignments == cell_type)*20 + 1
       try(rgl.close(), silent = TRUE)
       open3d(windowRect = c(0,0, dims[1], dims[2]));
-      plot3d(coords[,1],coords[,2],coords[,3],col = colors_view,aspect=c(67,41,58),xlab="Anterior-Posterior",ylab="Inferior-Superior",zlab="Left-Right",size=1, type = "p", add = TRUE)
+      plot3d(coords[,1],coords[,2],coords[,3],col = colors_view,aspect=c(67,41,58),xlab="Anterior-Posterior",ylab="Inferior-Superior",zlab="Left-Right",size=5, type = "p", add = TRUE)
       decorate3d(xlab = colnames(coords)[1], ylab = colnames(coords)[2],zlab = colnames(coords)[3], box = FALSE, axes = FALSE)
       axes3d(c("x--","y--","z--"))#axes3d(c("x--","y--","z--"))
       movie3d(spin3d(axis = c(0, 0, 1)), duration = 20, movie = paste0(dir_gifs, "/", region, "_",cell_type_consistent,"_spatial_summary_",descriptor))
@@ -1059,7 +1059,7 @@ generate_label_gifs = function(
     }
     try(rgl.close(), silent = TRUE)
     open3d(windowRect = c(0,0, dims[1], dims[2]));
-    plot3d(coords[,1],coords[,2],coords[,3],col = colors_view,aspect=c(67,41,58),xlab="Anterior-Posterior",ylab="Inferior-Superior",zlab="Left-Right",size=1, type = "p", add = TRUE)
+    plot3d(coords[,1],coords[,2],coords[,3],col = colors_view,aspect=c(67,41,58),xlab="Anterior-Posterior",ylab="Inferior-Superior",zlab="Left-Right",size=5, type = "p", add = TRUE)
     decorate3d(xlab = colnames(coords)[1], ylab = colnames(coords)[2],zlab = colnames(coords)[3], box = FALSE, axes = FALSE)
     axes3d(c("x--","y--","z--"))#axes3d(c("x--","y--","z--"))
     label_unique = sub("/", ".",sub(" ", "_",label_unique))
