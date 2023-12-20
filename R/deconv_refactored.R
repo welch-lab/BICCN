@@ -864,13 +864,13 @@ voxelize_single_cells = function(
   
   spatial.data = readRDS(paste0(dir_spatial,"/",spatial.data.name,"_exp.RDS"))
   coords = readRDS(paste0(dir_spatial,"/",spatial.data.name,"_coords.RDS"))
-
+  spatial.data = spatial.data[,rownames(coords)]
 
   minmax = apply(coords, MARGIN = 2, function(x){round(range(x),-1)})
   ranges = apply(minmax, MARGIN = 2, function(y){return(y[2]-y[1])})
 
   coords_adjusted = sapply(1:3, function(i){
-    coords[,i] = voxel.size*round(coords[,i]/voxel.size)
+    coords[,i] = voxel.size*floor(coords[,i]/voxel.size)
   })
   colnames(coords_adjusted) = colnames(coords)
 
