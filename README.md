@@ -113,7 +113,7 @@ The HDF5 library is required for implementing online learning in LIGER on data f
 For Windows, the latest HDF5 1.12.0 is available at https://www.hdfgroup.org/downloads/hdf5/.
 
 
-#Additional Packages Used
+## Additional Packages Used
 magrittr 2.0.3
 varhandle 2.0.5
 sjmisc 2.8.9
