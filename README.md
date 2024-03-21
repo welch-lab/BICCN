@@ -2,9 +2,21 @@
 The goal of the BICCN Github repository is to 
 
 
-The datasets have been made publicly available at LINKforNEMO.
-The algorithm used for data integration is online iNMF, detailed in the publication ####. 
-To download online iNMF, 
+The datasets have been made publicly available at [NeMO Analytics](https://nemoanalytics.org//index.html?layout_id=0ac93ed4&gene_symbol_exact_match=1LINKforNEMO).
+The algorithm used for data integration is online iNMF, detailed in the publication [Iterative single-cell multi-omic integration using online learning](https://www.nature.com/articles/s41587-021-00867-x).
+
+
+
+3. Demo
+Instructions to run on data
+Expected output
+Expected run time for demo on a "normal" desktop computer
+4. Instructions for use
+How to run the software on your data
+(OPTIONAL) Reproduction instructions
+
+Compiled standalone software and/or source code
+A small (simulated or real) dataset to demo the software/code
 A README file that includes:
 1. System requirements
 All software dependencies and operating systems (including version numbers)
@@ -14,14 +26,11 @@ Any required non-standard hardware
 Instructions
 Typical install time on a "normal" desktop computer
 3. Demo
-
 Instructions to run on data
 Expected output
 Expected run time for demo on a "normal" desktop computer
 4. Instructions for use
 How to run the software on your data
-(OPTIONAL) Reproduction instructions
-
 
 
 
@@ -29,13 +38,7 @@ Repository to elicite reproducable workflows for the BICCN project
 
 
 
-Compiled standalone software and/or source code
-A small (simulated or real) dataset to demo the software/code
-A README file that includes:
-1. System requirements
-All software dependencies and operating systems (including version numbers)
-Versions the software has been tested on
-Any required non-standard hardware
+
 2. Installation guide
 Instructions
 Typical install time on a "normal" desktop computer
@@ -126,3 +129,12 @@ The HDF5 library is required for implementing online learning in LIGER on data f
 |**Systems supporting yum and RPMs**        | `sudo yum install hdf5-devel`
 
 For Windows, the latest HDF5 1.12.0 is available at https://www.hdfgroup.org/downloads/hdf5/.
+
+
+
+
+
+
+
+
+
