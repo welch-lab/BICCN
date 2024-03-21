@@ -3,7 +3,7 @@ The goal of the BICCN Github repository is to
 
 
 The datasets have been made publicly available at [NeMO Analytics](https://nemoanalytics.org//index.html?layout_id=0ac93ed4&gene_symbol_exact_match=1LINKforNEMO).
-The algorithm used for data integration is online iNMF, detailed in the publication [Iterative single-cell multi-omic integration using online learning](https://www.nature.com/articles/s41587-021-00867-x).
+The algorithm used for data integration is online iNMF, detailed in the publication [Iterative single-cell multi-omic integration using online learning](https://www.nature.com/articles/s41587-021-00867-x). 
 
 
 
@@ -14,24 +14,6 @@ Expected run time for demo on a "normal" desktop computer
 4. Instructions for use
 How to run the software on your data
 (OPTIONAL) Reproduction instructions
-
-Compiled standalone software and/or source code
-A small (simulated or real) dataset to demo the software/code
-A README file that includes:
-1. System requirements
-All software dependencies and operating systems (including version numbers)
-Versions the software has been tested on
-Any required non-standard hardware
-2. Installation guide
-Instructions
-Typical install time on a "normal" desktop computer
-3. Demo
-Instructions to run on data
-Expected output
-Expected run time for demo on a "normal" desktop computer
-4. Instructions for use
-How to run the software on your data
-
 
 
 Repository to elicite reproducable workflows for the BICCN project
@@ -131,9 +113,26 @@ The HDF5 library is required for implementing online learning in LIGER on data f
 For Windows, the latest HDF5 1.12.0 is available at https://www.hdfgroup.org/downloads/hdf5/.
 
 
+#Additional Packages Used
+magrittr 2.0.3
+varhandle 2.0.5
+sjmisc 2.8.9
+stringr 1.5.0
+edgeR 3.38.4
+openxlsx 4.2.5
+devtools 2.4.4
+scrattch.hicat 1.0.0
+RANN 2.6.1
+ggplot2 3.4.2
+dplyr 1.1.2
+tidyr 1.3.0
+reshape 0.8.9
+rgl 1.1.3
+gridExtra 2.3
+data.table 1.14.8
 
 
-
+      
 
 
 
