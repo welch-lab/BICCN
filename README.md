@@ -83,7 +83,7 @@ The HDF5 library is required for implementing online learning in LIGER on data f
 For Windows, the latest HDF5 1.12.0 is available at https://www.hdfgroup.org/downloads/hdf5/.
 
 # Demo
-A vignette of online iNMF can found at * [Iterative Single-Cell Multi-Omic Integration Using Online iNMF](http://htmlpreview.github.io/?https://github.com/welch-lab/liger/blob/master/vignettes/online_iNMF_tutorial.html).
+A vignette of online iNMF can found at [Iterative Single-Cell Multi-Omic Integration Using Online iNMF](http://htmlpreview.github.io/?https://github.com/welch-lab/liger/blob/master/vignettes/online_iNMF_tutorial.html).
 
 To reproduce our results, please use the parameters provided in the supplementary materials of our submitted manuscript. The result of the BICCN pipeline is the datasets integrated and clustered. Run time is a direct product of the number of cells integrated.
 
