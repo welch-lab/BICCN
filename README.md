@@ -2,7 +2,7 @@
 The goal of the BICCN Github repository is to facilitate reproducible dataset integrations for many analyses, standardizing the integration workflow across anatomical regions and major cell classes.
 
 The datasets have been made publicly available at [NeMO Analytics](https://nemoanalytics.org//index.html?layout_id=0ac93ed4&gene_symbol_exact_match=1LINKforNEMO).
-The algorithm used for data integration is online iNMF, detailed in the publication [Iterative single-cell multi-omic integration using online learning](https://www.nature.com/articles/s41587-021-00867-x). 
+The algorithm used for data integration is online iNMF, detailed in the publication [Iterative single-cell multi-omic integration using online learning](https://www.nature.com/articles/s41587-021-00867-x). We perform all analysis with rliger1.0.0.
 
 ## System Requirements
 
@@ -25,7 +25,7 @@ Before setting up the `rliger` package, users should have R version 3.4.0 or hig
 
 ## Installation
 
-LIGER is written in R and is also available on the Comprehensive R Archive Network (CRAN). Note that the package name is `rliger` to avoid a naming conflict with an unrelated package.  It takes ~15–30 min to install the LIGER toolbox. To install the version on CRAN, follow these instructions:
+LIGER is written in R and is also available on the Comprehensive R Archive Network (CRAN). Note that the package name is `rliger` to avoid a naming conflict with an unrelated package. The installation time for the LIGER toolbox is ~15–30 min. To install the version on CRAN, follow these instructions:
 
 1. Install [R](https://www.r-project.org/)  (>= 3.6)
 2. Install [Rstudio](https://posit.co/download/rstudio-desktop/) (recommended)
