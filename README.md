@@ -1,38 +1,8 @@
 # BICCN
-The goal of the BICCN Github repository is to 
-
+The goal of the BICCN Github repository is to facilitate reproducible dataset integrations for many analyses, standardizing the integration workflow across anatomical regions and major cell classes.
 
 The datasets have been made publicly available at [NeMO Analytics](https://nemoanalytics.org//index.html?layout_id=0ac93ed4&gene_symbol_exact_match=1LINKforNEMO).
 The algorithm used for data integration is online iNMF, detailed in the publication [Iterative single-cell multi-omic integration using online learning](https://www.nature.com/articles/s41587-021-00867-x). 
-
-
-
-3. Demo
-Instructions to run on data
-Expected output
-Expected run time for demo on a "normal" desktop computer
-4. Instructions for use
-How to run the software on your data
-(OPTIONAL) Reproduction instructions
-
-
-Repository to elicite reproducable workflows for the BICCN project
-
-
-
-
-2. Installation guide
-Instructions
-Typical install time on a "normal" desktop computer
-3. Demo
-Instructions to run on data
-Expected output
-Expected run time for demo on a "normal" desktop computer
-4. Instructions for use
-How to run the software on your data
-(OPTIONAL) Reproduction instructions
-
-
 
 ## System Requirements
 
@@ -55,7 +25,7 @@ Before setting up the `rliger` package, users should have R version 3.4.0 or hig
 
 ## Installation
 
-LIGER is written in R and is also available on the Comprehensive R Archive Network (CRAN). Note that the package name is `rliger` to avoid a naming conflict with an unrelated package. To install the version on CRAN, follow these instructions:
+LIGER is written in R and is also available on the Comprehensive R Archive Network (CRAN). Note that the package name is `rliger` to avoid a naming conflict with an unrelated package.  It takes ~15–30 min to install the LIGER toolbox. To install the version on CRAN, follow these instructions:
 
 1. Install [R](https://www.r-project.org/)  (>= 3.6)
 2. Install [Rstudio](https://posit.co/download/rstudio-desktop/) (recommended)
@@ -112,6 +82,10 @@ The HDF5 library is required for implementing online learning in LIGER on data f
 
 For Windows, the latest HDF5 1.12.0 is available at https://www.hdfgroup.org/downloads/hdf5/.
 
+# Demo
+A vignette of online iNMF can found at * [Iterative Single-Cell Multi-Omic Integration Using Online iNMF](http://htmlpreview.github.io/?https://github.com/welch-lab/liger/blob/master/vignettes/online_iNMF_tutorial.html).
+
+To reproduce our results, please use the parameters provided in the supplementary materials of our submitted manuscript. The result of the BICCN pipeline is the datasets integrated and clustered. Run time is a direct product of the number of cells integrated.
 
 ## Additional Packages Used
 magrittr 2.0.3
